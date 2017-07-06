@@ -21,7 +21,7 @@ import legion
 import psana
 
 @legion.task
-def analyze(ctx, nevent, time):
+def analyze(nevent, time):
     ds = psana.DataSource("exp=xpptut15:run=54:idx")
     det = psana.Detector("cspad")
     run = ds.runs().next()
@@ -29,7 +29,7 @@ def analyze(ctx, nevent, time):
     event = run.event(time)
     print(event.get(psana.EventId))
 
-    print('%x' % legion.c.legion_runtime_get_executing_processor(ctx.runtime, ctx.context).id)
+    print('%x' % legion.c.legion_runtime_get_executing_processor(legion._my.ctx.runtime, legion._my.ctx.context).id)
 
     det.raw(event) # fetches the data
     det.calib(event) # calibrates the data
@@ -38,7 +38,7 @@ def analyze(ctx, nevent, time):
 # Define the main Python task. This task is called from C++. See
 # top_level_task in psana_legion.cc.
 @legion.task
-def main_task(ctx):
+def main_task():
     ds = psana.DataSource("exp=xpptut15:run=54:idx")
     det = psana.Detector("cspad")
     # evt = ds.events().next()
@@ -48,7 +48,7 @@ def main_task(ctx):
     for nevent, time in enumerate(times):
         # event = run.event(time)
         # print(event.get(psana.EventId))
-        analyze(ctx, nevent, time)
+        analyze(nevent, time)
         if nevent > 10: break
 
 # TODO 2: fetch small data and filter
