@@ -36,7 +36,7 @@ def analyze(ctx, nevent, time):
     # TODO: try to overlap fetch and calibrate
 
 # Define the main Python task. This task is called from C++. See
-# top_level_task in python_iterop.cc.
+# top_level_task in psana_legion.cc.
 @legion.task
 def main_task(ctx):
     ds = psana.DataSource("exp=xpptut15:run=54:idx")

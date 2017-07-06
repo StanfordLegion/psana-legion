@@ -96,7 +96,7 @@ int main(int argc, char **argv)
     setenv("PYTHONPATH", PYTHON_MODULES_PATH, true /*overwrite*/);
   }
 
-  Realm::Python::PythonModule::import_python_module("python_interop");
+  Realm::Python::PythonModule::import_python_module("psana_legion");
 
   {
     TaskVariantRegistrar registrar(TOP_LEVEL_TASK_ID, "top_level_task");
@@ -113,7 +113,7 @@ int main(int argc, char **argv)
   {
     TaskVariantRegistrar registrar(MAIN_TASK_ID, "main_task");
     registrar.add_constraint(ProcessorConstraint(Processor::PY_PROC));
-    preregister_python_task_variant(registrar, "python_interop", "main_task");
+    preregister_python_task_variant(registrar, "psana_legion", "main_task");
   }
 
   Runtime::set_top_level_task_id(TOP_LEVEL_TASK_ID);
