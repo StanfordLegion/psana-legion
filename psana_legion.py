@@ -38,11 +38,11 @@ def fetch(time):
     metadata = {'time': time}
     return region, metadata
 
-@legion.task(privileges=[legion.RW])
+@legion.task(privileges=[legion.RW], leaf=True)
 def process(region, metadata):
     print(region.raw.sum())
 
-@legion.task
+@legion.task(inner=True)
 def analyze(time):
     region, metadata = fetch(time).get()
     process(region, metadata)
@@ -55,7 +55,7 @@ def predicate(time):
 
 # Define the main Python task. This task is called from C++. See
 # top_level_task in psana_legion.cc.
-@legion.task
+@legion.task(inner=True)
 def main_task():
     times = run.times()
     blocksize = 10
