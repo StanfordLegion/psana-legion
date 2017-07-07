@@ -18,6 +18,7 @@
 from __future__ import print_function
 
 import legion
+import numpy
 import psana
 
 # These are initialized on every core at the beginning of time.
@@ -31,8 +32,8 @@ def fetch(time):
     raw = det.raw(event)
     region = legion.Region.create(
         raw.shape,
-        {'raw': legion.u16, 'calib': legion.f32})
-    # region.raw.copy(raw) # FIXME: Need inline mapping.
+        {'raw': legion.int16, 'calib': legion.float32})
+    numpy.copyto(region.raw, raw, casting='no')
 
     metadata = {'time': time}
     return region, metadata
