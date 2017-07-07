@@ -60,7 +60,7 @@ def main_task():
     times = run.times()
     blocksize = 10
     nevents = 10 # len(times)
-    for start idxn xrange(0, nevents, blocksize):
+    for start in xrange(0, nevents, blocksize):
         stop = min(start + blocksize, nevents)
         for idx in xrange(start, stop):
             # small = fetch_small(times[idx]) # TODO: Fetch small data.
