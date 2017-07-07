@@ -43,14 +43,14 @@ def process(region, metadata):
     print(region.raw.sum())
 
 @legion.task
-def analyze(nevent, time):
+def analyze(time):
     region, metadata = fetch(time).get()
     process(region, metadata)
     region.destroy()
 
 # This is so short it's not worth running as a task.
 # @legion.task
-def predicate(nevent, time):
+def predicate(time):
     return True
 
 # Define the main Python task. This task is called from C++. See
@@ -60,9 +60,9 @@ def main_task():
     times = run.times()
     blocksize = 10
     nevents = 10 # len(times)
-    for start in xrange(0, nevents, blocksize):
+    for start idxn xrange(0, nevents, blocksize):
         stop = min(start + blocksize, nevents)
-        for nevent in xrange(start, stop):
-            # small = fetch_small(times[nevent]) # TODO: Fetch small data.
-            if predicate(nevent, times[nevent]):
-                analyze(nevent, times[nevent])
+        for idx in xrange(start, stop):
+            # small = fetch_small(times[idx]) # TODO: Fetch small data.
+            if predicate(times[idx]):
+                analyze(times[idx])
