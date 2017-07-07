@@ -20,6 +20,7 @@ from __future__ import print_function
 import legion
 import psana
 
+# These are initialized on every core at the beginning of time.
 ds = psana.DataSource("exp=xpptut15:run=54:idx")
 det = psana.Detector("cspad")
 run = ds.runs().next()
@@ -28,25 +29,25 @@ run = ds.runs().next()
 def fetch(time):
     event = run.event(time) # Fetches the data
     raw = det.raw(event)
-    # ispace = legion.Ispace(raw.shape)
-    # fspace = legion.Fspace({'raw': legion.u16, 'calib': legion.f32})
-    # region = legion.Region(ispace, fspace)
-    # region.raw.copy(raw)
-    region = None
+    region = legion.Region.create(
+        raw.shape,
+        {'raw': legion.u16, 'calib': legion.f32})
+    # region.raw.copy(raw) # FIXME: Need inline mapping.
 
     metadata = {'time': time}
-    return metadata, region
+    return region, metadata
 
 @legion.task(privileges=[legion.RW])
-def process(metadata, region):
-    # print(region.raw.sum())
-    pass
+def process(region, metadata):
+    print(region.raw.sum())
 
 @legion.task
 def analyze(nevent, time):
-    metadata, region = fetch(time).get()
-    process(metadata, region)
+    region, metadata = fetch(time).get()
+    process(region, metadata)
+    region.destroy()
 
+# This is so short it's not worth running as a task.
 # @legion.task
 def predicate(nevent, time):
     return True
@@ -55,19 +56,12 @@ def predicate(nevent, time):
 # top_level_task in psana_legion.cc.
 @legion.task
 def main_task():
-    ds = psana.DataSource("exp=xpptut15:run=54:idx")
-    det = psana.Detector("cspad")
-    # evt = ds.events().next()
-    # print(det.raw(evt))
-    run = ds.runs().next()
     times = run.times()
     blocksize = 10
-    for start in xrange(1): #xrange(0, len(times), blocksize):
-        stop = min(start + blocksize, len(times))
-        # print('block %s %s' % (start, stop))
+    nevents = 10 # len(times)
+    for start in xrange(0, nevents, blocksize):
+        stop = min(start + blocksize, nevents)
         for nevent in xrange(start, stop):
+            # small = fetch_small(times[nevent]) # TODO: Fetch small data.
             if predicate(nevent, times[nevent]):
-                # print('  idx %s' % nevent)
                 analyze(nevent, times[nevent])
-
-# TODO 2: fetch small data and filter
