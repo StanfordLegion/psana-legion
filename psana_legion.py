@@ -45,10 +45,7 @@ def main_task():
     # print(det.raw(evt))
     run = ds.runs().next()
     times = run.times()
-    for nevent, time in enumerate(times):
-        # event = run.event(time)
-        # print(event.get(psana.EventId))
-        analyze(nevent, time)
-        if nevent > 10: break
+    for nevent in legion.IndexLaunch([10]): # Just take the first 10 for now
+        analyze(nevent, times[nevent])
 
 # TODO 2: fetch small data and filter
