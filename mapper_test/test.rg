@@ -14,6 +14,8 @@
 
 import "regent"
 
+local cmapper = require("build_mapper")
+
 local c = regentlib.c
 
 struct elt { x : int }
@@ -42,10 +44,9 @@ task main()
 
   for launch_offset = 0, nevents_total, nevents_per_launch do
     __demand(__parallel)
-    for index = 0, nevents_per_launch do
+    for index = 0, min(nevents_per_launch, nevents_total - launch_offset) do
       fetch_and_analyze(launch_offset + index)
     end
   end
 end
-regentlib.start(main)
-
+regentlib.start(main, cmapper.register_mappers)
