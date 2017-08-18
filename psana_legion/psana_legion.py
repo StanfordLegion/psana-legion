@@ -45,24 +45,28 @@ class Location(object):
 @legion.task
 def fetch(loc):
     print('fetch', loc)
+
     global calib_filename, calib_offset
     if calib_filename != loc.calib_filename or calib_offset != loc.calib_offset:
         ds.jump(loc.calib_filename, loc.calib_offset)
         calib_filename = loc.calib_filename
         calib_offset = loc.calib_offset
+
     event = ds.jump(loc.filenames, loc.offsets) # Fetches the data
     raw = det.raw(event)
+    calib = det.calib(event) # Calibrate the data
     region = legion.Region.create(
         raw.shape,
         {'raw': legion.int16, 'calib': legion.float32})
     numpy.copyto(region.raw, raw, casting='no')
+    numpy.copyto(region.calib, calib, casting='no')
 
     return region
 
 @legion.task(privileges=[None, legion.RW], leaf=True)
 def process(loc, region):
     print('process', loc)
-    print(region.raw.sum())
+    print(region.raw.sum(), region.calib.sum())
 
 @legion.task(inner=True)
 def analyze(loc):
