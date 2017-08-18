@@ -55,6 +55,7 @@ def fetch(loc):
     event = ds.jump(loc.filenames, loc.offsets) # Fetches the data
     raw = det.raw(event)
     calib = det.calib(event) # Calibrate the data
+    assert raw.shape == calib.shape
     region = legion.Region.create(
         raw.shape,
         {'raw': legion.int16, 'calib': legion.float32})
