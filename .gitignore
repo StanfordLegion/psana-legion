@@ -8,5 +8,3 @@ core
 *.pyc
 *.swp
 *.log
-
-/psana_legion
