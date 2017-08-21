@@ -95,6 +95,8 @@ def main_task():
 
     chunksize = 10
     for events in chunk(itertools.ifilter(predicate, ds2.events()), chunksize):
-        for event in events: # TODO: Index launch
-            analyze(Location(event))
+        # for event in events:
+        #     analyze(Location(event))
+        for idx in legion.IndexLaunch([len(events)]):
+            analyze(Location(events[idx]))
         break
