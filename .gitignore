@@ -4,6 +4,7 @@
 .DS_Store
 *.a
 *.o
+*.so
 core
 *.pyc
 *.swp

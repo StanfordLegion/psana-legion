@@ -29,10 +29,10 @@ ALT_MAPPERS     ?= 0		# Include alternative mappers (not recommended)
 
 USE_PYTHON := 1
 
-# Put the binary file name here
-OUTFILE		?= psana_legion
+# Hack: Create a dynamic library here so that Legion can be linked independently
+OUTFILE		?= libpsana_legion.so
 # List all the application source files here
-GEN_SRC		?= psana_legion.cc		# .cc files
+GEN_SRC		?=		# .cc files
 GEN_GPU_SRC	?=		# .cu files
 
 # You can modify these variables, some will be appended to by the runtime makefile
@@ -42,11 +42,30 @@ NVCC_FLAGS	?=
 GASNET_FLAGS	?=
 LD_FLAGS	?=
 
+CC_FLAGS += -fPIC
+ifeq ($(shell uname), Darwin)
+	LD_FLAGS += -dynamiclib -single_module -undefined dynamic_lookup -fPIC
+else
+	LD_FLAGS += -shared
+endif
+
 ifeq ($(shell uname), Darwin)
 	LD_FLAGS += -Wl,-force_load,liblegion.a
 else
 	LD_FLAGS += -Wl,--whole-archive -llegion -Wl,--no-whole-archive
 endif
+
+# Hack: Create the real binary
+REAL_OUTFILE ?= psana_legion
+REAL_GEN_OBJ ?= psana_legion.o
+.PHONY: all
+all: $(OUTFILE) $(REAL_OUTFILE)
+$(REAL_GEN_OBJ) : %.o : %.cc
+	$(CXX) -o $@ -c $< $(CC_FLAGS) $(INC_FLAGS)
+$(REAL_OUTFILE) : $(REAL_GEN_OBJ) $(OUTFILE)
+	@echo "---> Linking objects into one binary: $(REAL_OUTFILE)"
+	$(CXX) -o $(REAL_OUTFILE) $(REAL_GEN_OBJ) -L. -lpsana_legion
+
 
 ###########################################################################
 #
@@ -55,4 +74,3 @@ endif
 ###########################################################################
 
 include $(LG_RT_DIR)/runtime.mk
-
