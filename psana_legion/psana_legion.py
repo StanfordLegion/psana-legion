@@ -41,7 +41,6 @@ class Location(object):
     def __repr__(self):
         return 'Location(%s, %s)' % (self.offsets, self.filenames)
 
-@legion.task
 def fetch(loc):
     print('fetch', loc)
 
@@ -54,28 +53,18 @@ def fetch(loc):
         ds.jump(loc_calib_info[0], loc_calib_info[1], runtime, ctx)
         calib_info = loc_calib_info
 
-    event = ds.jump(loc.filenames, loc.offsets, runtime, ctx) # Fetches the data
+    return ds.jump(loc.filenames, loc.offsets, runtime, ctx) # Fetches the data
+
+def process(event):
+    print('process', event)
     raw = det.raw(event)
     calib = det.calib(event) # Calibrate the data
-    assert raw.shape == calib.shape
-    region = legion.Region.create(
-        raw.shape,
-        {'raw': legion.int16, 'calib': legion.float32})
-    numpy.copyto(region.raw, raw, casting='no')
-    numpy.copyto(region.calib, calib, casting='no')
+    print(raw.sum(), calib.sum())
 
-    return region
-
-@legion.task(privileges=[None, legion.RW], leaf=True)
-def process(loc, region):
-    print('process', loc)
-    print(region.raw.sum(), region.calib.sum())
-
-@legion.task(inner=True)
+@legion.task
 def analyze(loc):
-    region = fetch(loc).get()
-    process(loc, region)
-    region.destroy()
+    event = fetch(loc)
+    process(event)
 
 # This is so short it's not worth running as a task.
 # @legion.task
