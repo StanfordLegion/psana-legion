@@ -46,13 +46,16 @@ class Location(object):
 def fetch(loc):
     print('fetch', loc)
 
+    runtime = long(legion.ffi.cast("unsigned long long", legion._my.ctx.runtime_root))
+    ctx = long(legion.ffi.cast("unsigned long long", legion._my.ctx.context_root))
+
     global calib_filename, calib_offset
     if calib_filename != loc.calib_filename or calib_offset != loc.calib_offset:
-        ds.jump(loc.calib_filename, loc.calib_offset)
+        ds.jump(loc.calib_filename, loc.calib_offset, runtime, ctx)
         calib_filename = loc.calib_filename
         calib_offset = loc.calib_offset
 
-    event = ds.jump(loc.filenames, loc.offsets) # Fetches the data
+    event = ds.jump(loc.filenames, loc.offsets, runtime, ctx) # Fetches the data
     raw = det.raw(event)
     calib = det.calib(event) # Calibrate the data
     assert raw.shape == calib.shape
