@@ -27,8 +27,7 @@ run_number = 54
 # These are initialized on every core at the beginning of time.
 ds = psana.DataSource('exp=xpptut15:run=%s:rax' % run_number)
 det = psana.Detector('cspad', ds.env())
-calib_filename = None
-calib_offset = None
+calib = None
 
 class Location(object):
     __slots__ = ['filenames', 'offsets',
@@ -49,11 +48,11 @@ def fetch(loc):
     runtime = long(legion.ffi.cast("unsigned long long", legion._my.ctx.runtime_root))
     ctx = long(legion.ffi.cast("unsigned long long", legion._my.ctx.context_root))
 
-    global calib_filename, calib_offset
-    if calib_filename != loc.calib_filename or calib_offset != loc.calib_offset:
-        ds.jump(loc.calib_filename, loc.calib_offset, runtime, ctx)
-        calib_filename = loc.calib_filename
-        calib_offset = loc.calib_offset
+    loc_calib = loc.calib_filename, loc.calib_offset
+    global calib
+    if calib != loc_calib:
+        ds.jump(loc_calib[0], loc_calib[1], runtime, ctx)
+        calib = loc_calib
 
     event = ds.jump(loc.filenames, loc.offsets, runtime, ctx) # Fetches the data
     raw = det.raw(event)
