@@ -30,14 +30,6 @@ run_number = 54
 # These are initialized on every core at the beginning of time.
 ds = psana.DataSource('exp=xpptut15:run=%s:rax' % run_number)
 
-# User configurable analysis and filter predicate.
-_analysis = None
-_predicate = None
-def start(a, p = None):
-    global _analysis, _predicate
-    _analysis = a
-    _predicate = p
-
 class Location(object):
     __slots__ = ['filenames', 'offsets',
                  'calib_filename', 'calib_offset']
@@ -49,6 +41,17 @@ class Location(object):
         self.calib_offset = offset.lastBeginCalibCycleOffset()
     def __repr__(self):
         return 'Location(%s, %s)' % (self.offsets, self.filenames)
+
+# User configurable analysis and filter predicate.
+class Config(object):
+    __slots__ = ['analysis', 'predicate']
+    def __init__(self):
+        self.analysis = None
+        self.predicate = None
+_config = Config()
+def start(analysis, predicate=None):
+    _config.analysis = analysis
+    _config.predicate = predicate
 
 _calib = None # Track last calib cycle as a global, jump only on change
 
@@ -66,7 +69,7 @@ def analyze_leaf(loc):
         _calib = loc_calib
 
     event = ds.jump(loc.filenames, loc.offsets, runtime, ctx) # Fetches the data
-    _analysis(event) # Performs user analysis
+    _config.analysis(event) # Performs user analysis
     return True
 
 # FIXME: This extra indirection (with a blocking call) is to work around a freeze
@@ -85,13 +88,13 @@ def chunk(iterable, chunksize):
 # top_level_task in psana_legion.cc.
 @legion.task(inner=True)
 def main_task():
-    assert _analysis is not None
-    assert _predicate is not None
+    assert _config.analysis is not None
+    assert _config.predicate is not None
 
     ds2 = psana.DataSource('exp=xpptut15:run=%s:smd' % run_number)
 
     chunksize = 10
-    for i, events in enumerate(chunk(itertools.ifilter(_predicate, ds2.events()), chunksize)):
+    for i, events in enumerate(chunk(itertools.ifilter(_config.predicate, ds2.events()), chunksize)):
         for event in events:
             analyze(Location(event))
         # for idx in legion.IndexLaunch([len(events)]):
