@@ -62,9 +62,14 @@ def process(event):
     print(raw.sum(), calib.sum())
 
 @legion.task
-def analyze(loc):
+def analyze_leaf(loc):
     event = fetch(loc)
     process(event)
+    return True
+
+@legion.task(inner=True)
+def analyze(loc):
+    analyze_leaf(loc).get()
 
 # This is so short it's not worth running as a task.
 # @legion.task
