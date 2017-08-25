@@ -96,7 +96,7 @@ int main(int argc, char **argv)
     setenv("PYTHONPATH", PYTHON_MODULES_PATH, true /*overwrite*/);
   }
 
-  Realm::Python::PythonModule::import_python_module("psana_legion");
+  Realm::Python::PythonModule::import_python_module("user");
 
   {
     TaskVariantRegistrar registrar(TOP_LEVEL_TASK_ID, "top_level_task");

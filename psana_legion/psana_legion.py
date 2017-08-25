@@ -26,8 +26,15 @@ run_number = 54
 
 # These are initialized on every core at the beginning of time.
 ds = psana.DataSource('exp=xpptut15:run=%s:rax' % run_number)
-det = psana.Detector('cspad', ds.env())
-calib_info = None
+calib = None
+
+# User configurable analysis and filter predicate.
+analysis = None
+predicate = None
+def start(a, p = None):
+    global analysis, predicate
+    analysis = a
+    predicate = p
 
 class Location(object):
     __slots__ = ['filenames', 'offsets',
@@ -41,40 +48,27 @@ class Location(object):
     def __repr__(self):
         return 'Location(%s, %s)' % (self.offsets, self.filenames)
 
-def fetch(loc):
+@legion.task
+def analyze_leaf(loc):
     print('fetch', loc)
 
     runtime = long(legion.ffi.cast("unsigned long long", legion._my.ctx.runtime_root))
     ctx = long(legion.ffi.cast("unsigned long long", legion._my.ctx.context_root))
 
-    loc_calib_info = loc.calib_filename, loc.calib_offset
-    global calib_info
-    if calib_info != loc_calib_info:
-        ds.jump(loc_calib_info[0], loc_calib_info[1], runtime, ctx)
-        calib_info = loc_calib_info
+    loc_calib = loc.calib_filename, loc.calib_offset
+    global calib
+    if calib != loc_calib:
+        ds.jump(loc_calib[0], loc_calib[1], runtime, ctx)
+        calib = loc_calib
 
-    return ds.jump(loc.filenames, loc.offsets, runtime, ctx) # Fetches the data
-
-def process(event):
-    print('process', event)
-    raw = det.raw(event)
-    calib = det.calib(event) # Calibrate the data
-    print(raw.sum(), calib.sum())
-
-@legion.task
-def analyze_leaf(loc):
-    event = fetch(loc)
-    process(event)
+    event = ds.jump(loc.filenames, loc.offsets, runtime, ctx) # Fetches the data
+    analysis(event) # Performs user analysis
     return True
 
+# FIXME: This extra indirection (with a blocking call) is to work around a freeze
 @legion.task(inner=True)
 def analyze(loc):
     analyze_leaf(loc).get()
-
-# This is so short it's not worth running as a task.
-# @legion.task
-def predicate(event):
-    return True
 
 def chunk(iterable, chunksize):
     it = iter(iterable)
@@ -87,6 +81,9 @@ def chunk(iterable, chunksize):
 # top_level_task in psana_legion.cc.
 @legion.task(inner=True)
 def main_task():
+    assert analysis is not None
+    assert predicate is not None
+
     ds2 = psana.DataSource('exp=xpptut15:run=%s:smd' % run_number)
 
     chunksize = 10
