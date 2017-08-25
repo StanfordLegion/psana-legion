@@ -24,17 +24,19 @@ import psana
 
 run_number = 54
 
+# TODO: Add a LegionDataSource and have it wrap DataSource as appropriate
+# Also, start should be a method of LegionDataSource
+
 # These are initialized on every core at the beginning of time.
 ds = psana.DataSource('exp=xpptut15:run=%s:rax' % run_number)
-calib = None
 
 # User configurable analysis and filter predicate.
-analysis = None
-predicate = None
+_analysis = None
+_predicate = None
 def start(a, p = None):
-    global analysis, predicate
-    analysis = a
-    predicate = p
+    global _analysis, _predicate
+    _analysis = a
+    _predicate = p
 
 class Location(object):
     __slots__ = ['filenames', 'offsets',
@@ -48,6 +50,8 @@ class Location(object):
     def __repr__(self):
         return 'Location(%s, %s)' % (self.offsets, self.filenames)
 
+_calib = None # Track last calib cycle as a global, jump only on change
+
 @legion.task
 def analyze_leaf(loc):
     print('fetch', loc)
@@ -56,13 +60,13 @@ def analyze_leaf(loc):
     ctx = long(legion.ffi.cast("unsigned long long", legion._my.ctx.context_root))
 
     loc_calib = loc.calib_filename, loc.calib_offset
-    global calib
-    if calib != loc_calib:
+    global _calib
+    if _calib != loc_calib:
         ds.jump(loc_calib[0], loc_calib[1], runtime, ctx)
-        calib = loc_calib
+        _calib = loc_calib
 
     event = ds.jump(loc.filenames, loc.offsets, runtime, ctx) # Fetches the data
-    analysis(event) # Performs user analysis
+    _analysis(event) # Performs user analysis
     return True
 
 # FIXME: This extra indirection (with a blocking call) is to work around a freeze
@@ -81,15 +85,15 @@ def chunk(iterable, chunksize):
 # top_level_task in psana_legion.cc.
 @legion.task(inner=True)
 def main_task():
-    assert analysis is not None
-    assert predicate is not None
+    assert _analysis is not None
+    assert _predicate is not None
 
     ds2 = psana.DataSource('exp=xpptut15:run=%s:smd' % run_number)
 
     chunksize = 10
-    for events in chunk(itertools.ifilter(predicate, ds2.events()), chunksize):
+    for i, events in enumerate(chunk(itertools.ifilter(_predicate, ds2.events()), chunksize)):
         for event in events:
             analyze(Location(event))
         # for idx in legion.IndexLaunch([len(events)]):
         #     analyze(Location(events[idx]))
-        break
+        if i > 20: break
