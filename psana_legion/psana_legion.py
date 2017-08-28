@@ -24,11 +24,11 @@ import psana
 
 run_number = 54
 
+# TODO: Add a LegionDataSource and have it wrap DataSource as appropriate
+# Also, start should be a method of LegionDataSource
+
 # These are initialized on every core at the beginning of time.
 ds = psana.DataSource('exp=xpptut15:run=%s:rax' % run_number)
-det = psana.Detector('cspad', ds.env())
-calib_filename = None
-calib_offset = None
 
 class Location(object):
     __slots__ = ['filenames', 'offsets',
@@ -42,43 +42,40 @@ class Location(object):
     def __repr__(self):
         return 'Location(%s, %s)' % (self.offsets, self.filenames)
 
+# User configurable analysis and filter predicate.
+class Config(object):
+    __slots__ = ['analysis', 'predicate']
+    def __init__(self):
+        self.analysis = None
+        self.predicate = None
+_config = Config()
+def start(analysis, predicate=None):
+    _config.analysis = analysis
+    _config.predicate = predicate
+
+_calib = None # Track last calib cycle as a global, jump only on change
+
 @legion.task
-def fetch(loc):
+def analyze_leaf(loc):
     print('fetch', loc)
 
-    global calib_filename, calib_offset
-    if calib_filename != loc.calib_filename or calib_offset != loc.calib_offset:
-        ds.jump(loc.calib_filename, loc.calib_offset)
-        calib_filename = loc.calib_filename
-        calib_offset = loc.calib_offset
+    runtime = long(legion.ffi.cast("unsigned long long", legion._my.ctx.runtime_root))
+    ctx = long(legion.ffi.cast("unsigned long long", legion._my.ctx.context_root))
 
-    event = ds.jump(loc.filenames, loc.offsets) # Fetches the data
-    raw = det.raw(event)
-    calib = det.calib(event) # Calibrate the data
-    assert raw.shape == calib.shape
-    region = legion.Region.create(
-        raw.shape,
-        {'raw': legion.int16, 'calib': legion.float32})
-    numpy.copyto(region.raw, raw, casting='no')
-    numpy.copyto(region.calib, calib, casting='no')
+    loc_calib = loc.calib_filename, loc.calib_offset
+    global _calib
+    if _calib != loc_calib:
+        ds.jump(loc_calib[0], loc_calib[1], runtime, ctx)
+        _calib = loc_calib
 
-    return region
+    event = ds.jump(loc.filenames, loc.offsets, runtime, ctx) # Fetches the data
+    _config.analysis(event) # Performs user analysis
+    return True
 
-@legion.task(privileges=[None, legion.RW], leaf=True)
-def process(loc, region):
-    print('process', loc)
-    print(region.raw.sum(), region.calib.sum())
-
+# FIXME: This extra indirection (with a blocking call) is to work around a freeze
 @legion.task(inner=True)
 def analyze(loc):
-    region = fetch(loc).get()
-    process(loc, region)
-    region.destroy()
-
-# This is so short it's not worth running as a task.
-# @legion.task
-def predicate(event):
-    return True
+    analyze_leaf(loc).get()
 
 def chunk(iterable, chunksize):
     it = iter(iterable)
@@ -91,12 +88,15 @@ def chunk(iterable, chunksize):
 # top_level_task in psana_legion.cc.
 @legion.task(inner=True)
 def main_task():
+    assert _config.analysis is not None
+    assert _config.predicate is not None
+
     ds2 = psana.DataSource('exp=xpptut15:run=%s:smd' % run_number)
 
     chunksize = 10
-    for events in chunk(itertools.ifilter(predicate, ds2.events()), chunksize):
-        # for event in events:
-        #     analyze(Location(event))
-        for idx in legion.IndexLaunch([len(events)]):
-            analyze(Location(events[idx]))
-        break
+    for i, events in enumerate(chunk(itertools.ifilter(_config.predicate, ds2.events()), chunksize)):
+        for event in events:
+            analyze(Location(event))
+        # for idx in legion.IndexLaunch([len(events)]):
+        #     analyze(Location(events[idx]))
+        if i > 20: break
