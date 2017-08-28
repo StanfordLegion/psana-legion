@@ -55,6 +55,10 @@ else
 	LD_FLAGS += -Wl,--whole-archive -llegion -Wl,--no-whole-archive
 endif
 
+ifneq ($(CRAYPE_VERSION),)
+	REAL_LD_FLAGS += -dynamic
+endif
+
 # Hack: Create the real binary
 REAL_OUTFILE ?= psana_legion
 REAL_GEN_OBJ ?= psana_legion.o
@@ -64,7 +68,7 @@ $(REAL_GEN_OBJ) : %.o : %.cc
 	$(CXX) -o $@ -c $< $(CC_FLAGS) $(INC_FLAGS)
 $(REAL_OUTFILE) : $(REAL_GEN_OBJ) $(OUTFILE)
 	@echo "---> Linking objects into one binary: $(REAL_OUTFILE)"
-	$(CXX) -o $(REAL_OUTFILE) $(REAL_GEN_OBJ) -L. -lpsana_legion
+	$(CXX) -o $(REAL_OUTFILE) $(REAL_GEN_OBJ) $(REAL_LD_FLAGS) -L. -lpsana_legion
 
 
 ###########################################################################
