@@ -39,4 +39,5 @@ RUN curl -O https://repo.continuum.io/miniconda/Miniconda2-4.3.21-Linux-x86_64.s
       scons includes && \
       scons lib && \
     popd && \
+    conda uninstall --force mpich2 && \
     rm Miniconda2-4.3.21-Linux-x86_64.sh

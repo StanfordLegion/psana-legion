@@ -47,5 +47,6 @@ RUN git clone -b python https://github.com/StanfordLegion/legion.git /legion && 
       scons includes && \
       scons lib && \
     popd && \
+    conda uninstall --force mpich2 && \
     rm -rf /legion /psana-legion && \
     rm Miniconda2-4.3.21-Linux-x86_64.sh
