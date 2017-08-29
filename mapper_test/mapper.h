@@ -16,6 +16,7 @@
 #ifndef __MAPPER_H__
 #define __MAPPER_H__
 
+#include "legion_mapping.h"
 #include "default_mapper.h"
 
 #include <map>
@@ -67,6 +68,14 @@ private:
                 const Task&              task,
                 const MapTaskInput&      input,
                 MapTaskOutput&     output);
+  void select_task_options(const MapperContext    ctx,
+                           const Task&            task,
+                           TaskOptions&     output);
+  
+  const char* get_mapper_name(void) const { return "PsanaMapper"; }
+  MapperSyncModel get_mapper_sync_model(void) const {
+    return CONCURRENT_MAPPER_MODEL;
+  }
 };
 
 

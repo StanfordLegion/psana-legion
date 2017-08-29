@@ -32,13 +32,14 @@
  */
 
 //static const char* INPUT_TASK = "takeInput";
-static const char* WORKER_TASK = "doSomeWork";
+static const char* WORKER_TASK = "fetch_and_analyze";
 //static const char* STEAL_TASK = "stealWork";
 
 static const int NUM_INPUT_PROCS = 1;
 static const int NUM_TASK_POOL_PROCS = 2;
 static const int NUM_WORKER_PROCS = 999;
 
+static LegionRuntime::Logger::Category log_psana_mapper("psana_mapper");
 
 
 ///
@@ -46,7 +47,6 @@ static const int NUM_WORKER_PROCS = 999;
 ///
 
 
-const char* PsanaMapper::get_mapper_name(void) const{ return "PsanaMapper"; }
 
 PsanaMapper::PsanaMapper(MapperRuntime *rt, Machine machine, Processor local,
                          const char *mapper_name,
@@ -95,7 +95,7 @@ void PsanaMapper::categorizeProcessors()
     }
   }
   log_psana_mapper.spew("PsanaMapper categorized %d input, %d task pool, %d worker processors",
-                  num_input, num_task_pool, num_worker);
+                        num_input, num_task_pool, num_worker);
 }
 
 
@@ -172,7 +172,7 @@ void PsanaMapper::permit_steal_request(const MapperContext         ctx,
 {
   log_psana_mapper.spew("PsanaMapper permit_steal_request");
   
-  for(int i = 0; i < input.stealable_tasks.size(); ++i) {
+  for(unsigned i = 0; i < input.stealable_tasks.size(); ++i) {
     const Task* task = input.stealable_tasks[i];
     if(!strcmp(task->get_task_name(), WORKER_TASK)) {
       output.stolen_tasks.insert(task);
@@ -198,7 +198,14 @@ void PsanaMapper::map_task(const MapperContext      ctx,
 
 
 
-
+//--------------------------------------------------------------------------
+void PsanaMapper::select_task_options(const MapperContext    ctx,
+                                      const Task&            task,
+                                      TaskOptions&     output)
+//--------------------------------------------------------------------------
+{
+  this->DefaultMapper::select_task_options(ctx, task, output);
+}
 
 
 

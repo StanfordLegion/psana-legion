@@ -30,7 +30,7 @@ do
   local cxx = os.getenv('CXX') or 'c++'
 
   local cxx_flags = os.getenv('CC_FLAGS') or ''
-  cxx_flags = cxx_flags .. " -O2 -Wall -Werror -std=gnu++11"
+  cxx_flags = cxx_flags .. " -O2 -Wall -Werror -std=c++11"
   if os.execute('test "$(uname)" = Darwin') == 0 then
     cxx_flags =
       (cxx_flags ..
@@ -49,6 +49,6 @@ do
   terralib.linklibrary(mapper_so)
   cmapper = terralib.includec("mapper.h", {"-I", root_dir, "-I", runtime_dir,
                                            "-I", mapper_dir, "-I", legion_dir,
-                                           "-I", realm_dir})
+                                           "-I", realm_dir })
 end
 return cmapper
