@@ -31,6 +31,15 @@
  
  */
 
+#include <map>
+#include <random>
+#include <vector>
+
+#include "default_mapper.h"
+
+using namespace Legion;
+using namespace Legion::Mapping;
+
 //static const char* INPUT_TASK = "takeInput";
 static const char* WORKER_TASK = "fetch_and_analyze";
 //static const char* STEAL_TASK = "stealWork";
@@ -45,6 +54,59 @@ static LegionRuntime::Logger::Category log_psana_mapper("psana_mapper");
 ///
 /// Mapper
 ///
+
+
+
+class PsanaMapper : public DefaultMapper
+{
+public:
+  PsanaMapper(MapperRuntime *rt, Machine machine, Processor local,
+              const char *mapper_name,
+              std::vector<Processor>* procs_list,
+              std::vector<Memory>* sysmems_list,
+              std::map<Memory, std::vector<Processor> >* sysmem_local_procs,
+              std::map<Processor, Memory>* proc_sysmems,
+              std::map<Processor, Memory>* proc_regmems);
+private:
+  // std::vector<Processor>& procs_list;
+  // std::vector<Memory>& sysmems_list;
+  //std::map<Memory, std::vector<Processor> >& sysmem_local_procs;
+  std::map<Processor, Memory>& proc_sysmems;
+  // std::map<Processor, Memory>& proc_regmems;
+  std::vector<Processor> input_procs;
+  std::vector<Processor> task_pool_procs;
+  std::vector<Processor> worker_procs;
+  std::random_device rd;     // only used once to initialise (seed) engine
+  std::mt19937 rng;
+  std::uniform_int_distribution<int> uni;
+  
+  void categorizeProcessors();
+  void slice_task(const MapperContext      ctx,
+                  const Task&              task,
+                  const SliceTaskInput&    input,
+                  SliceTaskOutput&   output);
+  void select_tasks_to_map(const MapperContext          ctx,
+                           const SelectMappingInput&    input,
+                           SelectMappingOutput&   output);
+  void select_steal_targets(const MapperContext         ctx,
+                            const SelectStealingInput&  input,
+                            SelectStealingOutput& output);
+  void permit_steal_request(const MapperContext         ctx,
+                            const StealRequestInput&    input,
+                            StealRequestOutput&   output);
+  void map_task(const MapperContext      ctx,
+                const Task&              task,
+                const MapTaskInput&      input,
+                MapTaskOutput&     output);
+  void select_task_options(const MapperContext    ctx,
+                           const Task&            task,
+                           TaskOptions&     output);
+  
+  const char* get_mapper_name(void) const { return "PsanaMapper"; }
+  MapperSyncModel get_mapper_sync_model(void) const {
+    return CONCURRENT_MAPPER_MODEL;
+  }
+};
 
 
 
