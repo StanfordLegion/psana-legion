@@ -8,11 +8,7 @@ ENV CONDA_PREFIX /conda
 ENV PATH $CONDA_PREFIX/bin:$PATH
 ENV SIT_ARCH x86_64-rhel7-gcc48-opt
 ENV SIT_RELEASE psana-conda-1.3.9
-ENV SIT_ROOT /reg/g/psdm
 ENV SIT_USE_CONDA 1
-ENV SIT_REPOS $CONDA_PREFIX
-
-RUN mkdir -p $SIT_ROOT
 
 # https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh
 RUN curl -O https://repo.continuum.io/miniconda/Miniconda2-4.3.21-Linux-x86_64.sh && \
