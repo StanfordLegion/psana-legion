@@ -31,14 +31,12 @@ run_number = 54
 ds = psana.DataSource('exp=xpptut15:run=%s:rax' % run_number)
 
 class Location(object):
-    __slots__ = ['filenames', 'offsets',
-                 'calib_filename', 'calib_offset']
+    __slots__ = ['filenames', 'offsets', 'calib']
     def __init__(self, event):
         offset = event.get(psana.EventOffset)
         self.filenames = offset.filenames()
         self.offsets = offset.offsets()
-        self.calib_filename = offset.lastBeginCalibCycleFilename()
-        self.calib_offset = offset.lastBeginCalibCycleOffset()
+        self.calib = offset.lastBeginCalibCycleDgram()
     def __repr__(self):
         return 'Location(%s, %s)' % (self.offsets, self.filenames)
 
@@ -53,8 +51,6 @@ def start(analysis, predicate=None):
     _config.analysis = analysis
     _config.predicate = predicate
 
-_calib = None # Track last calib cycle as a global, jump only on change
-
 @legion.task
 def analyze_leaf(loc):
     print('fetch', loc)
@@ -62,13 +58,7 @@ def analyze_leaf(loc):
     runtime = long(legion.ffi.cast("unsigned long long", legion._my.ctx.runtime_root))
     ctx = long(legion.ffi.cast("unsigned long long", legion._my.ctx.context_root))
 
-    loc_calib = loc.calib_filename, loc.calib_offset
-    global _calib
-    if _calib != loc_calib:
-        ds.jump(loc_calib[0], loc_calib[1], runtime, ctx)
-        _calib = loc_calib
-
-    event = ds.jump(loc.filenames, loc.offsets, runtime, ctx) # Fetches the data
+    event = ds.jump(loc.filenames, loc.offsets, loc.calib, runtime, ctx) # Fetches the data
     _config.analysis(event) # Performs user analysis
     return True
 
