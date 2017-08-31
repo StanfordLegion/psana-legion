@@ -7,7 +7,7 @@
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
+ * distributed under the License is distributed on an "AS IS"BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
@@ -19,15 +19,15 @@
 /*
  Goal: write a distributed task pool to serve a set of worker processors.
  
- 1. A “takeInput” task runs somewhere, receives job metadata.  Issues an index task launch of “doSomeWork” tasks, with metadata provided per point task.
+ 1. A “takeInput” task runs somewhere, receives job metadata.  Issues an index task launch of “fetch_and_analyze” tasks, with metadata provided per point task.
  
- 2. In mapper slice_task the “doSomeWork” tasks are sliced by calling default_slice_task which called default_decompose_points.  This will send the tasks to the ready queues of a set of processors that we classify as “task pool servers”.  These processor hold the tasks so that they can be stolen by worker processors.
+ 2. In mapper slice_task the “fetch_and_analyze” tasks are sliced by calling default_decompose_points.  This will send the tasks to the ready queues of a set of processors that we classify as “task pool servers”.  These processor hold the tasks so that they can be stolen by worker processors.
  
- 3. In mapper select_tasks_to_map prevents “doSomeWork” from being mapped so they will sit in the ready queue.  Mapper permit_steal_request will allow these tasks to be stolen by worker processors.
+ 3. In mapper select_tasks_to_map prevents “fetch_and_analyze” from being mapped so they will sit in the ready queue.  Mapper permit_steal_request will allow these tasks to be stolen by worker processors.
  
  4. A third set of “worker” processors run “stealWork” tasks that steal work from the task pool servers. In mapper select_steal_targets we specify the target processors belong to the “task pool server” set.
  
- 5. In mapper map_task allow doSomeWork to run.
+ 5. In mapper map_task allow fetch_and_analyze to run.
  
  */
 
@@ -44,9 +44,13 @@ using namespace Legion::Mapping;
 static const char* WORKER_TASK = "fetch_and_analyze";
 //static const char* STEAL_TASK = "stealWork";
 
-static const int NUM_INPUT_PROCS = 1;
 static const int NUM_TASK_POOL_PROCS = 2;
 static const int NUM_WORKER_PROCS = 999;
+
+typedef enum {
+  TASK_POOL,
+  WORKER
+} ProcessorCategory;
 
 static LegionRuntime::Logger::Category log_psana_mapper("psana_mapper");
 
@@ -73,12 +77,12 @@ private:
   //std::map<Memory, std::vector<Processor> >& sysmem_local_procs;
   std::map<Processor, Memory>& proc_sysmems;
   // std::map<Processor, Memory>& proc_regmems;
-  std::vector<Processor> input_procs;
   std::vector<Processor> task_pool_procs;
   std::vector<Processor> worker_procs;
   std::random_device rd;     // only used once to initialise (seed) engine
   std::mt19937 rng;
   std::uniform_int_distribution<int> uni;
+  ProcessorCategory processorCategory;
   
   void categorizeProcessors();
   void slice_task(const MapperContext      ctx,
@@ -101,8 +105,9 @@ private:
   void select_task_options(const MapperContext    ctx,
                            const Task&            task,
                            TaskOptions&     output);
+  inline char* taskDescription(const Legion::Task& task);
   
-  const char* get_mapper_name(void) const { return "PsanaMapper"; }
+  const char* get_mapper_name(void) const { return "psana_mapper"; }
   MapperSyncModel get_mapper_sync_model(void) const {
     return CONCURRENT_MAPPER_MODEL;
   }
@@ -124,14 +129,14 @@ PsanaMapper::PsanaMapper(MapperRuntime *rt, Machine machine, Processor local,
 proc_sysmems(*_proc_sysmems)
 // proc_regmems(*_proc_regmems)
 {
-  log_psana_mapper.spew("PsanaMapper constructor");
-  categorizeProcessors();
+  log_psana_mapper.debug("proc %llx: constructor:", local_proc.id);
   
   rng = std::mt19937(rd());    // random-number engine used (Mersenne-Twister in this case)
   uni = std::uniform_int_distribution<int>(0, task_pool_procs.size()); // guaranteed unbiased
-  input_procs = std::vector<Processor>();
   task_pool_procs = std::vector<Processor>();
   worker_procs = std::vector<Processor>();
+  categorizeProcessors();
+  
 }
 
 
@@ -139,25 +144,39 @@ proc_sysmems(*_proc_sysmems)
 void PsanaMapper::categorizeProcessors()
 //--------------------------------------------------------------------------
 {
-  int num_input = 0;
   int num_task_pool = 0;
   int num_worker = 0;
   
   for(std::map<Processor, Memory>::iterator it = proc_sysmems.begin();
       it != proc_sysmems.end(); it++) {
-    if(num_input < NUM_INPUT_PROCS) {
-      input_procs.push_back(it->first);
-      num_input++;
-    } else if(num_task_pool < NUM_TASK_POOL_PROCS) {
+    if(num_task_pool < NUM_TASK_POOL_PROCS) {
+      log_psana_mapper.debug("proc %llx: categorizeProcessors: task pool %llx", local_proc.id, it->first.id);
       task_pool_procs.push_back(it->first);
+      if(it->first == local_proc) {
+        processorCategory = TASK_POOL;
+      }
       num_task_pool++;
     } else if(num_worker < NUM_WORKER_PROCS) {
+      log_psana_mapper.debug("proc %llx: categorizeProcessors: worker %llx", local_proc.id, it->first.id);
+      if(it->first == local_proc) {
+        processorCategory = WORKER;
+      }
       worker_procs.push_back(it->first);
       num_worker++;
     }
   }
-  log_psana_mapper.spew("PsanaMapper categorized %d input, %d task pool, %d worker processors",
-                        num_input, num_task_pool, num_worker);
+  log_psana_mapper.debug("proc %llx: categorizeProcessors: %d task pool, %d worker processors",
+                         local_proc.id, num_task_pool, num_worker);
+}
+
+//--------------------------------------------------------------------------
+inline char* PsanaMapper::taskDescription(const Legion::Task& task)
+//--------------------------------------------------------------------------
+{
+  static  char buffer[512];
+  sprintf(buffer, "%s:%llx%s", task.get_task_name(), task.get_unique_id(),
+          task.is_index_space ? ":Index" : "");
+  return buffer;
 }
 
 
@@ -168,7 +187,11 @@ void PsanaMapper::slice_task(const MapperContext      ctx,
                              SliceTaskOutput&   output)
 //--------------------------------------------------------------------------
 {
-  log_psana_mapper.spew("PsanaMapper slice_task task %s", task.get_task_name());
+  log_psana_mapper.debug("proc %llx: slice_task task %s target proc %llx proc_kind %d",
+                         local_proc.id,
+                         taskDescription(task),
+                         task.target_proc.id,
+                         task.target_proc.kind());
   
   // index task launches pass through here.
   // the only index tasK launch is for WORKER_TASK
@@ -176,13 +199,19 @@ void PsanaMapper::slice_task(const MapperContext      ctx,
   assert(!strcmp(task.get_task_name(), WORKER_TASK));
   assert(task.target_proc.kind() == Processor::LOC_PROC);
   
-  stealing_enabled = true;
-  default_slice_task(task, task_pool_procs, remote_cpus,
-                     input, output, cpu_slices_cache);
+  Rect<1> point_rect = input.domain.get_rect<1>();
+  Point<1> num_blocks(task_pool_procs.size());
+  default_decompose_points<1>(point_rect, task_pool_procs,
+                              num_blocks, false/*recurse*/,
+                              true/*stealing_enabled*/, output.slices);
   
+  //debug
   for(std::vector<TaskSlice>::iterator it = output.slices.begin();
-      it != output.slices.end(); it++) {
-    it->stealable = true;
+      it != output.slices.end(); ++it) {
+    log_psana_mapper.debug("proc %llx: slice_task slice proc %llx stealable %d",
+                           local_proc.id,
+                           it->proc.id,
+                           it->stealable);
   }
 }
 
@@ -196,14 +225,18 @@ void PsanaMapper::select_tasks_to_map(const MapperContext          ctx,
                                       SelectMappingOutput&   output)
 //--------------------------------------------------------------------------
 {
-  log_psana_mapper.spew("PsanaMapper select_tasks_to_map");
+  log_psana_mapper.debug("proc %llx: select_tasks_to_map", local_proc.id);
   
-  for (std::list<const Task*>::const_iterator it = input.ready_tasks.begin();
-       it != input.ready_tasks.end(); it++) {
-    const Task* task = *it;
-    if(strcmp(task->get_task_name(), WORKER_TASK)) {
-      log_psana_mapper.spew("PsanaMapper select_tasks_to_map seleted %s", task->get_task_name());
-      output.map_tasks.insert(*it);
+  if(processorCategory == TASK_POOL) {
+    for (std::list<const Task*>::const_iterator it = input.ready_tasks.begin();
+         it != input.ready_tasks.end(); it++) {
+      const Task* task = *it;
+      if(strcmp(task->get_task_name(), WORKER_TASK)) {
+        log_psana_mapper.debug("proc %llx: select_tasks_to_map selected %s",
+                               local_proc.id,
+                               taskDescription(*task));
+        output.map_tasks.insert(*it);
+      }
     }
   }
 }
@@ -216,14 +249,18 @@ void PsanaMapper::select_steal_targets(const MapperContext         ctx,
                                        SelectStealingOutput& output)
 //--------------------------------------------------------------------------
 {
-  log_psana_mapper.spew("PsanaMapper select_steal_targets");
   
-  auto index = uni(rng);
-  while(input.blacklist.find(task_pool_procs[index]) != input.blacklist.end()) {
-    index = uni(rng);
+  if(processorCategory == WORKER) {
+    auto index = uni(rng);
+    log_psana_mapper.debug("proc %llx: select_steal_targets random target %d", local_proc.id, index);
+    while(input.blacklist.find(task_pool_procs[index]) != input.blacklist.end()) {
+      index = uni(rng);
+      log_psana_mapper.debug("proc %llx: select_steal_targets random target %d", local_proc.id, index);
+    }
+    output.targets.insert(task_pool_procs[index]);
+    log_psana_mapper.debug("proc %llx: select_steal_targets index %d",
+                           local_proc.id, index);
   }
-  output.targets.insert(task_pool_procs[index]);
-  log_psana_mapper.spew("PsanaMapper select_steal_targets index %d", index);
 }
 
 //--------------------------------------------------------------------------
@@ -232,13 +269,16 @@ void PsanaMapper::permit_steal_request(const MapperContext         ctx,
                                        StealRequestOutput&   output)
 //--------------------------------------------------------------------------
 {
-  log_psana_mapper.spew("PsanaMapper permit_steal_request");
   
-  for(unsigned i = 0; i < input.stealable_tasks.size(); ++i) {
-    const Task* task = input.stealable_tasks[i];
-    if(!strcmp(task->get_task_name(), WORKER_TASK)) {
-      output.stolen_tasks.insert(task);
-      log_psana_mapper.spew("PsanaMapper permit_steal_request permit stealing %s", task->get_task_name());
+  if(processorCategory == TASK_POOL) {
+    log_psana_mapper.debug("proc %llx: permit_steal_request", local_proc.id);
+    for(unsigned i = 0; i < input.stealable_tasks.size(); ++i) {
+      const Task* task = input.stealable_tasks[i];
+      if(!strcmp(task->get_task_name(), WORKER_TASK)) {
+        output.stolen_tasks.insert(task);
+        log_psana_mapper.debug("proc %llx: permit_steal_request permits stealing %s",
+                               local_proc.id, taskDescription(*task));
+      }
     }
   }
 }
@@ -250,11 +290,16 @@ void PsanaMapper::map_task(const MapperContext      ctx,
                            MapTaskOutput&     output)
 //--------------------------------------------------------------------------
 {
-  log_psana_mapper.spew("PsanaMapper map_task %s", task.get_task_name());
-  if(!strcmp(task.get_task_name(), WORKER_TASK)) {
-    log_psana_mapper.spew("PsanaMapper pass task %s to default mapper map_task", task.get_task_name());
+  log_psana_mapper.debug("proc %llx: map_task pass %s to default mapper map_task",
+                         local_proc.id, taskDescription(task));
+  
+  if(strcmp(task.get_task_name(), WORKER_TASK)) {
+    this->DefaultMapper::map_task(ctx, task, input, output);
+  } else {
+    assert(processorCategory == WORKER);
     this->DefaultMapper::map_task(ctx, task, input, output);
   }
+  
 }
 
 
@@ -266,7 +311,13 @@ void PsanaMapper::select_task_options(const MapperContext    ctx,
                                       TaskOptions&     output)
 //--------------------------------------------------------------------------
 {
-  this->DefaultMapper::select_task_options(ctx, task, output);
+  if(processorCategory == WORKER ||
+     strcmp(task.get_task_name(), WORKER_TASK) ||
+     task.is_index_space) {
+    log_psana_mapper.debug("proc %llx: select_task_options pass %s to default mapper select_task_options",
+                           local_proc.id, taskDescription(task));
+    this->DefaultMapper::select_task_options(ctx, task, output);
+  }
 }
 
 
@@ -280,7 +331,6 @@ static void create_mappers(Machine machine, HighLevelRuntime *runtime, const std
   new std::map<Memory, std::vector<Processor> >();
   std::map<Processor, Memory>* proc_sysmems = new std::map<Processor, Memory>();
   std::map<Processor, Memory>* proc_regmems = new std::map<Processor, Memory>();
-  
   
   std::vector<Machine::ProcessorMemoryAffinity> proc_mem_affinities;
   machine.get_proc_mem_affinity(proc_mem_affinities);

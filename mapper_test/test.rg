@@ -13,10 +13,12 @@
 -- limitations under the License.
 
 import "regent"
+import "bishop"
 
 local cmapper = require("build_mapper")
 
 local c = regentlib.c
+local cb = bishoplib.c
 
 struct elt { x : int }
 
@@ -31,7 +33,11 @@ where reads(data) do
 end
 
 task fetch_and_analyze(event : int)
-  c.printf("fetch_and_analyze %d\n", event)
+var proc =
+  c.legion_runtime_get_executing_processor(__runtime(), __context())
+  var procs = cb.bishop_all_processors()
+
+  c.printf("fetch_and_analyze %d on proc %d\n", event, procs.list[1].id)
   var data = region(ispace(int2d, { 10, 10 }), elt)
   fetch(event, data)
   analyze(event, data)
