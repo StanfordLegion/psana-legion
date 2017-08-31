@@ -5,28 +5,26 @@ RUN yum clean all && \
     yum -y install bzip2 gcc-c++ git shasum
 
 ENV CONDA_PREFIX /conda
-ENV PATH $CONDA_PREFIX/bin:$PATH
+ENV REL_PREFIX /conda/myrel
 ENV SIT_ARCH x86_64-rhel7-gcc48-opt
-ENV SIT_RELEASE psana-conda-1.3.9
-ENV SIT_ROOT /reg/g/psdm
-ENV SIT_USE_CONDA 1
-ENV SIT_REPOS $CONDA_PREFIX
-
-RUN mkdir -p $SIT_ROOT
+ENV PATH $REL_PREFIX/arch/$SIT_ARCH/bin:$CONDA_PREFIX/bin:$PATH
+ENV LD_LIBRARY_PATH $REL_PREFIX/arch/$SIT_ARCH/lib:$CONDA_PREFIX/lib:$LD_LIBRARY_PATH
+ENV PYTHONPATH $REL_PREFIX/arch/$SIT_ARCH/python:$PYTHONPATH
 
 # https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh
+# TODO: Remove need for old .sit_release
 RUN curl -O https://repo.continuum.io/miniconda/Miniconda2-4.3.21-Linux-x86_64.sh && \
     echo "b87adda9eb41f3ae6c2999fda739ab61ebb3892e  Miniconda2-4.3.21-Linux-x86_64.sh" | sha1sum --check && \
     /bin/bash Miniconda2-4.3.21-Linux-x86_64.sh -b -p "$CONDA_PREFIX" && \
     conda update -y conda && \
     conda install -y scons cython && \
     conda install -y --channel lcls-rhel7 psana-conda ndarray && \
-    mkdir "$CONDA_PREFIX/myrel" && \
-    pushd "$CONDA_PREFIX/myrel" && \
+    mkdir "$REL_PREFIX" && \
+    pushd "$REL_PREFIX" && \
       ln -s "$CONDA_PREFIX/lib/python2.7/site-packages/SConsTools/SConstruct.main" SConstruct && \
+      export SIT_RELEASE=$(conda list | grep psana-conda | tr -s ' ' | cut -f1-2 -d' ' | tr ' ' '-') && \
+      export SIT_USE_CONDA=1 && \
       echo "$SIT_RELEASE" > .sit_release && \
-      mkdir -p arch/x86_64-rhel7-gcc48-opt/python && \
-      export PYTHONPATH="$PWD/arch/x86_64-rhel7-gcc48-opt/python:" && \
       echo "$CONDA_PREFIX" > .sit_conda_env && \
       git clone https://github.com/lcls-psana/psana.git && \
       git clone https://github.com/lcls-psana/psana_python.git && \
