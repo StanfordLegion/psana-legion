@@ -64,7 +64,8 @@ static LegionRuntime::Logger::Category log_psana_mapper("psana_mapper");
 class PsanaMapper : public DefaultMapper
 {
 public:
-  PsanaMapper(MapperRuntime *rt, Machine machine, Processor local,
+  PsanaMapper(MapperRuntime *rt,
+              Machine machine, Processor local,
               const char *mapper_name,
               std::vector<Processor>* procs_list,
               std::vector<Memory>* sysmems_list,
@@ -115,7 +116,8 @@ private:
 
 
 
-PsanaMapper::PsanaMapper(MapperRuntime *rt, Machine machine, Processor local,
+PsanaMapper::PsanaMapper(MapperRuntime *rt,
+                         Machine machine, Processor local,
                          const char *mapper_name,
                          std::vector<Processor>* _procs_list,
                          std::vector<Memory>* _sysmems_list,
@@ -136,7 +138,6 @@ proc_sysmems(*_proc_sysmems)
   task_pool_procs = std::vector<Processor>();
   worker_procs = std::vector<Processor>();
   categorizeProcessors();
-  
 }
 
 
@@ -169,13 +170,17 @@ void PsanaMapper::categorizeProcessors()
                          local_proc.id, num_task_pool, num_worker);
 }
 
+
+
 //--------------------------------------------------------------------------
 inline char* PsanaMapper::taskDescription(const Legion::Task& task)
 //--------------------------------------------------------------------------
 {
   static  char buffer[512];
   sprintf(buffer, "%s:%llx%s", task.get_task_name(), task.get_unique_id(),
-          task.is_index_space ? ":Index" : "");
+          (task.is_index_space ?
+           (task.index_point.get_dim() > 0 ? ":Point" : ":Index")
+           : ""));
   return buffer;
 }
 
@@ -198,6 +203,7 @@ void PsanaMapper::slice_task(const MapperContext      ctx,
   
   assert(!strcmp(task.get_task_name(), WORKER_TASK));
   assert(task.target_proc.kind() == Processor::LOC_PROC);
+  assert(input.domain.get_dim() == 1);
   
   Rect<1> point_rect = input.domain.get_rect<1>();
   Point<1> num_blocks(task_pool_procs.size());
@@ -236,8 +242,15 @@ void PsanaMapper::select_tasks_to_map(const MapperContext          ctx,
                                local_proc.id,
                                taskDescription(*task));
         output.map_tasks.insert(*it);
+      } else {
+        log_psana_mapper.debug("proc %llx: select_tasks_to_map skipping %s",
+                               local_proc.id,
+                               taskDescription(*task));
       }
     }
+  } else {
+    log_psana_mapper.debug("proc %llx: select_tasks_to_map skipped because not task pool",
+                           local_proc.id);
   }
 }
 
@@ -260,6 +273,9 @@ void PsanaMapper::select_steal_targets(const MapperContext         ctx,
     output.targets.insert(task_pool_procs[index]);
     log_psana_mapper.debug("proc %llx: select_steal_targets index %d",
                            local_proc.id, index);
+  } else {
+    log_psana_mapper.debug("proc %llx: select_steal_targets skipped because not worker",
+                           local_proc.id);
   }
 }
 
@@ -280,6 +296,9 @@ void PsanaMapper::permit_steal_request(const MapperContext         ctx,
                                local_proc.id, taskDescription(*task));
       }
     }
+  } else {
+    log_psana_mapper.debug("proc %llx: permit_steal_request skipped because not task pool",
+                           local_proc.id);
   }
 }
 
@@ -317,6 +336,9 @@ void PsanaMapper::select_task_options(const MapperContext    ctx,
     log_psana_mapper.debug("proc %llx: select_task_options pass %s to default mapper select_task_options",
                            local_proc.id, taskDescription(task));
     this->DefaultMapper::select_task_options(ctx, task, output);
+  } else {
+    log_psana_mapper.debug("proc %llx: select_task_options skipping %s",
+                           local_proc.id, taskDescription(task));
   }
 }
 
