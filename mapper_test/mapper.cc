@@ -265,15 +265,25 @@ void PsanaMapper::select_steal_targets(const MapperContext         ctx,
 {
   
   if(processorCategory == WORKER) {
-    auto index = uni(rng);
-    log_psana_mapper.debug("proc %llx: select_steal_targets random target %d", local_proc.id, index);
-    while(input.blacklist.find(task_pool_procs[index]) != input.blacklist.end()) {
+    bool found = false;
+    unsigned counter = 0;
+    int index;
+    while(!found) {
       index = uni(rng);
-      log_psana_mapper.debug("proc %llx: select_steal_targets random target %d", local_proc.id, index);
+      if(input.blacklist.find(task_pool_procs[index]) != input.blacklist.end()) {
+        found = true;
+      } else {
+        if(counter++ >= task_pool_procs.size()) {
+          log_psana_mapper.debug("proc %llx: cannot steal, all procs in blacklist",
+                                 local_proc.id);
+          return;
+        }
+      }
     }
+    
     output.targets.insert(task_pool_procs[index]);
-    log_psana_mapper.debug("proc %llx: select_steal_targets index %d",
-                           local_proc.id, index);
+    log_psana_mapper.debug("proc %llx: select_steal_targets index %d %llx",
+                           local_proc.id, index, task_pool_procs[index].id);
   } else {
     log_psana_mapper.debug("proc %llx: select_steal_targets skipped because not worker",
                            local_proc.id);
