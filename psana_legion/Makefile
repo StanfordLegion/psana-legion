@@ -44,6 +44,10 @@ LD_FLAGS	?=
 
 CC_FLAGS += -DPYTHON_MODULES_PATH="\"$(LG_RT_DIR)/../bindings/python:$(dir $(abspath $(firstword $(MAKEFILE_LIST))))\""
 
+# These flags force GCC 5 to be compatible with GCC 4.9 and
+# earlier. Required to link against pre-build psana binaries.
+CC_FLAGS += -std=c++98 -fabi-version=2 -D_GLIBCXX_USE_CXX11_ABI=0
+
 CC_FLAGS += -fPIC
 ifeq ($(shell uname), Darwin)
 	LD_FLAGS += -dynamiclib -single_module -undefined dynamic_lookup -fPIC
