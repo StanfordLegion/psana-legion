@@ -133,11 +133,12 @@ proc_sysmems(*_proc_sysmems)
 {
   log_psana_mapper.debug("proc %llx: constructor:", local_proc.id);
   
-  rng = std::mt19937(rd());    // random-number engine used (Mersenne-Twister in this case)
-  uni = std::uniform_int_distribution<int>(0, task_pool_procs.size()); // guaranteed unbiased
   task_pool_procs = std::vector<Processor>();
   worker_procs = std::vector<Processor>();
   categorizeProcessors();
+
+  rng = std::mt19937(rd());    // random-number engine used (Mersenne-Twister in this case)
+  uni = std::uniform_int_distribution<int>(0, task_pool_procs.size() - 1); // guaranteed unbiased
 }
 
 
@@ -205,7 +206,7 @@ void PsanaMapper::slice_task(const MapperContext      ctx,
   assert(task.target_proc.kind() == Processor::LOC_PROC);
   assert(input.domain.get_dim() == 1);
   
-  Rect<1> point_rect = input.domain.get_rect<1>();
+  Rect<1> point_rect = input.domain;
   Point<1> num_blocks(task_pool_procs.size());
   default_decompose_points<1>(point_rect, task_pool_procs,
                               num_blocks, false/*recurse*/,
