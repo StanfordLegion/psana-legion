@@ -106,6 +106,10 @@ private:
   void select_task_options(const MapperContext    ctx,
                            const Task&            task,
                            TaskOptions&     output);
+  void premap_task(const MapperContext      ctx,
+                   const Task&              task,
+                   const PremapTaskInput&   input,
+                   PremapTaskOutput&        output);
   inline char* taskDescription(const Legion::Task& task);
   
   const char* get_mapper_name(void) const { return "psana_mapper"; }
@@ -136,7 +140,7 @@ proc_sysmems(*_proc_sysmems)
   task_pool_procs = std::vector<Processor>();
   worker_procs = std::vector<Processor>();
   categorizeProcessors();
-
+  
   rng = std::mt19937(rd());    // random-number engine used (Mersenne-Twister in this case)
   uni = std::uniform_int_distribution<int>(0, task_pool_procs.size() - 1); // guaranteed unbiased
 }
@@ -353,6 +357,45 @@ void PsanaMapper::select_task_options(const MapperContext    ctx,
   }
 }
 
+
+/**
+ * ----------------------------------------------------------------------
+ *  Premap Task
+ * ----------------------------------------------------------------------
+ * This mapper call is only invoked for tasks which either explicitly
+ * requested it by setting 'premap_task' in the 'select_task_options'
+ * mapper call or by having a region requirement which needs to be
+ * premapped (e.g. an in index space task launch with an individual
+ * region requirement with READ_WRITE EXCLUSIVE privileges that all
+ * tasks must share). The mapper is told the indicies of which
+ * region requirements need to be premapped in the 'must_premap' set.
+ * All other regions can be optionally mapped. The mapper is given
+ * a vector containing sets of valid PhysicalInstances (if any) for
+ * each region requirement.
+ *
+ * The mapper performs the premapping by filling in premapping at
+ * least all the required premapped regions and indicates all premapped
+ * region indicies in 'premapped_region'. For each region requirement
+ * the mapper can specify a ranking of PhysicalInstances to re-use
+ * in 'chosen_ranking'. This can optionally be left empty. The mapper
+ * can also specify constraints on the creation of a physical instance
+ * in 'layout_constraints'. Finally, the mapper can force the creation
+ * of a new instance if an write-after-read dependences are detected
+ * on existing physical instances by enabling the WAR optimization.
+ * All vector data structures are size appropriately for the number of
+ * region requirements in the task.
+ */
+//------------------------------------------------------------------------
+void PsanaMapper::premap_task(const MapperContext      ctx,
+                              const Task&              task,
+                              const PremapTaskInput&   input,
+                              PremapTaskOutput&        output)
+//------------------------------------------------------------------------
+{
+  log_psana_mapper.debug("proc %llx: premap_task %s",
+                         local_proc.id, taskDescription(task));
+  this->DefaultMapper::premap_task(ctx, task, input, output);
+}
 
 
 
