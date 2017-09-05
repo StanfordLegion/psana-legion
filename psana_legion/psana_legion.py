@@ -22,13 +22,47 @@ import legion
 import numpy
 import psana
 
-run_number = 54
+# User configurable analysis and filter predicate.
+class Config(object):
+    __slots__ = ['analysis', 'predicate']
+    def __init__(self):
+        self.analysis = None
+        self.predicate = None
 
-# TODO: Add a LegionDataSource and have it wrap DataSource as appropriate
-# Also, start should be a method of LegionDataSource
+_ds = None
+class LegionDataSource(object):
+    __slots__ = ['descriptor', 'ds_rax', 'ds_smd', 'config']
+    def __init__(self, descriptor):
+        if not descriptor.endswith(':rax'):
+            raise Exception('LegionDataSource requires RAX mode')
+        self.descriptor = descriptor
 
-# These are initialized on every core at the beginning of time.
-ds = psana.DataSource('exp=xpptut15:run=%s:rax' % run_number)
+        self.ds_rax = psana.DataSource(self.descriptor)
+        self.ds_smd = None
+        self.config = Config()
+
+    def rax(self):
+        return self.ds_rax
+
+    def env(self):
+        return self.rax().env()
+
+    def jump(self, *args):
+        return self.rax().jump(*args)
+
+    def smd(self):
+        if self.ds_smd is None:
+            descriptor = self.descriptor[:-4] + ':smd'
+            self.ds_smd = psana.DataSource(descriptor)
+        return self.ds_smd
+
+    def start(self, analysis, predicate=None):
+        global _ds
+        assert _ds is None
+        _ds = self
+
+        self.config.analysis = analysis
+        self.config.predicate = predicate
 
 class Location(object):
     __slots__ = ['filenames', 'offsets', 'calib']
@@ -40,24 +74,13 @@ class Location(object):
     def __repr__(self):
         return 'Location(%s, %s)' % (self.offsets, self.filenames)
 
-# User configurable analysis and filter predicate.
-class Config(object):
-    __slots__ = ['analysis', 'predicate']
-    def __init__(self):
-        self.analysis = None
-        self.predicate = None
-_config = Config()
-def start(analysis, predicate=None):
-    _config.analysis = analysis
-    _config.predicate = predicate
-
 @legion.task
 def analyze_leaf(loc):
     runtime = long(legion.ffi.cast("unsigned long long", legion._my.ctx.runtime_root))
     ctx = long(legion.ffi.cast("unsigned long long", legion._my.ctx.context_root))
 
-    event = ds.jump(loc.filenames, loc.offsets, loc.calib, runtime, ctx) # Fetches the data
-    _config.analysis(event) # Performs user analysis
+    event = _ds.jump(loc.filenames, loc.offsets, loc.calib, runtime, ctx) # Fetches the data
+    _ds.config.analysis(event) # Performs user analysis
     return True
 
 # FIXME: This extra indirection (with a blocking call) is to work around a freeze
@@ -80,16 +103,14 @@ def dummy():
 # top_level_task in psana_legion.cc.
 @legion.task(inner=True)
 def main_task():
-    assert _config.analysis is not None
-    assert _config.predicate is not None
-
-    ds2 = psana.DataSource('exp=xpptut15:run=%s:smd' % run_number)
+    assert _ds is not None
 
     start = legion.c.legion_get_current_time_in_micros()
 
     nevents = 0
     chunksize = 10
-    for i, events in enumerate(chunk(itertools.ifilter(_config.predicate, ds2.events()), chunksize)):
+    for i, events in enumerate(
+            chunk(itertools.ifilter(_ds.config.predicate, _ds.smd().events()), chunksize)):
         for event in events:
             analyze(Location(event))
         nevents += len(events)

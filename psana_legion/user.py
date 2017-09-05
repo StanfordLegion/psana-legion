@@ -20,7 +20,8 @@ from __future__ import print_function
 import psana
 import psana_legion
 
-ds = psana_legion.ds # FIXME: Allow this to be declared here
+run_number = 54
+ds = psana_legion.LegionDataSource('exp=xpptut15:run=%s:rax' % run_number)
 det = psana.Detector('cspad', ds.env())
 
 def analyze(event):
@@ -30,4 +31,4 @@ def analyze(event):
 def filter(event):
     return True
 
-psana_legion.start(analyze, filter)
+ds.start(analyze, filter)
