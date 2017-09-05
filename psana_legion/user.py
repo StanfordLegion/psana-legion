@@ -24,10 +24,8 @@ ds = psana_legion.ds # FIXME: Allow this to be declared here
 det = psana.Detector('cspad', ds.env())
 
 def analyze(event):
-    print('analyze', event)
     raw = det.raw(event)
-    calib = det.calib(event) # Calibrate the data
-    print(raw.sum(), calib.sum())
+    # calib = det.calib(event) # Calibrate the data
 
 def filter(event):
     return True

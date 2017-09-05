@@ -53,8 +53,6 @@ def start(analysis, predicate=None):
 
 @legion.task
 def analyze_leaf(loc):
-    print('fetch', loc)
-
     runtime = long(legion.ffi.cast("unsigned long long", legion._my.ctx.runtime_root))
     ctx = long(legion.ffi.cast("unsigned long long", legion._my.ctx.context_root))
 
@@ -74,6 +72,10 @@ def chunk(iterable, chunksize):
         value.extend(itertools.islice(it, chunksize-1))
         yield value
 
+@legion.task(leaf=True)
+def dummy():
+    return 1
+
 # Define the main Python task. This task is called from C++. See
 # top_level_task in psana_legion.cc.
 @legion.task(inner=True)
@@ -83,10 +85,23 @@ def main_task():
 
     ds2 = psana.DataSource('exp=xpptut15:run=%s:smd' % run_number)
 
+    start = legion.c.legion_get_current_time_in_micros()
+
+    nevents = 0
     chunksize = 10
     for i, events in enumerate(chunk(itertools.ifilter(_config.predicate, ds2.events()), chunksize)):
         for event in events:
             analyze(Location(event))
+        nevents += len(events)
         # for idx in legion.IndexLaunch([len(events)]):
         #     analyze(Location(events[idx]))
-        if i > 20: break
+        # if i > 20: break
+
+    legion.c.legion_runtime_issue_execution_fence(
+        legion._my.ctx.runtime, legion._my.ctx.context)
+    dummy().get()
+    stop = legion.c.legion_get_current_time_in_micros()
+
+    print('Elapsed time: %e seconds' % (stop - start)/1e6)
+    print('Number of events: %s' % nevents)
+    print('Events per second: %e' % nevents/((stop - start)/1e6))
