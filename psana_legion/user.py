@@ -20,9 +20,9 @@ from __future__ import print_function
 import psana
 import psana_legion
 
-run_number = 54
-ds = psana_legion.LegionDataSource('exp=xpptut15:run=%s:rax' % run_number)
-det = psana.Detector('cspad', ds.env())
+run_number = 108
+ds = psana_legion.LegionDataSource('exp=cxid9114:run=%s:rax' % run_number)
+det = psana.Detector('CxiDs2.0:Cspad.0', ds.env())
 
 def analyze(event):
     raw = det.raw(event)
