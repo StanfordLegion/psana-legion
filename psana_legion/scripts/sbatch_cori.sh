@@ -6,10 +6,18 @@
 #SBATCH --mail-type=ALL
 #SBATCH --account=ACCOUNT
 
-root_dir="$(dirname "${BASH_SOURCE[0]}")"
-source "$root_dir/env.sh"
-
 IMAGE=docker:stanfordlegion/psana-legion:latest
+
+# Host directory where Psana is located
+# (Needed for native Legion shared library)
+HOST_PSANA_DIR=$HOME/psana_legion/psana-legion
+
+# Host directory where Legion is located
+# (Needed for Python bindings)
+HOST_LEGION_DIR=$HOME/psana_legion/legion
+
+# Host directory where data is located
+HOST_DATA_DIR=$HOME/psana_legion/data/reg
 
 srun -n 1 --ntasks-per-node 1 --cpu_bind none \
   shifter --image=$IMAGE \
