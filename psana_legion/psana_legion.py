@@ -24,10 +24,11 @@ import psana
 
 # User configurable analysis and filter predicate.
 class Config(object):
-    __slots__ = ['analysis', 'predicate']
+    __slots__ = ['analysis', 'predicate', 'limit']
     def __init__(self):
         self.analysis = None
         self.predicate = None
+        self.limit = None
 
 _ds = None
 class LegionDataSource(object):
@@ -56,13 +57,14 @@ class LegionDataSource(object):
             self.ds_smd = psana.DataSource(descriptor)
         return self.ds_smd
 
-    def start(self, analysis, predicate=None):
+    def start(self, analysis, predicate=None, limit=None):
         global _ds
         assert _ds is None
         _ds = self
 
         self.config.analysis = analysis
         self.config.predicate = predicate
+        self.config.limit = limit
 
 class Location(object):
     __slots__ = ['filenames', 'offsets', 'calib']
@@ -103,10 +105,15 @@ def main_task():
 
     start = legion.c.legion_get_current_time_in_micros()
 
-    nevents = 0
+    events = _ds.smd().events()
+    if _ds.config.limit is not None:
+        events = itertools.islice(events, _ds.config.limit)
+    if _ds.config.predicate is not None:
+        events = itertools.ifilter(_ds.config.predicate, events)
+
     chunksize = 10
-    for i, events in enumerate(
-            chunk(itertools.ifilter(_ds.config.predicate, _ds.smd().events()), chunksize)):
+    nevents = 0
+    for i, events in enumerate(chunk(events, chunksize)):
         if i % 10 == 0: print('Processing event %s' % nevents)
 
         for idx in legion.IndexLaunch([len(events)]):
