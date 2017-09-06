@@ -46,6 +46,7 @@ static const char* WORKER_TASK = "fetch_and_analyze";
 
 static const int NUM_TASK_POOL_PROCS = 2;
 static const int NUM_WORKER_PROCS = 999;
+static const int TASKS_PER_STEALABLE_SLICE = 1;
 
 typedef enum {
   TASK_POOL,
@@ -90,6 +91,10 @@ private:
                   const Task&              task,
                   const SliceTaskInput&    input,
                   SliceTaskOutput&   output);
+  void decompose_points(const Rect<1> &point_rect,
+                        const std::vector<Processor> &targets,
+                        const Point<1> &num_blocks,
+                        std::vector<TaskSlice> &slices);
   void select_tasks_to_map(const MapperContext          ctx,
                            const SelectMappingInput&    input,
                            SelectMappingOutput&   output);
@@ -191,43 +196,73 @@ inline char* PsanaMapper::taskDescription(const Legion::Task& task)
 
 
 //--------------------------------------------------------------------------
+void PsanaMapper::decompose_points(const Rect<1> &point_rect,
+                                   const std::vector<Processor> &targets,
+                                   const Point<1> &num_blocks,
+                                   std::vector<TaskSlice> &slices)
+//--------------------------------------------------------------------------
+{
+  Point<1> num_points = point_rect.hi - point_rect.lo + Point<1>::ONES();
+  Rect<1> blocks(Point<1>::ZEROES(), num_blocks - Point<1>::ONES());
+  size_t next_index = 0;
+  slices.reserve(blocks.volume());
+  for (GenericPointInRectIterator<1> pir(blocks); pir; pir++) {
+    Point<1> block_lo = pir.p,
+    block_hi = pir.p + Point<1>(TASKS_PER_STEALABLE_SLICE);
+    
+    Point<1> slice_lo = num_points * block_lo / num_blocks + point_rect.lo;
+    Point<1> slice_hi = num_points * block_hi / num_blocks +
+    point_rect.lo - Point<1>::ONES();
+    Rect<1> slice_rect(slice_lo, slice_hi);
+    
+    if (slice_rect.volume() > 0) {
+      TaskSlice slice;
+      slice.domain = Domain::from_rect<1>(slice_rect);
+      slice.proc = targets[next_index++ % targets.size()];
+      slice.recurse = false;
+      slice.stealable = true;
+      slices.push_back(slice);
+    }
+  }
+  
+}
+
+
+//--------------------------------------------------------------------------
 void PsanaMapper::slice_task(const MapperContext      ctx,
                              const Task&              task,
                              const SliceTaskInput&    input,
                              SliceTaskOutput&   output)
 //--------------------------------------------------------------------------
 {
-  log_psana_mapper.debug("proc %llx: slice_task task %s target proc %llx proc_kind %d",
-                         local_proc.id,
-                         taskDescription(task),
-                         task.target_proc.id,
-                         task.target_proc.kind());
   
-  // index task launches pass through here.
-  // the only index tasK launch is for WORKER_TASK
-  
-  assert(!strcmp(task.get_task_name(), WORKER_TASK));
-  assert(task.target_proc.kind() == Processor::LOC_PROC);
-  assert(input.domain.get_dim() == 1);
-  
-  Rect<1> point_rect = input.domain;
-  Point<1> num_blocks(task_pool_procs.size());
-  default_decompose_points<1>(point_rect, task_pool_procs,
-                              num_blocks, false/*recurse*/,
-                              true/*stealing_enabled*/, output.slices);
-  
-  //debug
-  for(std::vector<TaskSlice>::iterator it = output.slices.begin();
-      it != output.slices.end(); ++it) {
-    log_psana_mapper.debug("proc %llx: slice_task slice proc %llx stealable %d",
+  if(!strcmp(task.get_task_name(), WORKER_TASK)){
+    log_psana_mapper.debug("proc %llx: slice_task task %s target proc %llx proc_kind %d",
                            local_proc.id,
-                           it->proc.id,
-                           it->stealable);
+                           taskDescription(task),
+                           task.target_proc.id,
+                           task.target_proc.kind());
+    assert(task.target_proc.kind() == Processor::LOC_PROC);
+    assert(input.domain.get_dim() == 1);
+    
+    Rect<1> point_rect = input.domain.get_rect<1>();
+    Point<1> num_blocks(point_rect.volume() / TASKS_PER_STEALABLE_SLICE);
+    decompose_points(point_rect, task_pool_procs, num_blocks, output.slices);
+    
+    //debug
+    for(std::vector<TaskSlice>::iterator it = output.slices.begin();
+        it != output.slices.end(); ++it) {
+      log_psana_mapper.debug("proc %llx: slice_task slice proc %llx stealable %d",
+                             local_proc.id,
+                             it->proc.id,
+                             it->stealable);
+    }
+  } else {
+    log_psana_mapper.debug("proc %llx: slice_task pass %s to default mapper",
+                           local_proc.id, taskDescription(task));
+    this->DefaultMapper::slice_task(ctx, task, input, output);
   }
 }
-
-
-
 
 
 //--------------------------------------------------------------------------
@@ -351,6 +386,7 @@ void PsanaMapper::select_task_options(const MapperContext    ctx,
     log_psana_mapper.debug("proc %llx: select_task_options pass %s to default mapper select_task_options",
                            local_proc.id, taskDescription(task));
     this->DefaultMapper::select_task_options(ctx, task, output);
+    output.map_locally = false;
   } else {
     log_psana_mapper.debug("proc %llx: select_task_options skipping %s",
                            local_proc.id, taskDescription(task));
