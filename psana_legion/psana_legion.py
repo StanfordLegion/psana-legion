@@ -95,10 +95,6 @@ def chunk(iterable, chunksize):
         value.extend(itertools.islice(it, chunksize-1))
         yield value
 
-@legion.task(leaf=True)
-def dummy():
-    return 1
-
 # Define the main Python task. This task is called from C++. See
 # top_level_task in psana_legion.cc.
 @legion.task(inner=True)
@@ -118,9 +114,7 @@ def main_task():
 
         nevents += len(events)
 
-    legion.c.legion_runtime_issue_execution_fence(
-        legion._my.ctx.runtime, legion._my.ctx.context)
-    dummy().get()
+    legion.execution_fence(block=True)
     stop = legion.c.legion_get_current_time_in_micros()
 
     print('Elapsed time: %e seconds' % ((stop - start)/1e6))
