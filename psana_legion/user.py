@@ -20,16 +20,15 @@ from __future__ import print_function
 import psana
 import psana_legion
 
-ds = psana_legion.ds # FIXME: Allow this to be declared here
-det = psana.Detector('cspad', ds.env())
+run_number = 108
+ds = psana_legion.LegionDataSource('exp=cxid9114:run=%s:rax' % run_number)
+det = psana.Detector('CxiDs2.0:Cspad.0', ds.env())
 
 def analyze(event):
-    print('analyze', event)
     raw = det.raw(event)
-    calib = det.calib(event) # Calibrate the data
-    print(raw.sum(), calib.sum())
+    # calib = det.calib(event) # Calibrate the data
 
 def filter(event):
     return True
 
-psana_legion.start(analyze, filter)
+ds.start(analyze, filter)
