@@ -111,12 +111,12 @@ def main_task():
     chunksize = 10
     for i, events in enumerate(
             chunk(itertools.ifilter(_ds.config.predicate, _ds.smd().events()), chunksize)):
-        for event in events:
-            analyze(Location(event))
+        if i % 10 == 0: print('Processing event %s' % nevents)
+
+        for idx in legion.IndexLaunch([len(events)]):
+            analyze(Location(events[idx]))
+
         nevents += len(events)
-        # for idx in legion.IndexLaunch([len(events)]):
-        #     analyze(Location(events[idx]))
-        # if i > 20: break
 
     legion.c.legion_runtime_issue_execution_fence(
         legion._my.ctx.runtime, legion._my.ctx.context)
