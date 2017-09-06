@@ -24,10 +24,11 @@ import psana
 
 # User configurable analysis and filter predicate.
 class Config(object):
-    __slots__ = ['analysis', 'predicate']
+    __slots__ = ['analysis', 'predicate', 'limit']
     def __init__(self):
         self.analysis = None
         self.predicate = None
+        self.limit = None
 
 _ds = None
 class LegionDataSource(object):
@@ -56,13 +57,14 @@ class LegionDataSource(object):
             self.ds_smd = psana.DataSource(descriptor)
         return self.ds_smd
 
-    def start(self, analysis, predicate=None):
+    def start(self, analysis, predicate=None, limit=None):
         global _ds
         assert _ds is None
         _ds = self
 
         self.config.analysis = analysis
         self.config.predicate = predicate
+        self.config.limit = limit
 
 class Location(object):
     __slots__ = ['filenames', 'offsets', 'calib']
@@ -95,10 +97,6 @@ def chunk(iterable, chunksize):
         value.extend(itertools.islice(it, chunksize-1))
         yield value
 
-@legion.task(leaf=True)
-def dummy():
-    return 1
-
 # Define the main Python task. This task is called from C++. See
 # top_level_task in psana_legion.cc.
 @legion.task(inner=True)
@@ -107,20 +105,23 @@ def main_task():
 
     start = legion.c.legion_get_current_time_in_micros()
 
-    nevents = 0
-    chunksize = 10
-    for i, events in enumerate(
-            chunk(itertools.ifilter(_ds.config.predicate, _ds.smd().events()), chunksize)):
-        for event in events:
-            analyze(Location(event))
-        nevents += len(events)
-        # for idx in legion.IndexLaunch([len(events)]):
-        #     analyze(Location(events[idx]))
-        # if i > 20: break
+    events = _ds.smd().events()
+    if _ds.config.limit is not None:
+        events = itertools.islice(events, _ds.config.limit)
+    if _ds.config.predicate is not None:
+        events = itertools.ifilter(_ds.config.predicate, events)
 
-    legion.c.legion_runtime_issue_execution_fence(
-        legion._my.ctx.runtime, legion._my.ctx.context)
-    dummy().get()
+    chunksize = 10
+    nevents = 0
+    for i, events in enumerate(chunk(events, chunksize)):
+        if i % 10 == 0: print('Processing event %s' % nevents)
+
+        for idx in legion.IndexLaunch([len(events)]):
+            analyze(Location(events[idx]))
+
+        nevents += len(events)
+
+    legion.execution_fence(block=True)
     stop = legion.c.legion_get_current_time_in_micros()
 
     print('Elapsed time: %e seconds' % ((stop - start)/1e6))
