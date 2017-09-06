@@ -35,6 +35,7 @@
 #include <random>
 #include <vector>
 
+
 #include "default_mapper.h"
 
 using namespace Legion;
@@ -52,6 +53,7 @@ typedef enum {
   TASK_POOL,
   WORKER
 } ProcessorCategory;
+
 
 static LegionRuntime::Logger::Category log_psana_mapper("psana_mapper");
 
@@ -91,9 +93,9 @@ private:
                   const Task&              task,
                   const SliceTaskInput&    input,
                   SliceTaskOutput&   output);
-  void decompose_points(const Rect<1> &point_rect,
+  void decompose_points(const Rect<1, coord_t> &point_rect,
                         const std::vector<Processor> &targets,
-                        const Point<1> &num_blocks,
+                        const Point<1, coord_t> &num_blocks,
                         std::vector<TaskSlice> &slices);
   void select_tasks_to_map(const MapperContext          ctx,
                            const SelectMappingInput&    input,
@@ -196,28 +198,28 @@ inline char* PsanaMapper::taskDescription(const Legion::Task& task)
 
 
 //--------------------------------------------------------------------------
-void PsanaMapper::decompose_points(const Rect<1> &point_rect,
+void PsanaMapper::decompose_points(const Rect<1, coord_t> &point_rect,
                                    const std::vector<Processor> &targets,
-                                   const Point<1> &num_blocks,
+                                   const Point<1, coord_t> &num_blocks,
                                    std::vector<TaskSlice> &slices)
 //--------------------------------------------------------------------------
 {
-  Point<1> num_points = point_rect.hi - point_rect.lo + Point<1>::ONES();
-  Rect<1> blocks(Point<1>::ZEROES(), num_blocks - Point<1>::ONES());
+  int num_points = point_rect.hi - point_rect.lo + Point<1, coord_t>(1);
+  Rect<1, coord_t> blocks(Point<1, coord_t>(0), num_blocks - Point<1, coord_t>(1));
   size_t next_index = 0;
   slices.reserve(blocks.volume());
-  for (GenericPointInRectIterator<1> pir(blocks); pir; pir++) {
-    Point<1> block_lo = pir.p,
-    block_hi = pir.p + Point<1>(TASKS_PER_STEALABLE_SLICE);
+  for (PointInRectIterator<1, coord_t> pir(blocks); pir(); pir++) {
+    Point<1, coord_t> block_lo = *pir;
+    Point<1, coord_t> block_hi = *pir + Point<1, coord_t>(TASKS_PER_STEALABLE_SLICE);
     
-    Point<1> slice_lo = num_points * block_lo / num_blocks + point_rect.lo;
-    Point<1> slice_hi = num_points * block_hi / num_blocks +
-    point_rect.lo - Point<1>::ONES();
-    Rect<1> slice_rect(slice_lo, slice_hi);
+    Point<1, coord_t> slice_lo = num_points * block_lo / num_blocks + point_rect.lo;
+    Point<1, coord_t> slice_hi = num_points * block_hi / num_blocks +
+    point_rect.lo - Point<1, coord_t>(1);
+    Rect<1, coord_t> slice_rect(slice_lo, slice_hi);
     
     if (slice_rect.volume() > 0) {
       TaskSlice slice;
-      slice.domain = Domain::from_rect<1>(slice_rect);
+      slice.domain = (Realm::ZRect<1, coord_t>)(slice_rect);
       slice.proc = targets[next_index++ % targets.size()];
       slice.recurse = false;
       slice.stealable = true;
@@ -245,8 +247,8 @@ void PsanaMapper::slice_task(const MapperContext      ctx,
     assert(task.target_proc.kind() == Processor::LOC_PROC);
     assert(input.domain.get_dim() == 1);
     
-    Rect<1> point_rect = input.domain.get_rect<1>();
-    Point<1> num_blocks(point_rect.volume() / TASKS_PER_STEALABLE_SLICE);
+    Rect<1, coord_t> point_rect = input.domain;
+    Point<1, coord_t> num_blocks(point_rect.volume() / TASKS_PER_STEALABLE_SLICE);
     decompose_points(point_rect, task_pool_procs, num_blocks, output.slices);
     
     //debug
