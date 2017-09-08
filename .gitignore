@@ -10,3 +10,4 @@ core
 *.swp
 *.log
 *.gz
+*.out
