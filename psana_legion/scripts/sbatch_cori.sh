@@ -17,7 +17,7 @@ HOST_PSANA_DIR=$HOME/psana_legion/psana-legion
 HOST_LEGION_DIR=$HOME/psana_legion/legion
 
 # Host directory where data is located
-HOST_DATA_DIR=$HOME/psana_legion/data/reg
+HOST_DATA_DIR=$SCRATCH/data/reg
 
 srun -n 1 --ntasks-per-node 1 --cpu_bind none \
   shifter --image=$IMAGE \
