@@ -1,0 +1,19 @@
+FROM centos:centos7
+MAINTAINER Elliott Slaughter <slaughter@cs.stanford.edu>
+
+RUN yum clean all && \
+    yum -y install bzip2 gcc-c++ git shasum
+
+ENV CONDA_PREFIX /conda
+ENV PATH $CONDA_PREFIX/bin:$PATH
+ENV LD_LIBRARY_PATH $CONDA_PREFIX/lib:$LD_LIBRARY_PATH
+
+# https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh
+RUN curl -O https://repo.continuum.io/miniconda/Miniconda2-4.3.21-Linux-x86_64.sh && \
+    echo "b87adda9eb41f3ae6c2999fda739ab61ebb3892e  Miniconda2-4.3.21-Linux-x86_64.sh" | sha1sum --check && \
+    /bin/bash Miniconda2-4.3.21-Linux-x86_64.sh -b -p "$CONDA_PREFIX" && \
+    conda update -y conda && \
+    conda install -y scons cython && \
+    conda install -y --channel lcls-rhel7 psana-conda ndarray && \
+    conda uninstall --force mpich2 && \
+    rm Miniconda2-4.3.21-Linux-x86_64.sh
