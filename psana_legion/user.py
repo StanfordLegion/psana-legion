@@ -31,4 +31,4 @@ def analyze(event):
 def filter(event):
     return True
 
-ds.start(analyze, filter)
+ds.start(analyze, filter, limit=5000)

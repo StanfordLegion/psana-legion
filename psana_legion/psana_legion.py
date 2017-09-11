@@ -21,6 +21,7 @@ import itertools
 import legion
 import numpy
 import psana
+import sys
 
 # User configurable analysis and filter predicate.
 class Config(object):
@@ -111,10 +112,12 @@ def main_task():
     if _ds.config.predicate is not None:
         events = itertools.ifilter(_ds.config.predicate, events)
 
-    chunksize = 10
+    chunksize = 16
     nevents = 0
     for i, events in enumerate(chunk(events, chunksize)):
-        if i % 10 == 0: print('Processing event %s' % nevents)
+        if i % 10 == 0:
+            print('Processing event %s' % nevents)
+            sys.stdout.flush()
 
         for idx in legion.IndexLaunch([len(events)]):
             analyze(Location(events[idx]))
@@ -127,3 +130,12 @@ def main_task():
     print('Elapsed time: %e seconds' % ((stop - start)/1e6))
     print('Number of events: %s' % nevents)
     print('Events per second: %e' % (nevents/((stop - start)/1e6)))
+
+    # Hack: Estimate bandwidth used
+
+    total_events = 75522
+    total_size = 875 # GB
+
+    fraction_events = float(nevents)/total_events
+    bw = fraction_events * total_size / ((stop - start)/1e6)
+    print('Estimated bandwidth used: %e GB/s' % bw)
