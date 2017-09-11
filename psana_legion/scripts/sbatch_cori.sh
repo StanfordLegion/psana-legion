@@ -1,8 +1,11 @@
 #!/bin/bash
+#SBATCH --job-name=psana_legion
+#SBATCH --dependency=singleton
 #SBATCH --nodes=1
-#SBATCH --time=00:15:00
+#SBATCH --time=00:30:00
 #SBATCH --partition=regular
-#SBATCH --constraint=knl
+#SBATCH --constraint=knl,quad,cache
+#SBATCH --core-spec=4
 #SBATCH --mail-type=ALL
 #SBATCH --account=ACCOUNT
 
