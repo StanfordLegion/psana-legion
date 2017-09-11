@@ -63,6 +63,9 @@ endif
 
 ifneq ($(CRAYPE_VERSION),)
 	REAL_LD_FLAGS += -dynamic
+	REAL_LD_FLAGS += ${CRAY_UGNI_POST_LINK_OPTS}
+	REAL_LD_FLAGS += ${CRAY_PMI_POST_LINK_OPTS}
+	REAL_LIBS += -lugni -lpmi -lhugetlbfs
 endif
 
 # Hack: Create the real binary
@@ -74,7 +77,7 @@ $(REAL_GEN_OBJ) : %.o : %.cc
 	$(CXX) -o $@ -c $< $(CC_FLAGS) $(INC_FLAGS)
 $(REAL_OUTFILE) : $(REAL_GEN_OBJ) $(OUTFILE)
 	@echo "---> Linking objects into one binary: $(REAL_OUTFILE)"
-	$(CXX) -o $(REAL_OUTFILE) $(REAL_GEN_OBJ) $(REAL_LD_FLAGS) -L. -lpsana_legion
+	$(CXX) -o $(REAL_OUTFILE) $(REAL_GEN_OBJ) $(REAL_LD_FLAGS) -L. -lpsana_legion $(REAL_LIBS)
 
 
 ###########################################################################
