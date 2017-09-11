@@ -309,16 +309,24 @@ void PsanaMapper::select_steal_targets(const MapperContext         ctx,
     bool found = false;
     unsigned counter = 0;
     int index;
+    
     while(!found) {
       index = uni(rng);
+      log_psana_mapper.debug("proc %llx: select_steal_targets trying %d",
+                             local_proc.id, index);
       if(input.blacklist.find(task_pool_procs[index]) != input.blacklist.end()) {
-        found = true;
-      } else {
-        if(counter++ >= task_pool_procs.size()) {
-          log_psana_mapper.debug("proc %llx: cannot steal, all procs in blacklist",
+        log_psana_mapper.debug("proc %llx: select_steal_targets proc %d is in blacklist",
+                               local_proc.id, index);
+        if(counter++ >= task_pool_procs.size() * 2) {
+          log_psana_mapper.debug("proc %llx: select_steal_targets cannot steal, all procs in blacklist",
                                  local_proc.id);
           return;
         }
+      } else {
+        found = true;
+        log_psana_mapper.debug("proc %llx: select_steal_Targets found %d",
+                               local_proc.id, index);
+        
       }
     }
     
@@ -455,10 +463,10 @@ static void create_mappers(Machine machine, HighLevelRuntime *runtime, const std
       if (affinity.m.kind() == Memory::SYSTEM_MEM) {
         (*proc_sysmems)[affinity.p] = affinity.m;
         if (proc_regmems->find(affinity.p) == proc_regmems->end())
-          (*proc_regmems)[affinity.p] = affinity.m;
+        (*proc_regmems)[affinity.p] = affinity.m;
       }
       else if (affinity.m.kind() == Memory::REGDMA_MEM)
-        (*proc_regmems)[affinity.p] = affinity.m;
+      (*proc_regmems)[affinity.p] = affinity.m;
     }
   }
   
@@ -470,7 +478,7 @@ static void create_mappers(Machine machine, HighLevelRuntime *runtime, const std
   
   for (std::map<Memory, std::vector<Processor> >::iterator it =
        sysmem_local_procs->begin(); it != sysmem_local_procs->end(); ++it)
-    sysmems_list->push_back(it->first);
+  sysmems_list->push_back(it->first);
   
   for (std::set<Processor>::const_iterator it = local_procs.begin();
        it != local_procs.end(); it++)
