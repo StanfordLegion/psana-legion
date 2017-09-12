@@ -112,10 +112,12 @@ def main_task():
     if _ds.config.predicate is not None:
         events = itertools.ifilter(_ds.config.predicate, events)
 
-    chunksize = 16
+    overcommit = 8
+
+    chunksize = legion.Tunable.select(legion.Tunable.GLOBAL_PYS).get() * overcommit
     nevents = 0
     for i, events in enumerate(chunk(events, chunksize)):
-        if i % 10 == 0:
+        if i % 20 == 0:
             print('Processing event %s' % nevents)
             sys.stdout.flush()
 
