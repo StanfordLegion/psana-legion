@@ -393,14 +393,30 @@ void PsanaMapper::map_task(const MapperContext      ctx,
                            MapTaskOutput&     output)
 //--------------------------------------------------------------------------
 {
-  log_psana_mapper.debug("proc %llx: map_task pass %s to default mapper map_task",
-                         local_proc.id, taskDescription(task));
-  
-  if(!isWorkerTask(task)) {
-    this->DefaultMapper::map_task(ctx, task, input, output);
+  Processor::Kind target_kind = task.target_proc.kind();
+  VariantInfo chosen = default_find_preferred_variant(task, ctx,
+                                                      true/*needs tight bound*/, false/*cache*/, target_kind);
+
+  if(processorCategory == WORKER) {
+    if(isWorkerTask(task)) {
+      log_psana_mapper.debug("proc %llx: map_task worker maps %s to itself",
+                             local_proc.id, taskDescription(task));
+      output.chosen_variant = chosen.variant;
+      output.task_priority = 0;
+      output.postmap_task = false;
+      output.target_procs.push_back(local_proc);
+    } else {
+      log_psana_mapper.debug("proc %llx: map_task pass %s to default mapper map_task",
+                             local_proc.id, taskDescription(task));
+      this->DefaultMapper::map_task(ctx, task, input, output);
+    }
   } else {
-    assert(processorCategory == WORKER);
-    this->DefaultMapper::map_task(ctx, task, input, output);
+    log_psana_mapper.debug("proc %llx: map_task non-worker maps %s to itself",
+                           local_proc.id, taskDescription(task));
+    output.chosen_variant = chosen.variant;
+    output.task_priority = 0;
+    output.postmap_task = false;
+    output.target_procs.push_back(local_proc);
   }
   
 }
@@ -417,10 +433,12 @@ void PsanaMapper::select_task_options(const MapperContext    ctx,
   if(processorCategory == WORKER ||
      !isWorkerTask(task) ||
      task.is_index_space) {
-    log_psana_mapper.debug("proc %llx: select_task_options pass %s to default mapper select_task_options",
+    log_psana_mapper.debug("proc %llx: select_task_options %s on self proc",
                            local_proc.id, taskDescription(task));
-    this->DefaultMapper::select_task_options(ctx, task, output);
-    output.map_locally = false;
+    output.initial_proc = local_proc;
+    output.inline_task = false;
+    output.stealable = false;
+    output.map_locally = true;
   } else {
     log_psana_mapper.debug("proc %llx: select_task_options skipping %s",
                            local_proc.id, taskDescription(task));
