@@ -9,10 +9,20 @@ det = psana.Detector('CxiDs2.0:Cspad.0', ds.env())
 run = ds.runs().next()
 times = run.times()
 
+size = MPI.COMM_WORLD.Get_size()
+rank = MPI.COMM_WORLD.Get_rank()
+
 limit = 5000
 if limit: times = times[:limit]
 
-times = numpy.array_split(times, MPI.COMM_WORLD.Get_size())[MPI.COMM_WORLD.Get_rank()]
+strategy = 'round_robin'
+if strategy == 'block':
+    times = numpy.array_split(times, size)[rank]
+elif strategy == 'round_robin':
+    times = [time for i, time in enumerate(times) if i % size == rank]
+else:
+    assert False
+print('Rank %s has %s events' % (rank, len(times)))
 
 MPI.COMM_WORLD.Barrier()
 start = MPI.Wtime()
@@ -25,7 +35,7 @@ for time in times:
 MPI.COMM_WORLD.Barrier()
 stop = MPI.Wtime()
 
-if MPI.COMM_WORLD.Get_rank() == 0:
+if rank == 0:
     nevents = limit
 
     print('Elapsed time: %e seconds' % (stop - start))
