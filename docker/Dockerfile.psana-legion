@@ -4,7 +4,7 @@ MAINTAINER Elliott Slaughter <slaughter@cs.stanford.edu>
 ENV DEBIAN_FRONTEND noninteractive
 
 RUN apt-get update -qq && \
-    apt-get install -qq build-essential bzip2 curl libdigest-sha-perl libtiff5-dev git zlib1g-dev && \
+    apt-get install -qq build-essential bzip2 curl libdigest-sha-perl git zlib1g-dev && \
     apt-get clean
 
 ENV SIT_ARCH x86_64-rhel7-gcc48-opt
@@ -22,7 +22,7 @@ RUN curl -O https://repo.continuum.io/miniconda/Miniconda2-4.3.21-Linux-x86_64.s
     echo "b87adda9eb41f3ae6c2999fda739ab61ebb3892e  Miniconda2-4.3.21-Linux-x86_64.sh" | shasum --check && \
     /bin/bash Miniconda2-4.3.21-Linux-x86_64.sh -b -p "$CONDA_PREFIX" && \
     conda update -y conda && \
-    conda install -y scons cython && \
+    conda install -y scons cython libtiff=4.0.6 && \
     conda install -y --channel lcls-rhel7 psana-conda ndarray && \
     git clone -b python https://github.com/StanfordLegion/legion.git /legion && \
     git clone https://github.com/StanfordLegion/psana-legion.git /psana-legion && \
