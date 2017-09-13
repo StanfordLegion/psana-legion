@@ -30,6 +30,7 @@ int main(int argc, const char **argv) {
   printf("  Filename: %s\n", filename);
   printf("  Number of shards: %lu\n", nshards);
   printf("  Chunk size: %lu\n", chunksize);
+  printf("\n");
 
   int fd = open(filename, O_RDONLY);
   assert(fd >= 0);
@@ -41,6 +42,8 @@ int main(int argc, const char **argv) {
   size_t total_bytes = 0;
   #pragma omp parallel for reduction(+:total_bytes)
   for (size_t shard = 0; shard < nshards; shard++) {
+    printf("Shard %lu running on thread %d\n", shard, omp_get_thread_num());
+
     void *buffer = malloc(chunksize);
     assert(buffer);
 
@@ -64,6 +67,7 @@ int main(int argc, const char **argv) {
 
   double elapsed_s = (stop_ns - start_ns)/1e9;
 
+  printf("\n");
   printf("Elapsed time: %e seconds\n", elapsed_s);
   printf("Total bytes: %.1f GB (1 GB == 10^9 bytes)\n", total_bytes/1e9);
   printf("Bandwidth: %.1f GB/s\n", total_bytes/elapsed_s/1e9);
