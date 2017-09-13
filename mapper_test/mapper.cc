@@ -438,7 +438,7 @@ void PsanaMapper::select_task_options(const MapperContext    ctx,
     output.initial_proc = local_proc;
     output.inline_task = false;
     output.stealable = false;
-    output.map_locally = true;
+    output.map_locally = false;
   } else {
     log_psana_mapper.debug("proc %llx: select_task_options skipping %s",
                            local_proc.id, taskDescription(task));
