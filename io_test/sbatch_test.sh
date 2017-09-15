@@ -21,8 +21,10 @@ filename=$HOST_DATA_DIR/d/psdm/cxi/cxid9114/xtc/e438-r0108-s00-c00.xtc
 for n in 1; do
   for c in 1 2 4 8 16 32 64 128 256; do
     for s in 1048576; do
-      # srun -n $n -N $n --cpus-per-task $(( c * 4 )) --cpu_bind cores --output knl_n"$n"_c"$c"_s"$s".log \
-      srun -n $n -N $n --cpus-per-task 4 --cpu_bind cores --output knl_n"$n"_c"$c"_s"$s".log \
+      srun -n $n -N $n --cpus-per-task $(( c * 4 )) --cpu_bind cores --output knl_multi_n"$n"_c"$c"_s"$s".log \
+        ./io_test $filename $c $s
+
+      srun -n $n -N $n --cpus-per-task 4 --cpu_bind cores --output knl_single_n"$n"_c"$c"_s"$s".log \
         ./io_test $filename $c $s
     done
   done
