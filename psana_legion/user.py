@@ -17,6 +17,8 @@
 
 from __future__ import print_function
 
+import os
+
 import psana
 import psana_legion
 
@@ -31,4 +33,5 @@ def analyze(event):
 def filter(event):
     return True
 
-ds.start(analyze, filter, limit=5000)
+limit = int(os.environ['SLURM_JOB_NUM_NODES']) * 5000
+ds.start(analyze, filter, limit=limit)
