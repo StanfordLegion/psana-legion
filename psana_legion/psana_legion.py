@@ -112,8 +112,8 @@ def main_task():
 
     overcommit = 8
     chunksize = legion.Tunable.select(legion.Tunable.GLOBAL_PYS).get() * overcommit
-    while chunksize >= 64: # FIXME: Index launch breaks with chunksize >= 64
-        chunksize = chunksize / 2
+    # while chunksize >= 64: # FIXME: Index launch breaks with chunksize >= 64
+    #     chunksize = chunksize / 2
     print('Using chunk size %s' % chunksize)
 
     start = legion.c.legion_get_current_time_in_micros()
