@@ -1,6 +1,7 @@
 import psana
 from mpi4py import MPI
 import numpy
+import os
 
 run_number = 108
 ds = psana.DataSource('exp=cxid9114:run=%s:idx' % run_number)
@@ -12,7 +13,7 @@ times = run.times()
 size = MPI.COMM_WORLD.Get_size()
 rank = MPI.COMM_WORLD.Get_rank()
 
-limit = 5000 * (size/64)
+limit = int(os.environ['SLURM_JOB_NUM_NODES']) * 5000
 if limit: times = times[:limit]
 
 if rank == 0:
