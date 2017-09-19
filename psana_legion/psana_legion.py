@@ -20,6 +20,7 @@ from __future__ import print_function
 import itertools
 import legion
 import numpy
+import os
 import psana
 import sys
 
@@ -110,7 +111,7 @@ def main_task():
     if _ds.config.predicate is not None:
         events = itertools.ifilter(_ds.config.predicate, events)
 
-    eager = True
+    eager = 'EAGER' in os.environ and os.environ['EAGER'] == '1'
     if eager:
         start = legion.c.legion_get_current_time_in_micros()
         events = list(events)
@@ -120,7 +121,7 @@ def main_task():
         print('Enumerating: Number of events: %s' % len(events))
         print('Enumerating: Events per second: %e' % (len(events)/((stop - start)/1e6)))
 
-    overcommit = 8
+    overcommit = 4
     chunksize = legion.Tunable.select(legion.Tunable.GLOBAL_PYS).get() * overcommit
     # while chunksize >= 64: # FIXME: Index launch breaks with chunksize >= 64
     #     chunksize = chunksize / 2
