@@ -34,8 +34,8 @@ if rank == 0:
         stop = MPI.Wtime()
 
         print('Enumerating: Elapsed time: %e seconds' % (stop - start))
-        print('Enumerating: Number of events: %s' % nevents)
-        print('Enumerating: Events per second: %e' % (nevents/(stop - start)))
+        print('Enumerating: Number of events: %s' % len(events))
+        print('Enumerating: Events per second: %e' % (len(events)/(stop - start)))
 
     start = MPI.Wtime()
 
