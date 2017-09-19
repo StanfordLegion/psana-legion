@@ -6,10 +6,9 @@
 #SBATCH --partition=debug # regular
 #SBATCH --constraint=knl,quad,cache
 #SBATCH --core-spec=4
+#SBATCH --image=docker:stanfordlegion/psana-legion:latest
 #SBATCH --mail-type=ALL
 #SBATCH --account=ACCOUNT
-
-IMAGE=docker:stanfordlegion/psana-legion:latest
 
 # Host directory where Psana is located
 # (Needed for native Legion shared library)
@@ -26,12 +25,14 @@ HOST_DATA_DIR=$SCRATCH/noepics_data/reg
 
 echo "HOST_DATA_DIR=$HOST_DATA_DIR"
 
+export EAGER=0
+
 for n in 1 2 4 8 16; do
   for c in 8; do
     for i in 8; do
       if [[ ! -e rax_n"$n"_c"$c"_i"$i".log ]]; then
         srun -n $(( n * c )) -N $n --cpus-per-task $(( 256 / c )) --cpu_bind cores --output rax_n"$n"_c"$c"_i"$i".log \
-          shifter --image=$IMAGE \
+          shifter \
             --volume=$HOST_PSANA_DIR:/native-psana-legion \
             --volume=$HOST_LEGION_DIR:/legion \
             --volume=$HOST_DATA_DIR:/reg \
