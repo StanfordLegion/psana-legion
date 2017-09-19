@@ -117,8 +117,8 @@ def main_task():
         stop = legion.c.legion_get_current_time_in_micros()
 
         print('Enumerating: Elapsed time: %e seconds' % ((stop - start)/1e6))
-        print('Enumerating: Number of events: %s' % nevents)
-        print('Enumerating: Events per second: %e' % (nevents/((stop - start)/1e6)))
+        print('Enumerating: Number of events: %s' % len(events))
+        print('Enumerating: Events per second: %e' % (len(events)/((stop - start)/1e6)))
 
     overcommit = 8
     chunksize = legion.Tunable.select(legion.Tunable.GLOBAL_PYS).get() * overcommit
