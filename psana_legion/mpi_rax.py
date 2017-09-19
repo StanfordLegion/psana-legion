@@ -1,6 +1,7 @@
 import psana
 from mpi4py import MPI
 import numpy
+import itertools
 import os
 
 class Location(object):
@@ -21,23 +22,34 @@ run_number = 108
 if rank == 0:
     ds = psana.DataSource('exp=cxid9114:run=%s:smd' % run_number)
 
+    events = ds.events()
     limit = int(os.environ['SLURM_JOB_NUM_NODES']) * 5000
+    if limit:
+        events = itertools.islice(events, limit)
+
+    eager = 'EAGER' in os.environ and os.environ['EAGER'] == '1'
+    if eager:
+        start = MPI.Wtime()
+        events = list(events)
+        stop = MPI.Wtime()
+
+        print('Enumerating: Elapsed time: %e seconds' % (stop - start))
+        print('Enumerating: Number of events: %s' % nevents)
+        print('Enumerating: Events per second: %e' % (nevents/(stop - start)))
 
     start = MPI.Wtime()
 
-    events = itertools.islice(ds.events(), limit)
-    for nevent, event in enumerate(events):
+    nevents = 0
+    for event in events:
         worker = MPI.COMM_WORLD.recv(source=MPI.ANY_SOURCE)
         MPI.COMM_WORLD.send(Location(event), dest=worker)
+        nevents += 1
 
     for worker in xrange(size-1):
         worker = MPI.COMM_WORLD.recv(source=MPI.ANY_SOURCE)
         MPI.COMM_WORLD.send('end', dest=worker)
 
     stop = MPI.Wtime()
-
-    # Compute statistics
-    nevents = limit
 
     print('Elapsed time: %e seconds' % (stop - start))
     print('Number of events: %s' % nevents)
