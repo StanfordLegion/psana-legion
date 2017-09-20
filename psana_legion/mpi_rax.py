@@ -5,14 +5,20 @@ import itertools
 import os
 
 class Location(object):
-    __slots__ = ['filenames', 'offsets', 'calib']
+    __slots__ = ['filenames', 'offsets']
     def __init__(self, event):
         offset = event.get(psana.EventOffset)
         self.filenames = offset.filenames()
         self.offsets = offset.offsets()
-        self.calib = offset.lastBeginCalibCycleDgram()
     def __repr__(self):
         return 'Location(%s, %s)' % (self.offsets, self.filenames)
+
+def chunk(iterable, chunksize):
+    it = iter(iterable)
+    while True:
+        value = [next(it)]
+        value.extend(itertools.islice(it, chunksize-1))
+        yield value
 
 size = MPI.COMM_WORLD.Get_size()
 rank = MPI.COMM_WORLD.Get_rank()
@@ -37,13 +43,22 @@ if rank == 0:
         print('Enumerating: Number of events: %s' % len(events))
         print('Enumerating: Events per second: %e' % (len(events)/(stop - start)))
 
+    chunksize = 4 # Number of events per task
+
     start = MPI.Wtime()
 
+    # Group events by calib cycle so that different cycles don't mix
+    events = itertools.groupby(
+        events, lambda e: e.get(psana.EventOffset).lastBeginCalibCycleDgram())
+
     nevents = 0
-    for event in events:
-        worker = MPI.COMM_WORLD.recv(source=MPI.ANY_SOURCE)
-        MPI.COMM_WORLD.send(Location(event), dest=worker)
-        nevents += 1
+    ncalib = 0
+    for calib, calib_events in events:
+        for chunk_events in chunk(calib_events, chunksize):
+            worker = MPI.COMM_WORLD.recv(source=MPI.ANY_SOURCE)
+            MPI.COMM_WORLD.send((map(Location, chunk_events), calib), dest=worker)
+            nevents += len(chunk_events)
+        ncalib += 1
 
     for worker in xrange(size-1):
         worker = MPI.COMM_WORLD.recv(source=MPI.ANY_SOURCE)
@@ -52,6 +67,7 @@ if rank == 0:
     stop = MPI.Wtime()
 
     print('Elapsed time: %e seconds' % (stop - start))
+    print('Number of calib cycles: %s' % ncalib)
     print('Number of events: %s' % nevents)
     print('Events per second: %e' % (nevents/(stop - start)))
 
@@ -70,7 +86,9 @@ else:
 
     while True:
         MPI.COMM_WORLD.send(rank, dest=0)
-        loc = MPI.COMM_WORLD.recv(source=0)
-        if loc == 'end': break
+        chunk = MPI.COMM_WORLD.recv(source=0)
+        if chunk == 'end': break
 
-        evt = ds.jump(loc.filenames, loc.offsets, loc.calib)
+        locs, calib = chunk
+        for loc in locs:
+            evt = ds.jump(loc.filenames, loc.offsets, calib)
