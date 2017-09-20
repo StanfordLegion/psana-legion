@@ -70,7 +70,7 @@ endif
 
 # Hack: Create the real binary
 REAL_OUTFILE ?= psana_legion
-REAL_GEN_OBJ ?= psana_legion.o
+REAL_GEN_OBJ ?= psana_legion.o psana_mapper.o
 .PHONY: all
 all: $(OUTFILE) $(REAL_OUTFILE)
 $(REAL_GEN_OBJ) : %.o : %.cc
