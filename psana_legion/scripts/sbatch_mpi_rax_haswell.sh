@@ -26,7 +26,7 @@ export EAGER=0
 
 for n in 1 2 4 8 16; do
   for c in 32; do
-    ./make_nodelist.sh $c
+    ./make_nodelist.py $c > nodelist.txt
     export SLURM_HOSTFILE=$PWD/nodelist.txt
     if [[ ! -e rax_n"$n"_c"$c".log ]]; then
       srun -n $(( n * c + 1 )) -N $(( n + 1 )) --cpus-per-task 2 --cpu_bind cores --distribution=arbitrary --output rax_n"$n"_c"$c".log \

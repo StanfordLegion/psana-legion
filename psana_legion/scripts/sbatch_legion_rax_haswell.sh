@@ -29,7 +29,7 @@ export EAGER=0
 
 for n in 1 2 4 8 16; do
   for c in 8; do
-    ./make_nodelist.sh $c
+    ./make_nodelist.py $c > nodelist.txt
     export SLURM_HOSTFILE=$PWD/nodelist.txt
     for i in 8; do
       if [[ ! -e rax_n"$n"_c"$c"_i"$i".log ]]; then
