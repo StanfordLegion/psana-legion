@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=psana_legion_bb
 #SBATCH --dependency=singleton
-#SBATCH --nodes=16
+#SBATCH --nodes=17
 #SBATCH --time=00:30:00
 #SBATCH --partition=debug # regular
 #SBATCH --constraint=haswell
@@ -24,8 +24,10 @@ export EAGER=0
 
 for n in 1 2 4 8 16; do
   for c in 32; do
+    ./make_nodelist.sh $c
+    export SLURM_HOSTFILE=$PWD/nodelist.txt
     if [[ ! -e rax_n"$n"_c"$c".log ]]; then
-      srun -n $(( n * c )) -N $n --cpus-per-task 2 --cpu_bind cores --output rax_n"$n"_c"$c".log \
+      srun -n $(( n * c + 1 )) -N $(( n + 1 )) --cpus-per-task 2 --cpu_bind cores --distribution=arbitrary --output rax_n"$n"_c"$c".log \
         shifter \
           --volume=$HOST_PSANA_DIR:/native-psana-legion \
           --volume=$HOST_DATA_DIR:/reg \
