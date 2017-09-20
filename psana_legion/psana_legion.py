@@ -69,28 +69,29 @@ class LegionDataSource(object):
         self.config.limit = limit
 
 class Location(object):
-    __slots__ = ['filenames', 'offsets', 'calib']
+    __slots__ = ['filenames', 'offsets']
     def __init__(self, event):
         offset = event.get(psana.EventOffset)
         self.filenames = offset.filenames()
         self.offsets = offset.offsets()
-        self.calib = offset.lastBeginCalibCycleDgram()
     def __repr__(self):
         return 'Location(%s, %s)' % (self.offsets, self.filenames)
 
 @legion.task
-def analyze_leaf(loc):
+def analyze_leaf(loc, calib):
     runtime = long(legion.ffi.cast("unsigned long long", legion._my.ctx.runtime_root))
     ctx = long(legion.ffi.cast("unsigned long long", legion._my.ctx.context_root))
 
-    event = _ds.jump(loc.filenames, loc.offsets, loc.calib, runtime, ctx) # Fetches the data
+    event = _ds.jump(loc.filenames, loc.offsets, calib, runtime, ctx) # Fetches the data
     _ds.config.analysis(event) # Performs user analysis
     return True
 
 # FIXME: This extra indirection (with a blocking call) is to work around a freeze
 @legion.task(inner=True)
-def analyze(loc):
-    analyze_leaf(loc).get()
+def analyze(locs, calib):
+    for loc in locs:
+        future = analyze_leaf(loc, calib)
+    future.get() # Block on last future
 
 def chunk(iterable, chunksize):
     it = iter(iterable)
@@ -121,28 +122,40 @@ def main_task():
         print('Enumerating: Number of events: %s' % len(events))
         print('Enumerating: Events per second: %e' % (len(events)/((stop - start)/1e6)))
 
-    overcommit = 4
-    chunksize = legion.Tunable.select(legion.Tunable.GLOBAL_PYS).get() * overcommit
-    # while chunksize >= 64: # FIXME: Index launch breaks with chunksize >= 64
-    #     chunksize = chunksize / 2
-    print('Using chunk size %s' % chunksize)
+    chunksize = 4 # Number of events per task
+    overcommit = 1 # Number of tasks per processor per launch
+
+    # Number of tasks per launch
+    launchsize = (legion.Tunable.select(legion.Tunable.GLOBAL_PYS).get() - 1) * overcommit
+
+    print('Chunk size %s' % chunksize)
+    print('Launch size %s' % launchsize)
 
     start = legion.c.legion_get_current_time_in_micros()
 
+    # Group events by calib cycle so that different cycles don't mix
+    events = itertools.groupby(
+        events, lambda e: e.get(psana.EventOffset).lastBeginCalibCycleDgram())
+
     nevents = 0
-    for i, events in enumerate(chunk(events, chunksize)):
-        if i % 20 == 0:
-            print('Processing event %s' % nevents)
-            sys.stdout.flush()
-
-        for idx in legion.IndexLaunch([len(events)]):
-            analyze(Location(events[idx]))
-
-        nevents += len(events)
+    nlaunch = 0
+    ncalib = 0
+    for calib, calib_events in events:
+        for launch_events in chunk(chunk(calib_events, chunksize), launchsize):
+            if nlaunch % 20 == 0:
+                print('Processing event %s' % nevents)
+                sys.stdout.flush()
+            for idx in legion.IndexLaunch([len(launch_events)]):
+                analyze(map(Location, launch_events[idx]), calib)
+                nevents += len(launch_events[idx])
+            nlaunch += 1
+        ncalib += 1
 
     legion.execution_fence(block=True)
     stop = legion.c.legion_get_current_time_in_micros()
 
+    print('Number of launches: %s' % nlaunch)
+    print('Number of calib cycles: %s' % ncalib)
     print('Elapsed time: %e seconds' % ((stop - start)/1e6))
     print('Number of events: %s' % nevents)
     print('Events per second: %e' % (nevents/((stop - start)/1e6)))
