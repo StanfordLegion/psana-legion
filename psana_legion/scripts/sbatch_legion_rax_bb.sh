@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=psana_legion
+#SBATCH --job-name=psana_legion_bb
 #SBATCH --dependency=singleton
 #SBATCH --nodes=17
 #SBATCH --time=00:30:00
