@@ -49,7 +49,7 @@ int main(int argc, const char **argv) {
 
     size_t offset = shard * chunksize;
     while (true) {
-      size_t actual = pread(fd, buffer, chunksize, offset);
+      ssize_t actual = pread(fd, buffer, chunksize, offset);
       if (actual > 0) {
         // good, keep going
         offset += nshards * chunksize; // advance to next chunk
