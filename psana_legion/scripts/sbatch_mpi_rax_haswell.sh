@@ -25,11 +25,11 @@ echo "HOST_DATA_DIR=$HOST_DATA_DIR"
 export EAGER=0
 
 for n in 1 2 4 8 16; do
-  for c in 32; do
+  for c in 64; do
     ./make_nodelist.py $c > nodelist.txt
     export SLURM_HOSTFILE=$PWD/nodelist.txt
     if [[ ! -e rax_n"$n"_c"$c".log ]]; then
-      srun -n $(( n * c + 1 )) -N $(( n + 1 )) --cpus-per-task 2 --cpu_bind cores --distribution=arbitrary --output rax_n"$n"_c"$c".log \
+      srun -n $(( n * c + 1 )) -N $(( n + 1 )) --cpus-per-task $(( 64 / c )) --cpu_bind threads --distribution=arbitrary --output rax_n"$n"_c"$c".log \
         shifter \
           --volume=$HOST_PSANA_DIR:/native-psana-legion \
           --volume=$HOST_DATA_DIR:/reg \
