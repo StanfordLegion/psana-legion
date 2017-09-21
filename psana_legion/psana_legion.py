@@ -154,9 +154,9 @@ def main_task():
     legion.execution_fence(block=True)
     stop = legion.c.legion_get_current_time_in_micros()
 
-    print('Number of launches: %s' % nlaunch)
-    print('Number of calib cycles: %s' % ncalib)
     print('Elapsed time: %e seconds' % ((stop - start)/1e6))
+    print('Number of calib cycles: %s' % ncalib)
+    print('Number of launches: %s' % nlaunch)
     print('Number of events: %s' % nevents)
     print('Events per second: %e' % (nevents/((stop - start)/1e6)))
 
