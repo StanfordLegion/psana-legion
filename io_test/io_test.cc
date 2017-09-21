@@ -32,7 +32,7 @@ int main(int argc, const char **argv) {
   printf("  Chunk size: %lu\n", chunksize);
   printf("\n");
 
-  int fd = open(filename, O_RDONLY);
+  int fd = open(filename, O_RDONLY | O_DIRECT);
   assert(fd >= 0);
 
   long long start_ns = get_time_ns();
@@ -44,7 +44,10 @@ int main(int argc, const char **argv) {
   for (size_t shard = 0; shard < nshards; shard++) {
     printf("Shard %lu running on thread %d\n", shard, omp_get_thread_num());
 
-    void *buffer = malloc(chunksize);
+    void *buffer = 0;
+    const size_t alignment = 4096;
+    int err = posix_memalign(&buffer, alignment, chunksize);
+    assert(!err);
     assert(buffer);
 
     size_t offset = shard * chunksize;
