@@ -24,7 +24,7 @@ echo "HOST_DATA_DIR=$HOST_DATA_DIR"
 export EAGER=0
 
 for n in 1 2 4 8 16; do
-  for c in 64 128 256; do
+  for c in 64 128; do
     ./make_nodelist.py $c > nodelist.txt
     export SLURM_HOSTFILE=$PWD/nodelist.txt
     if [[ ! -e rax_n"$n"_c"$c".log ]]; then
