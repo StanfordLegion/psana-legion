@@ -86,12 +86,10 @@ def analyze_leaf(loc, calib):
     _ds.config.analysis(event) # Performs user analysis
     return True
 
-# FIXME: This extra indirection (with a blocking call) is to work around a freeze
 @legion.task(inner=True)
 def analyze(locs, calib):
     for loc in locs:
         future = analyze_leaf(loc, calib)
-    future.get() # Block on last future
 
 def chunk(iterable, chunksize):
     it = iter(iterable)
