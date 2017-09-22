@@ -13,6 +13,8 @@
  * limitations under the License.
  */
 
+#include "psana_mapper.h"
+
 #include "default_mapper.h"
 
 using namespace Legion;
@@ -120,7 +122,8 @@ PsanaMapper::custom_slice_task(const Task &task,
   for (Machine::ProcessorQuery::iterator it = all_procs.begin(),
          ie = all_procs.end(); it != ie; ++it)
   {
-    procs.push_back(*it);
+    if (!local_set.count(*it))
+      procs.push_back(*it);
   }
 
   switch (input.domain.get_dim())
