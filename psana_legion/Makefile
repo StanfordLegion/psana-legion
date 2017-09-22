@@ -87,3 +87,6 @@ $(REAL_OUTFILE) : $(REAL_GEN_OBJ) $(OUTFILE)
 ###########################################################################
 
 include $(LG_RT_DIR)/runtime.mk
+
+clean::
+	$(RM) -f $(OUTFILE) $(SLIB_LEGION) $(SLIB_REALM) $(GEN_OBJS) $(GEN_GPU_OBJS) $(LOW_RUNTIME_OBJS) $(HIGH_RUNTIME_OBJS) $(GPU_RUNTIME_OBJS) $(MAPPER_OBJS) $(ASM_OBJS) $(REAL_OUTFILE) $(REAL_GEN_OBJ)
