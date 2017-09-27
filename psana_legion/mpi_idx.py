@@ -1,6 +1,7 @@
 import psana
 from mpi4py import MPI
 import numpy
+import os
 
 run_number = 108
 ds = psana.DataSource('exp=cxid9114:run=%s:idx' % run_number)
@@ -12,8 +13,11 @@ times = run.times()
 size = MPI.COMM_WORLD.Get_size()
 rank = MPI.COMM_WORLD.Get_rank()
 
-limit = 5000
+limit = int(os.environ['SLURM_JOB_NUM_NODES']) * 5000
 if limit: times = times[:limit]
+
+if rank == 0:
+    print('Limit: %s' % limit)
 
 strategy = 'round_robin'
 if strategy == 'block':
@@ -22,7 +26,8 @@ elif strategy == 'round_robin':
     times = [time for i, time in enumerate(times) if i % size == rank]
 else:
     assert False
-print('Rank %s has %s events' % (rank, len(times)))
+if rank == 0:
+    print('Using distribution strategy: %s' % strategy)
 
 MPI.COMM_WORLD.Barrier()
 start = MPI.Wtime()

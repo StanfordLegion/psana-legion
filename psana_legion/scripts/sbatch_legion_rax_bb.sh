@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=psana_legion
+#SBATCH --job-name=psana_legion_bb
 #SBATCH --dependency=singleton
 #SBATCH --nodes=17
 #SBATCH --time=00:30:00
@@ -10,6 +10,7 @@
 #SBATCH --exclusive # causes shifter to preload image before run
 #SBATCH --mail-type=ALL
 #SBATCH --account=ACCOUNT
+#DW persistentdw name=slaughte_data_noepics
 
 # Host directory where Psana is located
 # (Needed for native Legion shared library)
@@ -20,9 +21,7 @@ HOST_PSANA_DIR=$HOME/psana_legion/psana-legion
 HOST_LEGION_DIR=$HOME/psana_legion/legion
 
 # Host directory where data is located
-# HOST_DATA_DIR=$SCRATCH/data/reg
-# HOST_DATA_DIR=$SCRATCH/stripe_24_data/reg
-HOST_DATA_DIR=$SCRATCH/noepics_data/reg
+HOST_DATA_DIR=$DW_PERSISTENT_STRIPED_slaughte_data_noepics/reg
 
 echo "HOST_DATA_DIR=$HOST_DATA_DIR"
 

@@ -17,6 +17,8 @@
 #include "realm/python/python_module.h"
 #include "realm/python/python_source.h"
 
+#include "psana_mapper.h"
+
 using namespace Legion;
 using namespace LegionRuntime::Accessor;
 using namespace LegionRuntime::Arrays;
@@ -117,6 +119,8 @@ int main(int argc, char **argv)
   }
 
   Runtime::set_top_level_task_id(TOP_LEVEL_TASK_ID);
+
+  register_mappers();
 
   return Runtime::start(argc, argv);
 }
