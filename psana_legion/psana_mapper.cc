@@ -130,29 +130,29 @@ PsanaMapper::custom_slice_task(const Task &task,
   {
     case 1:
       {
-        Rect<1> point_rect = input.domain.get_rect<1>();
-        Point<1> num_blocks(procs.size());
-        default_decompose_points<1>(point_rect, procs,
+        DomainT<1,coord_t> point_space = input.domain;
+        Point<1,coord_t> num_blocks(procs.size());
+        default_decompose_points<1>(point_space, procs,
               num_blocks, false/*recurse*/,
               stealing_enabled, output.slices);
         break;
       }
     case 2:
       {
-        Rect<2> point_rect = input.domain.get_rect<2>();
-        Point<2> num_blocks =
-          default_select_num_blocks<2>(procs.size(), point_rect);
-        default_decompose_points<2>(point_rect, procs,
+        DomainT<2,coord_t> point_space = input.domain;
+        Point<2,coord_t> num_blocks =
+          default_select_num_blocks<2>(procs.size(), point_space.bounds);
+        default_decompose_points<2>(point_space, procs,
             num_blocks, false/*recurse*/,
             stealing_enabled, output.slices);
         break;
       }
     case 3:
       {
-        Rect<3> point_rect = input.domain.get_rect<3>();
-        Point<3> num_blocks =
-          default_select_num_blocks<3>(procs.size(), point_rect);
-        default_decompose_points<3>(point_rect, procs,
+        DomainT<3,coord_t> point_space = input.domain;
+        Point<3,coord_t> num_blocks =
+          default_select_num_blocks<3>(procs.size(), point_space.bounds);
+        default_decompose_points<3>(point_space, procs,
             num_blocks, false/*recurse*/,
             stealing_enabled, output.slices);
         break;
