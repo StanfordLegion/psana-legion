@@ -25,6 +25,8 @@ class PsanaMapper : public DefaultMapper
 public:
   PsanaMapper(MapperRuntime *rt, Machine machine, Processor local,
               const char *mapper_name);
+  virtual TaskPriority default_policy_select_task_priority(
+                                    MapperContext ctx, const Task &task);
   virtual void slice_task(const MapperContext ctx,
                           const Task &task, 
                           const SliceTaskInput &input,
@@ -36,6 +38,8 @@ private:
                          const SliceTaskInput &input,
                          SliceTaskOutput &output,
                  std::map<Domain,std::vector<TaskSlice> > &cached_slices) const;
+private:
+  TaskPriority last_priority;
 };
 
 PsanaMapper::PsanaMapper(MapperRuntime *rt, Machine machine, Processor local,
@@ -43,6 +47,22 @@ PsanaMapper::PsanaMapper(MapperRuntime *rt, Machine machine, Processor local,
   : DefaultMapper(rt, machine, local, mapper_name)
 {
 }
+
+TaskPriority
+PsanaMapper::default_policy_select_task_priority(
+                                    MapperContext ctx, const Task &task)
+{
+  const char* task_name = task.get_task_name();
+  if (strcmp(task_name, "psana_legion.analyze") == 0) {
+    // Always enumerate the set of tasks as quickly as possible
+    return 100;
+  } else if (strcmp(task_name, "psana_legion.analyze_leaf") == 0) {
+    TaskPriority priority = last_priority++;
+    return priority % (20 /*window*/ * 8 /*chunksize*/ * 1 /*overcommit*/);
+  }
+  return 0;
+}
+
 
 void
 PsanaMapper::slice_task(const MapperContext      ctx,
