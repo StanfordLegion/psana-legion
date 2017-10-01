@@ -27,6 +27,11 @@ public:
               const char *mapper_name);
   virtual TaskPriority default_policy_select_task_priority(
                                     MapperContext ctx, const Task &task);
+  virtual int default_policy_select_garbage_collection_priority(
+                                    MapperContext ctx,
+                                    MappingKind kind, Memory memory,
+                                    const PhysicalInstance &instance,
+                                    bool meets_fill_constraints,bool reduction);
   virtual void slice_task(const MapperContext ctx,
                           const Task &task, 
                           const SliceTaskInput &input,
@@ -66,6 +71,16 @@ PsanaMapper::default_policy_select_task_priority(
   return 0;
 }
 
+int
+PsanaMapper::default_policy_select_garbage_collection_priority(
+                                    MapperContext ctx,
+                                    MappingKind kind, Memory memory,
+                                    const PhysicalInstance &instance,
+                                    bool meets_fill_constraints,bool reduction)
+{
+  // Allow instances to be destroyed on deletion of the region tree.
+  return GC_FIRST_PRIORITY;
+}
 
 void
 PsanaMapper::slice_task(const MapperContext      ctx,
