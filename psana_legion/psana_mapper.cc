@@ -60,7 +60,8 @@ PsanaMapper::default_policy_select_task_priority(
     // Rotate priorities on the actual analysis tasks to ensure that
     // we can issue I/O tasks ahead of actual execution
     TaskPriority priority = last_priority++;
-    return priority % (20 /*window*/ * 8 /*chunksize*/ * 1 /*overcommit*/);
+    size_t batch = 20 /*window*/ * 8 /*chunksize*/ * 1 /*overcommit*/;
+    return batch - priority % batch;
   }
   return 0;
 }
