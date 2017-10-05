@@ -25,6 +25,13 @@ class PsanaMapper : public DefaultMapper
 public:
   PsanaMapper(MapperRuntime *rt, Machine machine, Processor local,
               const char *mapper_name);
+  virtual TaskPriority default_policy_select_task_priority(
+                                    MapperContext ctx, const Task &task);
+  virtual int default_policy_select_garbage_collection_priority(
+                                    MapperContext ctx,
+                                    MappingKind kind, Memory memory,
+                                    const PhysicalInstance &instance,
+                                    bool meets_fill_constraints,bool reduction);
   virtual void slice_task(const MapperContext ctx,
                           const Task &task, 
                           const SliceTaskInput &input,
@@ -36,12 +43,43 @@ private:
                          const SliceTaskInput &input,
                          SliceTaskOutput &output,
                  std::map<Domain,std::vector<TaskSlice> > &cached_slices) const;
+private:
+  TaskPriority last_priority;
 };
 
 PsanaMapper::PsanaMapper(MapperRuntime *rt, Machine machine, Processor local,
                          const char *mapper_name)
   : DefaultMapper(rt, machine, local, mapper_name)
 {
+}
+
+TaskPriority
+PsanaMapper::default_policy_select_task_priority(
+                                    MapperContext ctx, const Task &task)
+{
+  const char* task_name = task.get_task_name();
+  if (strcmp(task_name, "psana_legion.analyze") == 0) {
+    // Always enumerate the set of tasks as quickly as possible
+    return 1000;
+  } else if (strcmp(task_name, "psana_legion.analyze_leaf") == 0) {
+    // Rotate priorities on the actual analysis tasks to ensure that
+    // we can issue I/O tasks ahead of actual execution
+    TaskPriority priority = last_priority++;
+    size_t batch = 20 /*window*/ * 8 /*chunksize*/ * 1 /*overcommit*/;
+    return batch - priority % batch;
+  }
+  return 0;
+}
+
+int
+PsanaMapper::default_policy_select_garbage_collection_priority(
+                                    MapperContext ctx,
+                                    MappingKind kind, Memory memory,
+                                    const PhysicalInstance &instance,
+                                    bool meets_fill_constraints,bool reduction)
+{
+  // Allow instances to be destroyed on deletion of the region tree.
+  return GC_FIRST_PRIORITY;
 }
 
 void
@@ -130,29 +168,29 @@ PsanaMapper::custom_slice_task(const Task &task,
   {
     case 1:
       {
-        Rect<1> point_rect = input.domain.get_rect<1>();
-        Point<1> num_blocks(procs.size());
-        default_decompose_points<1>(point_rect, procs,
+        DomainT<1,coord_t> point_space = input.domain;
+        Point<1,coord_t> num_blocks(procs.size());
+        default_decompose_points<1>(point_space, procs,
               num_blocks, false/*recurse*/,
               stealing_enabled, output.slices);
         break;
       }
     case 2:
       {
-        Rect<2> point_rect = input.domain.get_rect<2>();
-        Point<2> num_blocks =
-          default_select_num_blocks<2>(procs.size(), point_rect);
-        default_decompose_points<2>(point_rect, procs,
+        DomainT<2,coord_t> point_space = input.domain;
+        Point<2,coord_t> num_blocks =
+          default_select_num_blocks<2>(procs.size(), point_space.bounds);
+        default_decompose_points<2>(point_space, procs,
             num_blocks, false/*recurse*/,
             stealing_enabled, output.slices);
         break;
       }
     case 3:
       {
-        Rect<3> point_rect = input.domain.get_rect<3>();
-        Point<3> num_blocks =
-          default_select_num_blocks<3>(procs.size(), point_rect);
-        default_decompose_points<3>(point_rect, procs,
+        DomainT<3,coord_t> point_space = input.domain;
+        Point<3,coord_t> num_blocks =
+          default_select_num_blocks<3>(procs.size(), point_space.bounds);
+        default_decompose_points<3>(point_space, procs,
             num_blocks, false/*recurse*/,
             stealing_enabled, output.slices);
         break;
