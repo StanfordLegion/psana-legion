@@ -75,16 +75,17 @@ public:
               std::map<Processor, Memory>* proc_regmems);
 private:
   // std::vector<Processor>& procs_list;
-  // std::vector<Memory>& sysmems_list;
+   std::vector<Memory>& sysmems_list;
   //std::map<Memory, std::vector<Processor> >& sysmem_local_procs;
   std::map<Processor, Memory>& proc_sysmems;
-  // std::map<Processor, Memory>& proc_regmems;
+//  std::map<Processor, Memory>& proc_regmems;
   std::vector<Processor> task_pool_procs;
   std::vector<Processor> worker_procs;
   std::random_device rd;     // only used once to initialise (seed) engine
   std::mt19937 rng;
   std::uniform_int_distribution<int> uni;
   ProcessorCategory processorCategory;
+  std::map<std::pair<LogicalRegion,Memory>,PhysicalInstance> local_instances;
   
   void categorizeProcessors();
   inline char* taskDescription(const Legion::Task& task);
@@ -106,6 +107,12 @@ private:
   void permit_steal_request(const MapperContext         ctx,
                             const StealRequestInput&    input,
                             StealRequestOutput&   output);
+  Memory get_associated_sysmem(Processor proc);
+  void map_task_array(const MapperContext ctx,
+                      LogicalRegion region,
+                      Memory target,
+                      std::vector<PhysicalInstance> &instances);
+  
   void map_task(const MapperContext      ctx,
                 const Task&              task,
                 const MapTaskInput&      input,
@@ -136,7 +143,7 @@ PsanaMapper::PsanaMapper(MapperRuntime *rt,
                          std::map<Processor, Memory>* _proc_regmems)
 : DefaultMapper(rt, machine, local, mapper_name),
 // procs_list(*_procs_list),
-// sysmems_list(*_sysmems_list),
+ sysmems_list(*_sysmems_list),
 //sysmem_local_procs(*_sysmem_local_procs),
 proc_sysmems(*_proc_sysmems)
 // proc_regmems(*_proc_regmems)
@@ -232,7 +239,7 @@ void PsanaMapper::decompose_points(const Rect<1, coord_t> &point_rect,
     
     if (slice_rect.volume() > 0) {
       TaskSlice slice;
-      slice.domain = (Realm::ZRect<1, coord_t>)(slice_rect);
+      slice.domain = slice_rect;
       slice.proc = targets[next_index++ % targets.size()];
       slice.recurse = false;
       slice.stealable = true;
@@ -267,8 +274,9 @@ void PsanaMapper::slice_task(const MapperContext      ctx,
     //debug
     for(std::vector<TaskSlice>::iterator it = output.slices.begin();
         it != output.slices.end(); ++it) {
-      log_psana_mapper.debug("proc %llx: slice_task slice proc %llx stealable %d",
+      log_psana_mapper.debug("proc %llx: slice_task %s slice proc %llx stealable %d",
                              local_proc.id,
+                             taskDescription(task),
                              it->proc.id,
                              it->stealable);
     }
@@ -386,6 +394,61 @@ void PsanaMapper::permit_steal_request(const MapperContext         ctx,
   }
 }
 
+//------------------------------------------------------------------------------
+Memory PsanaMapper::get_associated_sysmem(Processor proc)
+//------------------------------------------------------------------------------
+{
+  std::map<Processor,Memory>::const_iterator finder =
+  proc_sysmems.find(proc);
+  if (finder != proc_sysmems.end())
+    return finder->second;
+  Machine::MemoryQuery sysmem_query(machine);
+  sysmem_query.same_address_space_as(proc);
+  sysmem_query.only_kind(Memory::SYSTEM_MEM);
+  Memory result = sysmem_query.first();
+  assert(result.exists());
+  proc_sysmems[proc] = result;
+  return result;
+}
+
+//--------------------------------------------------------------------------
+void PsanaMapper::map_task_array(const MapperContext ctx,
+                                 LogicalRegion region,
+                                 Memory target,
+                                 std::vector<PhysicalInstance> &instances)
+//--------------------------------------------------------------------------
+{
+  const std::pair<LogicalRegion,Memory> key(region, target);
+  std::map<std::pair<LogicalRegion,Memory>,PhysicalInstance>::const_iterator
+  finder = local_instances.find(key);
+  if (finder != local_instances.end()) {
+    instances.push_back(finder->second);
+    return;
+  }
+  
+  std::vector<LogicalRegion> regions(1, region);
+  LayoutConstraintSet layout_constraints;
+  
+  // Constrained for the target memory kind
+  layout_constraints.add_constraint(MemoryConstraint(target.kind()));
+
+  // Have all the field for the instance available
+  std::vector<FieldID> all_fields;
+  runtime->get_field_space_fields(ctx, region.get_field_space(), all_fields);
+  layout_constraints.add_constraint(FieldConstraint(all_fields, false/*contiguous*/,
+                                                    false/*inorder*/));
+
+  PhysicalInstance result;
+  bool created;
+  if (!runtime->find_or_create_physical_instance(ctx, target, layout_constraints,
+                                                 regions, result, created, true/*acquire*/, GC_NEVER_PRIORITY)) {
+    log_psana_mapper.error("PSANA mapper failed to allocate instance");
+    assert(false);
+  }
+  instances.push_back(result);
+  local_instances[key] = result;
+}
+
 //--------------------------------------------------------------------------
 void PsanaMapper::map_task(const MapperContext      ctx,
                            const Task&              task,
@@ -396,7 +459,7 @@ void PsanaMapper::map_task(const MapperContext      ctx,
   Processor::Kind target_kind = task.target_proc.kind();
   VariantInfo chosen = default_find_preferred_variant(task, ctx,
                                                       true/*needs tight bound*/, false/*cache*/, target_kind);
-
+  
   if(processorCategory == WORKER) {
     if(isWorkerTask(task)) {
       log_psana_mapper.debug("proc %llx: map_task worker maps %s to itself",
@@ -419,6 +482,14 @@ void PsanaMapper::map_task(const MapperContext      ctx,
     output.target_procs.push_back(local_proc);
   }
   
+  for (unsigned idx = 0; idx < task.regions.size(); idx++) {
+    if (task.regions[idx].privilege == NO_ACCESS)
+      continue;
+    Memory target_mem = get_associated_sysmem(task.target_proc);
+    map_task_array(ctx, task.regions[idx].region, target_mem,
+                   output.chosen_instances[idx]);
+  }
+
 }
 
 
