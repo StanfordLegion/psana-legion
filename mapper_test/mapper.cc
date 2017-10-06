@@ -377,7 +377,10 @@ void PsanaMapper::permit_steal_request(const MapperContext         ctx,
   if(processorCategory == TASK_POOL) {
     log_psana_mapper.debug("proc %llx: permit_steal_request, stealable_tasks.size %lu",
                            local_proc.id, input.stealable_tasks.size());
-    for(unsigned i = 0; i < input.stealable_tasks.size(); ++i) {
+    const unsigned tasks_per_steal = 3;
+    for(unsigned i = 0;
+        output.stolen_tasks.size() < tasks_per_steal && i < input.stealable_tasks.size();
+        ++i) {
       const Task* task = input.stealable_tasks[i];
       if(isWorkerTask(*task)) {
         output.stolen_tasks.insert(task);
@@ -489,6 +492,7 @@ void PsanaMapper::map_task(const MapperContext      ctx,
     map_task_array(ctx, task.regions[idx].region, target_mem,
                    output.chosen_instances[idx]);
   }
+  runtime->acquire_instances(ctx, output.chosen_instances);
 
 }
 

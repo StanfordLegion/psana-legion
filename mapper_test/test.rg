@@ -24,27 +24,46 @@ struct elt { x : int }
 
 task fetch(event : int, data : region(ispace(int2d), elt))
 where reads writes(data) do
-  c.printf("fetch %d\n", event)
+  var entry = c.legion_get_current_time_in_nanos()
+  c.legion_runtime_get_executing_processor(__runtime(), __context())
+  var proc = c.legion_runtime_get_executing_processor(__runtime(), __context())
+  var exit = c.legion_get_current_time_in_nanos()
+  var elapsed = exit - entry
+  c.printf("%ld fetch %d p %d %ld\n", entry,
+    event, proc.id, elapsed)
 end
 
 task analyze(event : int, data : region(ispace(int2d), elt))
 where reads(data) do
-  c.printf("analyze %d\n", event)
+  var entry = c.legion_get_current_time_in_nanos()
+  c.legion_runtime_get_executing_processor(__runtime(), __context())
+  var proc = c.legion_runtime_get_executing_processor(__runtime(), __context())
+  var exit = c.legion_get_current_time_in_nanos()
+  var elapsed = exit - entry
+  c.printf("%ld analyze %d p %d %ld\n", entry,
+    event, proc.id, elapsed)
 end
 
 task fetch_and_analyze(event : int)
-var proc =
+  var entry = c.legion_get_current_time_in_nanos()
   c.legion_runtime_get_executing_processor(__runtime(), __context())
-  var procs = cb.bishop_all_processors()
-
-  c.printf("fetch_and_analyze %d on proc %d\n", event, procs.list[1].id)
+  var proc = c.legion_runtime_get_executing_processor(__runtime(), __context())
   var data = region(ispace(int2d, { 10, 10 }), elt)
   fetch(event, data)
   analyze(event, data)
   __delete(data)
+  var exit = c.legion_get_current_time_in_nanos()
+  var elapsed = exit - entry
+  c.printf("%ld fetch_and_analyze %d p %d %ld\n", entry,
+    event, proc.id, elapsed)
+end
+
+task dummy()
+  return c.legion_get_current_time_in_nanos()
 end
 
 task main()
+  c.printf("%ld enter main\n", c.legion_get_current_time_in_nanos())
   var nevents_total = 1000
   var nevents_per_launch = 100
 
@@ -54,5 +73,8 @@ task main()
       fetch_and_analyze(launch_offset + index)
     end
   end
+  c.legion_runtime_issue_execution_fence(__runtime(), __context())
+  var d = dummy()
+  c.printf("%ld exit main\n", d)
 end
 regentlib.start(main, cmapper.register_mappers)
