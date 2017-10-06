@@ -27,6 +27,8 @@ public:
               const char *mapper_name);
   virtual TaskPriority default_policy_select_task_priority(
                                     MapperContext ctx, const Task &task);
+  virtual CachedMappingPolicy default_policy_select_task_cache_policy(
+                                    MapperContext ctx, const Task &task);
   virtual int default_policy_select_garbage_collection_priority(
                                     MapperContext ctx,
                                     MappingKind kind, Memory memory,
@@ -70,6 +72,16 @@ PsanaMapper::default_policy_select_task_priority(
   }
   return 0;
 }
+
+PsanaMapper::CachedMappingPolicy
+PsanaMapper::default_policy_select_task_cache_policy(
+                                    MapperContext ctx, const Task &task)
+{
+  // Don't cache task mappings because the mapper will leak instance
+  // metadata even if the instances themselves are collected.
+  return DEFAULT_CACHE_POLICY_DISABLE;
+}
+
 
 int
 PsanaMapper::default_policy_select_garbage_collection_priority(
