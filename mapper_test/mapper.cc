@@ -33,6 +33,7 @@
 
 #include <map>
 #include <random>
+#include <time.h>
 #include <vector>
 
 
@@ -46,6 +47,9 @@ static const char* WORKER_TASKS[] = { "fetch_and_analyze", "fetch", "analyze" };
 static const int NUM_TASK_POOL_PROCS = 2;
 static const int NUM_WORKER_PROCS = 999;
 static const int TASKS_PER_STEALABLE_SLICE = 1;
+
+static const int TASK_STEAL_GRANULARITY = 3;
+static const int WORKER_TASK_THRESHOLD = 3;
 
 typedef enum {
   TASK_POOL,
@@ -75,10 +79,10 @@ public:
               std::map<Processor, Memory>* proc_regmems);
 private:
   // std::vector<Processor>& procs_list;
-   std::vector<Memory>& sysmems_list;
+  std::vector<Memory>& sysmems_list;
   //std::map<Memory, std::vector<Processor> >& sysmem_local_procs;
   std::map<Processor, Memory>& proc_sysmems;
-//  std::map<Processor, Memory>& proc_regmems;
+  //  std::map<Processor, Memory>& proc_regmems;
   std::vector<Processor> task_pool_procs;
   std::vector<Processor> worker_procs;
   std::random_device rd;     // only used once to initialise (seed) engine
@@ -86,6 +90,7 @@ private:
   std::uniform_int_distribution<int> uni;
   ProcessorCategory processorCategory;
   std::map<std::pair<LogicalRegion,Memory>,PhysicalInstance> local_instances;
+  unsigned numActiveWorkerTasks;
   
   void categorizeProcessors();
   inline char* taskDescription(const Legion::Task& task);
@@ -112,6 +117,9 @@ private:
                       LogicalRegion region,
                       Memory target,
                       std::vector<PhysicalInstance> &instances);
+  void report_profiling(const MapperContext      ctx,
+                        const Task&              task,
+                        const TaskProfilingInfo& input);
   
   void map_task(const MapperContext      ctx,
                 const Task&              task,
@@ -143,7 +151,7 @@ PsanaMapper::PsanaMapper(MapperRuntime *rt,
                          std::map<Processor, Memory>* _proc_regmems)
 : DefaultMapper(rt, machine, local, mapper_name),
 // procs_list(*_procs_list),
- sysmems_list(*_sysmems_list),
+sysmems_list(*_sysmems_list),
 //sysmem_local_procs(*_sysmem_local_procs),
 proc_sysmems(*_proc_sysmems)
 // proc_regmems(*_proc_regmems)
@@ -156,6 +164,7 @@ proc_sysmems(*_proc_sysmems)
   
   rng = std::mt19937(rd());    // random-number engine used (Mersenne-Twister in this case)
   uni = std::uniform_int_distribution<int>(0, task_pool_procs.size() - 1); // guaranteed unbiased
+  numActiveWorkerTasks = 0;
 }
 
 
@@ -188,6 +197,17 @@ void PsanaMapper::categorizeProcessors()
                          local_proc.id, num_task_pool, num_worker);
 }
 
+
+inline std::string timestamp()
+{
+  struct timespec t;
+  clock_gettime(CLOCK_MONOTONIC, &t);
+  const unsigned long billion = 1000000000L;
+  unsigned long long tt = t.tv_sec * billion + t.tv_nsec;
+  char buffer[128];
+  sprintf(buffer, "%llu", tt);
+  return std::string(buffer);
+}
 
 
 //--------------------------------------------------------------------------
@@ -334,33 +354,37 @@ void PsanaMapper::select_steal_targets(const MapperContext         ctx,
 {
   
   if(processorCategory == WORKER) {
-    bool found = false;
-    unsigned counter = 0;
-    int index;
-    
-    while(!found) {
-      index = uni(rng);
-      log_psana_mapper.debug("proc %llx: select_steal_targets trying %d",
-                             local_proc.id, index);
-      if(input.blacklist.find(task_pool_procs[index]) != input.blacklist.end()) {
-        log_psana_mapper.debug("proc %llx: select_steal_targets proc %d (%llx) is in blacklist",
-                               local_proc.id, index, task_pool_procs[index].id);
-        if(counter++ >= task_pool_procs.size() * 2) {
-          log_psana_mapper.debug("proc %llx: select_steal_targets cannot steal, all procs in blacklist",
-                                 local_proc.id);
-          return;
-        }
-      } else {
-        found = true;
-        log_psana_mapper.debug("proc %llx: select_steal_Targets found %d",
+    if(numActiveWorkerTasks > WORKER_TASK_THRESHOLD) {
+      log_psana_mapper.debug("proc %llx: select_steal_targets skipping because too many active worker tasks", local_proc.id);
+    } else {
+      bool found = false;
+      unsigned counter = 0;
+      int index;
+      
+      while(!found) {
+        index = uni(rng);
+        log_psana_mapper.debug("proc %llx: select_steal_targets trying %d",
                                local_proc.id, index);
-        
+        if(input.blacklist.find(task_pool_procs[index]) != input.blacklist.end()) {
+          log_psana_mapper.debug("proc %llx: select_steal_targets proc %d (%llx) is in blacklist",
+                                 local_proc.id, index, task_pool_procs[index].id);
+          if(counter++ >= task_pool_procs.size() * 2) {
+            log_psana_mapper.debug("proc %llx: select_steal_targets cannot steal, all procs in blacklist",
+                                   local_proc.id);
+            return;
+          }
+        } else {
+          found = true;
+          log_psana_mapper.debug("proc %llx: select_steal_Targets found %d",
+                                 local_proc.id, index);
+          
+        }
       }
+      
+      output.targets.insert(task_pool_procs[index]);
+      log_psana_mapper.debug("proc %llx: select_steal_targets index %d %llx",
+                             local_proc.id, index, task_pool_procs[index].id);
     }
-    
-    output.targets.insert(task_pool_procs[index]);
-    log_psana_mapper.debug("proc %llx: select_steal_targets index %d %llx",
-                           local_proc.id, index, task_pool_procs[index].id);
   } else {
     log_psana_mapper.debug("proc %llx: select_steal_targets skipped because not worker",
                            local_proc.id);
@@ -377,9 +401,11 @@ void PsanaMapper::permit_steal_request(const MapperContext         ctx,
   if(processorCategory == TASK_POOL) {
     log_psana_mapper.debug("proc %llx: permit_steal_request, stealable_tasks.size %lu",
                            local_proc.id, input.stealable_tasks.size());
-    const unsigned tasks_per_steal = 3;
+    log_psana_mapper.info("# %s p %llx stealbythief %llx", timestamp().c_str(), local_proc.id,
+             input.thief_proc.id);
     for(unsigned i = 0;
-        output.stolen_tasks.size() < tasks_per_steal && i < input.stealable_tasks.size();
+        output.stolen_tasks.size() < TASK_STEAL_GRANULARITY
+        && i < input.stealable_tasks.size();
         ++i) {
       const Task* task = input.stealable_tasks[i];
       if(isWorkerTask(*task)) {
@@ -434,13 +460,13 @@ void PsanaMapper::map_task_array(const MapperContext ctx,
   
   // Constrained for the target memory kind
   layout_constraints.add_constraint(MemoryConstraint(target.kind()));
-
+  
   // Have all the field for the instance available
   std::vector<FieldID> all_fields;
   runtime->get_field_space_fields(ctx, region.get_field_space(), all_fields);
   layout_constraints.add_constraint(FieldConstraint(all_fields, false/*contiguous*/,
                                                     false/*inorder*/));
-
+  
   PhysicalInstance result;
   bool created;
   if (!runtime->find_or_create_physical_instance(ctx, target, layout_constraints,
@@ -450,6 +476,15 @@ void PsanaMapper::map_task_array(const MapperContext ctx,
   }
   instances.push_back(result);
   local_instances[key] = result;
+}
+
+//--------------------------------------------------------------------------
+void PsanaMapper::report_profiling(const MapperContext      ctx,
+                                   const Task&              task,
+                                   const TaskProfilingInfo& input)
+//--------------------------------------------------------------------------
+{
+  numActiveWorkerTasks--;
 }
 
 //--------------------------------------------------------------------------
@@ -471,6 +506,10 @@ void PsanaMapper::map_task(const MapperContext      ctx,
       output.task_priority = 0;
       output.postmap_task = false;
       output.target_procs.push_back(local_proc);
+      ProfilingRequest completionRequest;
+      completionRequest.add_measurement<Realm::ProfilingMeasurements::OperationStatus>();
+      output.task_prof_requests = completionRequest;
+      numActiveWorkerTasks++;
     } else {
       log_psana_mapper.debug("proc %llx: map_task pass %s to default mapper map_task",
                              local_proc.id, taskDescription(task));
@@ -493,10 +532,8 @@ void PsanaMapper::map_task(const MapperContext      ctx,
                    output.chosen_instances[idx]);
   }
   runtime->acquire_instances(ctx, output.chosen_instances);
-
+  
 }
-
-
 
 
 //--------------------------------------------------------------------------
