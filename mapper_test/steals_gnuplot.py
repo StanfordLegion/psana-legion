@@ -19,11 +19,13 @@ def convertTrace(logfile, proc):
       output.write(str(t) + " " + str(thief_proc) + " 10\n");
   output.close()
 
+  xmin = open("make.taskpool.xmin", "r").readline().strip().split(" ")
+  xmax = open("make.taskpool.xmax", "r").readline().strip().split(" ")
   script = open('make.taskpool_' + proc + '.gnuplot', 'w')
   script.write('set terminal png transparent enhanced font "arial,10" fontscale 1.0 size 600, 400\n')
   script.write("set output 'taskpool_timeline_" + proc + ".png'\n")
   script.write("set title 'steals from taskpool proc " + proc + "'\n")
-  script.write("set xrange [30711055000000.0:30711063000000.0]\n")
+  script.write("set xrange [" + xmin[5] + ".0:" + xmax[5] + ".0]\n")
   script.write("set yrange [0:]\n")
   script.write("set ylabel 'thief processor id (3 or 4)'\n")
   script.write('plot "make.taskpool_' + proc + '.dat" with boxes\n')
