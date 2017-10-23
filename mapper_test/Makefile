@@ -1,6 +1,6 @@
 all:	all_png
 
-run:
+run: test.rg mapper.cc mapper.h
 	${LG_RT_DIR}/../language/regent.py test.rg -ll:cpu 4 -level psana_mapper=2 -lg:safe_mapper
 
 gdb:
@@ -16,7 +16,7 @@ taskpool_timeline.png: make.taskpool_${PROC}.sortedlog make.taskpool.xrange
 	python steals_gnuplot.py -l $< -p ${PROC}
 	cat make.taskpool_${PROC}.gnuplot | gnuplot
 
-make.taskpool.xrange: 
+make.taskpool.xrange:  make.sortedlog
 	rm -f make.taskpool.xmin* make.taskpool.xmax*
 	make make.taskpool_1.sortedlog PROC="1"
 	make make.taskpool_2.sortedlog PROC="2"
@@ -35,7 +35,7 @@ worker_timeline.png: make.worker_${PROC}.sortedlog make.worker.xrange
 	python worker_gnuplot.py -l $< -p ${PROC}
 	cat make.worker_${PROC}.gnuplot | gnuplot
 
-make.worker.xrange: 
+make.worker.xrange: make.sortedlog
 	rm -f make.worker.xmin* make.worker.xmax*
 	make make.worker_3.sortedlog PROC="3"
 	make make.worker_4.sortedlog PROC="4"

@@ -73,6 +73,7 @@ PsanaMapper::default_policy_select_task_priority(
   return 0;
 }
 
+
 PsanaMapper::CachedMappingPolicy
 PsanaMapper::default_policy_select_task_cache_policy(
                                     MapperContext ctx, const Task &task)
@@ -81,6 +82,7 @@ PsanaMapper::default_policy_select_task_cache_policy(
   // metadata even if the instances themselves are collected.
   return DEFAULT_CACHE_POLICY_DISABLE;
 }
+
 
 
 int

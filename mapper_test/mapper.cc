@@ -156,7 +156,8 @@ sysmems_list(*_sysmems_list),
 proc_sysmems(*_proc_sysmems)
 // proc_regmems(*_proc_regmems)
 {
-  log_psana_mapper.debug("proc %llx: constructor:", local_proc.id);
+  log_psana_mapper.info("proc %llx: constructor: %lld", local_proc.id,
+                         Realm::Clock::current_time_in_nanoseconds());
   
   task_pool_procs = std::vector<Processor>();
   worker_procs = std::vector<Processor>();
@@ -384,6 +385,10 @@ void PsanaMapper::select_steal_targets(const MapperContext         ctx,
       output.targets.insert(task_pool_procs[index]);
       log_psana_mapper.debug("proc %llx: select_steal_targets index %d %llx",
                              local_proc.id, index, task_pool_procs[index].id);
+      log_psana_mapper.info("# %lld p %llx thiefrequest %llx",
+                            Realm::Clock::current_time_in_nanoseconds(),
+                            local_proc.id,
+                            task_pool_procs[index].id);
     }
   } else {
     log_psana_mapper.debug("proc %llx: select_steal_targets skipped because not worker",
@@ -401,7 +406,9 @@ void PsanaMapper::permit_steal_request(const MapperContext         ctx,
   if(processorCategory == TASK_POOL) {
     log_psana_mapper.debug("proc %llx: permit_steal_request, stealable_tasks.size %lu",
                            local_proc.id, input.stealable_tasks.size());
-    log_psana_mapper.info("# %s p %llx stealbythief %llx", timestamp().c_str(), local_proc.id,
+    log_psana_mapper.info("# %lld p %llx stealbythief %llx",
+                          Realm::Clock::current_time_in_nanoseconds(),
+                          local_proc.id,
              input.thief_proc.id);
     for(unsigned i = 0;
         output.stolen_tasks.size() < TASK_STEAL_GRANULARITY
