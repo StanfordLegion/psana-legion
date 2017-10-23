@@ -34,6 +34,12 @@ public:
                                     MappingKind kind, Memory memory,
                                     const PhysicalInstance &instance,
                                     bool meets_fill_constraints,bool reduction);
+  virtual void configure_context(const MapperContext ctx,
+                                 const Task &task,
+                                 ContextConfigOutput &output);
+  virtual void select_task_options(const MapperContext ctx,
+                                   const Task &task,
+                                   TaskOptions &output);
   virtual void slice_task(const MapperContext ctx,
                           const Task &task, 
                           const SliceTaskInput &input,
@@ -62,13 +68,17 @@ PsanaMapper::default_policy_select_task_priority(
   const char* task_name = task.get_task_name();
   if (strcmp(task_name, "psana_legion.analyze") == 0) {
     // Always enumerate the set of tasks as quickly as possible
-    return 1000;
+    return 2;
   } else if (strcmp(task_name, "psana_legion.analyze_leaf") == 0) {
+    // Set initial priority of analysis tasks higher than the continuation
+    return 1;
+#if 0
     // Rotate priorities on the actual analysis tasks to ensure that
     // we can issue I/O tasks ahead of actual execution
     TaskPriority priority = last_priority++;
     size_t batch = 20 /*window*/ * 8 /*chunksize*/ * 1 /*overcommit*/;
     return batch - priority % batch;
+#endif
   }
   return 0;
 }
@@ -95,6 +105,35 @@ PsanaMapper::default_policy_select_garbage_collection_priority(
   // Allow instances to be destroyed on deletion of the region tree.
   return GC_FIRST_PRIORITY;
 }
+
+void
+PsanaMapper::configure_context(const MapperContext         ctx,
+                               const Task&                 task,
+                                     ContextConfigOutput&  output)
+{
+  DefaultMapper::configure_context(ctx, task, output);
+
+  const char* task_name = task.get_task_name();
+  if (strcmp(task_name, "psana_legion.analyze_leaf") == 0) {
+    output.mutable_priority = true;
+  }
+}
+
+void
+PsanaMapper::select_task_options(const MapperContext    ctx,
+                                 const Task&            task,
+                                       TaskOptions&     output)
+{
+  DefaultMapper::select_task_options(ctx, task, output);
+
+  const Task *parent = task.parent_task;
+  if (parent && strcmp(parent->get_task_name(), "psana_legion.analyze_leaf") == 0) {
+    // Upon blocking, deprioritize the analysis task so that
+    // subsequent invokations will occur before any expensive analysis
+    output.parent_priority = 0;
+  }
+}
+
 
 void
 PsanaMapper::slice_task(const MapperContext      ctx,
