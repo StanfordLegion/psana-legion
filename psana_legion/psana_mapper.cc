@@ -17,6 +17,8 @@
 
 #include "default_mapper.h"
 
+#define MAX_TASKS_IN_FLIGHT 80
+
 using namespace Legion;
 using namespace Legion::Mapping;
 
@@ -44,6 +46,16 @@ public:
                           const Task &task, 
                           const SliceTaskInput &input,
                           SliceTaskOutput &output);
+  virtual void map_task(const MapperContext ctx,
+                        const Task &task,
+                        const MapTaskInput &input,
+                        MapTaskOutput &output);
+  virtual void select_tasks_to_map(const MapperContext ctx,
+                                   const SelectMappingInput &input,
+                                   SelectMappingOutput &output);
+  virtual void report_profiling(const MapperContext ctx,
+                                const Task &task,
+                                const TaskProfilingInfo &input);
 private:
   void custom_slice_task(const Task &task,
                          const std::vector<Processor> &local,
@@ -53,11 +65,15 @@ private:
                  std::map<Domain,std::vector<TaskSlice> > &cached_slices) const;
 private:
   TaskPriority last_priority;
+  unsigned tasks_in_flight;
+  const unsigned max_tasks_in_flight;
 };
 
 PsanaMapper::PsanaMapper(MapperRuntime *rt, Machine machine, Processor local,
                          const char *mapper_name)
   : DefaultMapper(rt, machine, local, mapper_name)
+  , tasks_in_flight(0)
+  , max_tasks_in_flight(MAX_TASKS_IN_FLIGHT)
 {
 }
 
@@ -134,7 +150,6 @@ PsanaMapper::select_task_options(const MapperContext    ctx,
   }
 }
 
-
 void
 PsanaMapper::slice_task(const MapperContext      ctx,
                         const Task&              task, 
@@ -183,6 +198,53 @@ PsanaMapper::slice_task(const MapperContext      ctx,
       }
     default:
       assert(false); // unimplemented processor kind
+  }
+}
+
+void PsanaMapper::map_task(const MapperContext ctx,
+                           const Task &task,
+                           const MapTaskInput &input,
+                           MapTaskOutput &output)
+{
+  DefaultMapper::map_task(ctx, task, input, output);
+
+  const char* task_name = task.get_task_name();
+  if (strcmp(task_name, "psana_legion.analyze_leaf") == 0) {
+    output.task_prof_requests.add_measurement<Realm::ProfilingMeasurements::OperationStatus>();
+  }
+}
+
+void PsanaMapper::select_tasks_to_map(const MapperContext ctx,
+                                      const SelectMappingInput &input,
+                                      SelectMappingOutput &output)
+{
+  unsigned count = 0;
+  for (std::list<const Task*>::const_iterator it =
+         input.ready_tasks.begin(); (count < max_schedule_count) &&
+         (it != input.ready_tasks.end()); it++)
+  {
+    bool schedule = true;
+
+    const char* task_name = (*it)->get_task_name();
+    if (strcmp(task_name, "psana_legion.analyze_leaf") == 0) {
+      schedule = tasks_in_flight < max_tasks_in_flight;
+      if (schedule) tasks_in_flight++;
+    }
+
+    if (schedule) {
+      output.map_tasks.insert(*it);
+      count++;
+    }
+  }
+}
+
+void PsanaMapper::report_profiling(const MapperContext ctx,
+                                   const Task &task,
+                                   const TaskProfilingInfo &input)
+{
+  const char* task_name = task.get_task_name();
+  if (strcmp(task_name, "psana_legion.analyze_leaf") == 0) {
+    tasks_in_flight--;
   }
 }
 
