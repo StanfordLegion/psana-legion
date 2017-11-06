@@ -49,7 +49,7 @@ static const int NUM_WORKER_PROCS = 999;
 static const int TASKS_PER_STEALABLE_SLICE = 1;
 
 static const int TASK_STEAL_GRANULARITY = 3;
-static const int WORKER_TASK_THRESHOLD = 3;
+static const int MIN_TASKS_IN_QUEUE = 3;
 
 typedef enum {
   TASK_POOL,
@@ -90,8 +90,20 @@ private:
   std::uniform_int_distribution<int> uni;
   ProcessorCategory processorCategory;
   std::map<std::pair<LogicalRegion,Memory>,PhysicalInstance> local_instances;
-  unsigned numActiveWorkerTasks;
+  typedef long Timestamp;
+  typedef struct {
+    unsigned taskQueueSize;
+    bool issuedStealRequest;
+    Timestamp issuedStealRequestTime;
+    Processor issuedStealRequestTarget;
+    Timestamp observedRequestLatency;
+  } ProcessorStealStatus;
+  std::map<long long unsigned int, ProcessorStealStatus> processorStealStatus;
+  const Timestamp oneSecond = 1000000000L;
   
+  void dumpPSS(long long unsigned id);
+  Timestamp timeNow() const;
+  bool shouldIssueStealRequest();
   void categorizeProcessors();
   inline char* taskDescription(const Legion::Task& task);
   bool isWorkerTask(const Legion::Task& task);
@@ -157,7 +169,7 @@ proc_sysmems(*_proc_sysmems)
 // proc_regmems(*_proc_regmems)
 {
   log_psana_mapper.info("proc %llx: constructor: %lld", local_proc.id,
-                         Realm::Clock::current_time_in_nanoseconds());
+                        Realm::Clock::current_time_in_nanoseconds());
   
   task_pool_procs = std::vector<Processor>();
   worker_procs = std::vector<Processor>();
@@ -165,7 +177,14 @@ proc_sysmems(*_proc_sysmems)
   
   rng = std::mt19937(rd());    // random-number engine used (Mersenne-Twister in this case)
   uni = std::uniform_int_distribution<int>(0, task_pool_procs.size() - 1); // guaranteed unbiased
-  numActiveWorkerTasks = 0;
+}
+
+
+//--------------------------------------------------------------------------
+PsanaMapper::Timestamp PsanaMapper::timeNow() const
+//--------------------------------------------------------------------------
+{
+  return Realm::Clock::current_time_in_nanoseconds();
 }
 
 
@@ -191,6 +210,9 @@ void PsanaMapper::categorizeProcessors()
         processorCategory = WORKER;
       }
       worker_procs.push_back(it->first);
+      ProcessorStealStatus stealStatus = { 0 };
+      stealStatus.observedRequestLatency = 10 * oneSecond;
+      processorStealStatus[it->first.id] = stealStatus;
       num_worker++;
     }
   }
@@ -199,7 +221,7 @@ void PsanaMapper::categorizeProcessors()
 }
 
 
-inline std::string timestamp()
+inline std::string timeNow()
 {
   struct timespec t;
   clock_gettime(CLOCK_MONOTONIC, &t);
@@ -346,6 +368,30 @@ void PsanaMapper::select_tasks_to_map(const MapperContext          ctx,
 }
 
 
+//--------------------------------------------------------------------------
+void PsanaMapper::dumpPSS(long long unsigned id)
+//--------------------------------------------------------------------------
+{
+  std::map<long long unsigned int, ProcessorStealStatus>::const_iterator it = processorStealStatus.find(local_proc.id);
+  assert(it != processorStealStatus.end());
+  const ProcessorStealStatus* pss = &it->second;
+  log_psana_mapper.debug("proc %llx pss qsize %d issued? %d issueTime %ld observed %ld",
+                         id, pss->taskQueueSize, pss->issuedStealRequest,
+                         pss->issuedStealRequestTime, pss->observedRequestLatency);
+}
+
+//--------------------------------------------------------------------------
+bool PsanaMapper::shouldIssueStealRequest()
+//--------------------------------------------------------------------------
+{
+  std::map<long long unsigned int, ProcessorStealStatus>::const_iterator it = processorStealStatus.find(local_proc.id);
+  assert(it != processorStealStatus.end());
+  dumpPSS(local_proc.id);
+  if(it->second.taskQueueSize > MIN_TASKS_IN_QUEUE) return false;
+  if(!it->second.issuedStealRequest) return true;
+  if(timeNow() - it->second.issuedStealRequestTime > it->second.observedRequestLatency) return true;
+  return false;
+}
 
 //--------------------------------------------------------------------------
 void PsanaMapper::select_steal_targets(const MapperContext         ctx,
@@ -355,9 +401,14 @@ void PsanaMapper::select_steal_targets(const MapperContext         ctx,
 {
   
   if(processorCategory == WORKER) {
-    if(numActiveWorkerTasks > WORKER_TASK_THRESHOLD) {
-      log_psana_mapper.debug("proc %llx: select_steal_targets skipping because too many active worker tasks", local_proc.id);
-    } else {
+    std::map<long long unsigned int, ProcessorStealStatus>::iterator it = processorStealStatus.find(local_proc.id);
+    assert(it != processorStealStatus.end());
+
+    if(shouldIssueStealRequest()) {
+      log_psana_mapper.debug("proc %llx: should issue steal request, yes", local_proc.id);
+      
+      // select a steal target
+      
       bool found = false;
       unsigned counter = 0;
       int index;
@@ -378,18 +429,42 @@ void PsanaMapper::select_steal_targets(const MapperContext         ctx,
           found = true;
           log_psana_mapper.debug("proc %llx: select_steal_Targets found %d",
                                  local_proc.id, index);
-          
         }
       }
       
-      output.targets.insert(task_pool_procs[index]);
-      log_psana_mapper.debug("proc %llx: select_steal_targets index %d %llx",
-                             local_proc.id, index, task_pool_procs[index].id);
+      // issue a steal request
+      
+      it->second.issuedStealRequestTime = timeNow();
+      it->second.issuedStealRequest = true;
+      it->second.issuedStealRequestTarget = task_pool_procs[index];
+      output.targets.insert(it->second.issuedStealRequestTarget);
+      log_psana_mapper.debug("proc %llx: select_steal_targets index %d id %llx",
+                             local_proc.id, index,
+                             it->second.issuedStealRequestTarget.id);
       log_psana_mapper.info("# %lld p %llx thiefrequest %llx",
                             Realm::Clock::current_time_in_nanoseconds(),
                             local_proc.id,
-                            task_pool_procs[index].id);
+                            it->second.issuedStealRequestTarget.id);
+      
+    } else if(it->second.issuedStealRequest) {
+      
+      // check to see if recent request caused proc to go on blacklist
+      if(input.blacklist.find(it->second.issuedStealRequestTarget) != input.blacklist.end()) {
+        Timestamp elapsedTime = timeNow() - it->second.issuedStealRequestTime;
+        if(elapsedTime >= 3 * it->second.observedRequestLatency) {
+          // assume this proc went to the blacklist because of our request.
+          // this might not be true (another worker request might have caused the blacklist).
+          // in that case we will falsely conclude that the request failed.
+          it->second.issuedStealRequest = false;
+        }
+        
+      }
+      
+    } else {
+      log_psana_mapper.debug("proc %llx: select_steal_targets should not issue request",
+                             local_proc.id);
     }
+    
   } else {
     log_psana_mapper.debug("proc %llx: select_steal_targets skipped because not worker",
                            local_proc.id);
@@ -409,7 +484,7 @@ void PsanaMapper::permit_steal_request(const MapperContext         ctx,
     log_psana_mapper.info("# %lld p %llx stealbythief %llx",
                           Realm::Clock::current_time_in_nanoseconds(),
                           local_proc.id,
-             input.thief_proc.id);
+                          input.thief_proc.id);
     for(unsigned i = 0;
         output.stolen_tasks.size() < TASK_STEAL_GRANULARITY
         && i < input.stealable_tasks.size();
@@ -491,7 +566,9 @@ void PsanaMapper::report_profiling(const MapperContext      ctx,
                                    const TaskProfilingInfo& input)
 //--------------------------------------------------------------------------
 {
-  numActiveWorkerTasks--;
+  std::map<long long unsigned int, ProcessorStealStatus>::iterator it = processorStealStatus.find(local_proc.id);
+  assert(it != processorStealStatus.end());
+  it->second.taskQueueSize--;
 }
 
 //--------------------------------------------------------------------------
@@ -507,7 +584,10 @@ void PsanaMapper::map_task(const MapperContext      ctx,
   
   if(processorCategory == WORKER) {
     if(isWorkerTask(task)) {
-      log_psana_mapper.debug("proc %llx: map_task worker maps %s to itself",
+      
+      // this tasks succeeds in running on a worker
+      
+      log_psana_mapper.debug("proc %llx: map_task worker maps %s to itself, successfully stolen",
                              local_proc.id, taskDescription(task));
       output.chosen_variant = chosen.variant;
       output.task_priority = 0;
@@ -516,7 +596,15 @@ void PsanaMapper::map_task(const MapperContext      ctx,
       ProfilingRequest completionRequest;
       completionRequest.add_measurement<Realm::ProfilingMeasurements::OperationStatus>();
       output.task_prof_requests = completionRequest;
-      numActiveWorkerTasks++;
+      
+      std::map<long long unsigned int, ProcessorStealStatus>::iterator it = processorStealStatus.find(local_proc.id);
+      assert(it != processorStealStatus.end());
+
+      it->second.taskQueueSize++;
+      if(it->second.issuedStealRequest) {
+        it->second.observedRequestLatency = timeNow() - it->second.issuedStealRequestTime;
+        it->second.issuedStealRequest = false;
+      }
     } else {
       log_psana_mapper.debug("proc %llx: map_task pass %s to default mapper map_task",
                              local_proc.id, taskDescription(task));
