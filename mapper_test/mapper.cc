@@ -448,6 +448,8 @@ void PsanaMapper::select_steal_targets(const MapperContext         ctx,
       
     } else if(it->second.issuedStealRequest) {
       
+      log_psana_mapper.debug("proc %llx: select_steal_targets don't steal because outstanding request to %llx",
+                             local_proc.id, it->second.issuedStealRequestTarget.id);
       // check to see if recent request caused proc to go on blacklist
       if(input.blacklist.find(it->second.issuedStealRequestTarget) != input.blacklist.end()) {
         Timestamp elapsedTime = timeNow() - it->second.issuedStealRequestTime;
@@ -456,6 +458,8 @@ void PsanaMapper::select_steal_targets(const MapperContext         ctx,
           // this might not be true (another worker request might have caused the blacklist).
           // in that case we will falsely conclude that the request failed.
           it->second.issuedStealRequest = false;
+          log_psana_mapper.debug("proc %llx: select_steal_targets outmake standing request to proc %llx has expired",
+                                 local_proc.id, it->second.issuedStealRequestTarget.id);
         }
         
       }
