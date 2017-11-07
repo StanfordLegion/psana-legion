@@ -85,10 +85,10 @@ PsanaMapper::default_policy_select_task_priority(
   const char* task_name = task.get_task_name();
   if (strcmp(task_name, "psana_legion.analyze") == 0) {
     // Always enumerate the set of tasks as quickly as possible
-    return 2;
+    return 1;
   } else if (strcmp(task_name, "psana_legion.analyze_leaf") == 0) {
     // Set initial priority of analysis tasks higher than the continuation
-    return 1;
+    return 2;
 #if 0
     // Rotate priorities on the actual analysis tasks to ensure that
     // we can issue I/O tasks ahead of actual execution
