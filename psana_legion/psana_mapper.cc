@@ -67,6 +67,7 @@ private:
   TaskPriority last_priority;
   unsigned tasks_in_flight;
   const unsigned max_tasks_in_flight;
+  MapperEvent defer_select_tasks_to_map;
 };
 
 PsanaMapper::PsanaMapper(MapperRuntime *rt, Machine machine, Processor local,
@@ -236,6 +237,13 @@ void PsanaMapper::select_tasks_to_map(const MapperContext ctx,
       count++;
     }
   }
+
+  if (count == 0) {
+    if (!defer_select_tasks_to_map.exists()) {
+      defer_select_tasks_to_map = runtime->create_mapper_event(ctx);
+    }
+    output.deferral_event = defer_select_tasks_to_map;
+  }
 }
 
 void PsanaMapper::report_profiling(const MapperContext ctx,
@@ -245,6 +253,12 @@ void PsanaMapper::report_profiling(const MapperContext ctx,
   const char* task_name = task.get_task_name();
   if (strcmp(task_name, "psana_legion.analyze_leaf") == 0) {
     tasks_in_flight--;
+    if (defer_select_tasks_to_map.exists()) {
+      runtime->trigger_mapper_event(ctx, defer_select_tasks_to_map);
+      defer_select_tasks_to_map = MapperEvent();
+    }
+  } else {
+    assert(false); // Shouldn't get profiling responses for any other tasks.
   }
 }
 
