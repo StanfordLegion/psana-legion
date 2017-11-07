@@ -345,5 +345,5 @@ static void create_mappers(Machine machine, HighLevelRuntime *runtime, const std
 
 void register_mappers()
 {
-  HighLevelRuntime::add_registration_callback(create_mappers);
+  Runtime::add_registration_callback(create_mappers);
 }
