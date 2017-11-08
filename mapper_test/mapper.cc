@@ -405,7 +405,7 @@ void PsanaMapper::select_steal_targets(const MapperContext         ctx,
     assert(it != processorStealStatus.end());
 
     if(shouldIssueStealRequest()) {
-      log_psana_mapper.debug("proc %llx: should issue steal request, yes", local_proc.id);
+      log_psana_mapper.debug("proc %llx: select_steal_targets should issue steal request, yes", local_proc.id);
       
       // select a steal target
       
@@ -451,8 +451,14 @@ void PsanaMapper::select_steal_targets(const MapperContext         ctx,
       log_psana_mapper.debug("proc %llx: select_steal_targets don't steal because outstanding request to %llx",
                              local_proc.id, it->second.issuedStealRequestTarget.id);
       // check to see if recent request caused proc to go on blacklist
-      if(input.blacklist.find(it->second.issuedStealRequestTarget) != input.blacklist.end()) {
+      //if(input.blacklist.find(it->second.issuedStealRequestTarget) != input.blacklist.end()) {
         Timestamp elapsedTime = timeNow() - it->second.issuedStealRequestTime;
+      bool targetOnBlacklist = input.blacklist.find(it->second.issuedStealRequestTarget) != input.blacklist.end();
+        log_psana_mapper.debug("proc %llx: select_steal_targets issued, target %llx on blacklist? %d, elapsed %ld",
+                               local_proc.id,
+                               it->second.issuedStealRequestTarget.id,
+                               targetOnBlacklist,
+                               elapsedTime);
         if(elapsedTime >= 3 * it->second.observedRequestLatency) {
           // assume this proc went to the blacklist because of our request.
           // this might not be true (another worker request might have caused the blacklist).
@@ -462,7 +468,7 @@ void PsanaMapper::select_steal_targets(const MapperContext         ctx,
                                  local_proc.id, it->second.issuedStealRequestTarget.id);
         }
         
-      }
+      //}
       
     } else {
       log_psana_mapper.debug("proc %llx: select_steal_targets should not issue request",
