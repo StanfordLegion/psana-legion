@@ -17,8 +17,8 @@
 
 #include "default_mapper.h"
 
-#define MAX_TASKS_IN_FLIGHT 80
-#define TASKS_IN_FLIGHT_HYSTERESIS 25
+#define MAX_TASKS_IN_FLIGHT 160
+#define TASKS_IN_FLIGHT_HYSTERESIS 10
 
 using namespace Legion;
 using namespace Legion::Mapping;
@@ -66,9 +66,10 @@ private:
                  std::map<Domain,std::vector<TaskSlice> > &cached_slices) const;
 private:
   TaskPriority last_priority;
-  unsigned tasks_in_flight;
+  unsigned tasks_in_flight, last_tasks_in_flight;
   const unsigned max_tasks_in_flight;
   const unsigned tasks_in_flight_hysteresis;
+  size_t task_queue_index;
   MapperEvent defer_select_tasks_to_map;
 };
 
@@ -76,8 +77,10 @@ PsanaMapper::PsanaMapper(MapperRuntime *rt, Machine machine, Processor local,
                          const char *mapper_name)
   : DefaultMapper(rt, machine, local, mapper_name)
   , tasks_in_flight(0)
+  , last_tasks_in_flight(0)
   , max_tasks_in_flight(MAX_TASKS_IN_FLIGHT)
   , tasks_in_flight_hysteresis(TASKS_IN_FLIGHT_HYSTERESIS)
+  , task_queue_index(0)
 {
 }
 
@@ -223,9 +226,19 @@ void PsanaMapper::select_tasks_to_map(const MapperContext ctx,
                                       SelectMappingOutput &output)
 {
   unsigned count = 0;
-  for (std::list<const Task*>::const_iterator it =
-         input.ready_tasks.begin(); (count < max_schedule_count) &&
-         (it != input.ready_tasks.end()); it++)
+
+  // Reset the index whenever tasks in flight may have completed. This
+  // ensures that all tasks will (eventually) get scheduled and in the
+  // original order.
+  if (tasks_in_flight < last_tasks_in_flight)
+    task_queue_index = 0;
+
+  assert(task_queue_index <= input.ready_tasks.size());
+  std::list<const Task*>::const_iterator it = input.ready_tasks.begin();
+  for (size_t i = 0; i < task_queue_index; i++)
+    it++;
+  for (; (count < max_schedule_count) && (it != input.ready_tasks.end());
+       it++, task_queue_index++)
   {
     bool schedule = true;
 
@@ -240,6 +253,9 @@ void PsanaMapper::select_tasks_to_map(const MapperContext ctx,
       count++;
     }
   }
+
+  task_queue_index -= count;
+  last_tasks_in_flight = tasks_in_flight;
 
   if (count == 0) {
     if (!defer_select_tasks_to_map.exists()) {
