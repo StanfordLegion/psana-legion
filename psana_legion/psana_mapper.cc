@@ -18,6 +18,7 @@
 #include "default_mapper.h"
 
 #define MAX_TASKS_IN_FLIGHT 80
+#define TASKS_IN_FLIGHT_HYSTERESIS 25
 
 using namespace Legion;
 using namespace Legion::Mapping;
@@ -67,6 +68,7 @@ private:
   TaskPriority last_priority;
   unsigned tasks_in_flight;
   const unsigned max_tasks_in_flight;
+  const unsigned tasks_in_flight_hysteresis;
   MapperEvent defer_select_tasks_to_map;
 };
 
@@ -75,6 +77,7 @@ PsanaMapper::PsanaMapper(MapperRuntime *rt, Machine machine, Processor local,
   : DefaultMapper(rt, machine, local, mapper_name)
   , tasks_in_flight(0)
   , max_tasks_in_flight(MAX_TASKS_IN_FLIGHT)
+  , tasks_in_flight_hysteresis(TASKS_IN_FLIGHT_HYSTERESIS)
 {
 }
 
@@ -253,7 +256,10 @@ void PsanaMapper::report_profiling(const MapperContext ctx,
   const char* task_name = task.get_task_name();
   if (strcmp(task_name, "psana_legion.analyze_leaf") == 0) {
     tasks_in_flight--;
-    if (defer_select_tasks_to_map.exists()) {
+    if ((tasks_in_flight <
+         max_tasks_in_flight*(100-tasks_in_flight_hysteresis)/100) &&
+        defer_select_tasks_to_map.exists())
+    {
       runtime->trigger_mapper_event(ctx, defer_select_tasks_to_map);
       defer_select_tasks_to_map = MapperEvent();
     }
