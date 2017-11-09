@@ -21,7 +21,7 @@ HOST_DATA_DIR=$DW_PERSISTENT_STRIPED_slaughte_data_noepics/reg
 
 echo "HOST_DATA_DIR=$HOST_DATA_DIR"
 
-export EAGER=0
+export EAGER=1
 
 for n in 1 2 4 8 16; do
   for c in 64 128; do

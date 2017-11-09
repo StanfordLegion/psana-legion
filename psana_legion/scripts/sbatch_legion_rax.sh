@@ -26,7 +26,7 @@ HOST_DATA_DIR=$SCRATCH/noepics_data/reg
 
 echo "HOST_DATA_DIR=$HOST_DATA_DIR"
 
-export EAGER=0
+export EAGER=1
 
 for n in 1 2 4 8 16; do
   for c in 8; do
