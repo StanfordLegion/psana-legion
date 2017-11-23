@@ -1,7 +1,7 @@
 all:	all_png
 
-run: test.rg mapper.cc mapper.h
-	${LG_RT_DIR}/../language/regent.py test.rg -ll:cpu 4 -level psana_mapper=1 -lg:safe_mapper
+run: test.rg mapper.cc mapper.h Makefile
+	${LG_RT_DIR}/../language/regent.py test.rg -ll:cpu 4 -level psana_mapper=2 -lg:safe_mapper
 
 gdb:
 	LAUNCHER="gdb --args" ${LG_RT_DIR}/../language/regent.py test.rg -ll:cpu 4 -level psana_mapper=1 -lg:safe_mapper
@@ -10,9 +10,9 @@ make.sortedlog: test.rg mapper.cc
 	make run | sort -n > make.sortedlog
 
 make.taskpool_${PROC}.sortedlog: make.sortedlog
-	grep stealbythief make.sortedlog | sort -n -k 6 > $@
+	cat make.sortedlog | egrep "p 1d0000000000000${PROC} remapping" | sort -n -k 6 > $@
 
-taskpool_timeline.png: make.taskpool_${PROC}.sortedlog make.taskpool.xrange
+taskpool_timeline.png: make.taskpool_${PROC}.sortedlog make.taskpool.xrange make.worker.xrange
 	python steals_gnuplot.py -l $< -p ${PROC}
 	cat make.taskpool_${PROC}.gnuplot | gnuplot
 
@@ -29,9 +29,9 @@ make.taskpool.xrange:  make.sortedlog
 	rm -f make.taskpool*tmp
 
 make.worker_${PROC}.sortedlog: make.sortedlog
-	egrep "fetch.* p ${PROC}|fetch_and_analyze.* p ${PROC}|^analyze.* p ${PROC}" make.sortedlog | grep -v psana_mapper > $@
+	egrep "fetch.* p ${PROC}|fetch_and_analyze.* p ${PROC}|^analyze.* p ${PROC}" make.sortedlog > $@
 
-worker_timeline.png: make.worker_${PROC}.sortedlog make.worker.xrange
+worker_timeline.png: make.worker_${PROC}.sortedlog make.worker.xrange make.taskpool.xrange
 	python worker_gnuplot.py -l $< -p ${PROC}
 	cat make.worker_${PROC}.gnuplot | gnuplot
 

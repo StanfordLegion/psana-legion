@@ -12,7 +12,7 @@ def convertTrace(logfile, proc):
     words = line.strip().split(' ')
     t = words[5]
     source = words[7]
-    thief = words[9]
+    thief = words[11]
     source_proc = int(source[-1])
     if source_proc == int(proc):
       thief_proc = int(thief[-1])
