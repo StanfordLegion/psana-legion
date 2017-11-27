@@ -120,6 +120,11 @@ def main_task():
         print('Enumerating: Number of events: %s' % len(events))
         print('Enumerating: Events per second: %e' % (len(events)/((stop - start)/1e6)))
 
+    repeat = int(os.environ['REPEAT']) if 'REPEAT' in os.environ else 1
+    if repeat > 1:
+        assert eager
+        events = events * repeat
+
     chunksize = 4 # Number of events per task
     overcommit = 1 # Number of tasks per processor per launch
 
@@ -160,8 +165,8 @@ def main_task():
 
     # Hack: Estimate bandwidth used
 
-    total_events = 75522
-    total_size = 875 # GB
+    total_events = 75522 * repeat
+    total_size = 875 * repeat # GB
 
     fraction_events = float(nevents)/total_events
     bw = fraction_events * total_size / ((stop - start)/1e6)
