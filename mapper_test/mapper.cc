@@ -29,10 +29,10 @@
  POOL_WORKER_WAKEUP
  POOL_POOL_FORWARD_STEAL
  POOL_POOL_FORWARD_STEAL_SUCCESS
- POOL_POOL_WAKEUP_SENT{_FORWARD,_REVERSE}
+ POOL_POOL_WAKEUP_SENT{_UP,_DOWN}
  
  Message payloads, also used as request record:
- { source, destination, worker, numTasks, hops, unique-d, unsatisfied }
+ { source, destination, worker, numTasks, hops, unique-d, triedToSatisfy }
  
  Algorithm:
  
@@ -42,14 +42,14 @@
  completes a task.
  
  Pool handles WORKER_POOL_STEAL_REQUEST.  If work is available relocate one task.
- If work is not available store the request and mark as "unsatisfied", and forward
+ If work is not available store the request and mark as "triedToSatisfy", and forward
  the request by sending POOL_POOL_FORWARD_STEAL to a different pool mapper.  This
  message includes a unique id, the identities of the sender and next recipient
  and a hop count of zero.
  
  Pool handles POOL_POOL_FORWARD_STEAL.  If work is available relocate one task
  and send POOL_POOL_FORWARD_STEAL_SUCCESS to the source processor.
- If work is not available store the request, mark it as "unsatisfied" and check
+ If work is not available store the request, mark it as "triedToSatisfy" and check
  the number of hops; if hops < num pools then forward POOL_POOL_FORWARD_STEAL to
  another pool with an incremented hop count and mark request.destination as
  that pool proc.
@@ -58,9 +58,9 @@
  unique id and send POOL_POOL_FORWARD_STEAL_SUCCESS to request.source.
  
  Pool sometimes spontaneously receives new work.  For each stored request that
- is marked "unsatisfied" send POOL_WORKER_WAKEUP to request.worker.
- Send POOL_POOL_WAKEUP_SENT_FORWARD to request.destination and send
- POOL_POOL_WAKEUP_SENT_REVERSE to request.source.  In either forward or reverse
+ is marked "triedToSatisfy" send POOL_WORKER_WAKEUP to request.worker.
+ Send POOL_POOL_WAKEUP_SENT_UP to request.destination and send
+ POOL_POOL_WAKEUP_SENT_DOWN to request.source.  In either forward or reverse
  case don't send a message if we are at the end of a chain (ie hops == 0 or
  hops == num pools).
  
@@ -84,7 +84,7 @@
  and sends POOL_POOL_FORWARD_STEAL to a series of pools p1 ... pn.  Pool pn
  satisfies the request and send POOL_POOL_FORWARD_STEAL_SUCCESS to pools p0...pn-1
  3. Worker w sends WORKER_POOL_STEAL_REQUEST to pool p0.  p0 cannot satisfy the
- request and neither can any other pools so request is marked "unsatisfied" in
+ request and neither can any other pools so request is marked "triedToSatisfy" in
  every pool.  Pool pi spontaneously gets work, sends POOL_WORKER_WAKEUP to
  original worker w, and sends POOL_POOL_WAKEUP_SENT to all other pools.
  Worker w sends WORKER_POOL_STEAL_REQUEST to pool.
@@ -115,14 +115,14 @@
  
  select_tasks_to_map() for pool mappers:
  * for every available task that is pool-type, map it to the the local proc.
- * for every deque request that is not marked "unsatisfied":
+ * for every deque request that is not marked "triedToSatisfy":
  try to relocate a number of tasks to the requesting worker.  If successful
  send POOL_POOL_FORWARD_STEAL_SUCCESS to the immediate sender if hops > 0 and
- discard the request.  If unsuccessful mark the request "unsatisfied", leave
+ discard the request.  If unsuccessful mark the request "triedToSatisfy", leave
  it in the deque, and send POOL_POOL_FORWARD_STEAL to another pool if
  hops < num pools.
  * if work has spontaneously materialized or there are unmapped tasks in the ready queue:
- for every "unsatisfied" request in deque, send POOL_WORKER_WAKEUP to original
+ for every "triedToSatisfy" request in deque, send POOL_WORKER_WAKEUP to original
  requestor, and send POOL_POOL_WAKEUP_SENT to both immediate sender and also
  next pool.
  
@@ -135,7 +135,7 @@
  Worker handles POOL_WORKER_WAKEUP.  Worker sends WORKER_POOL_STEAL_REQUEST if
  workload is below threshold.
  
- Pool handles POOL_POOL_WAKEUP_SENT{_FORWARD,_REVERSE}.  Exactly like the algorithm.
+ Pool handles POOL_POOL_WAKEUP_SENT{_UP,_DOWN}.  Exactly like the algorithm.
  
  */
 
@@ -168,9 +168,9 @@ typedef enum {
   WORKER_POOL_STEAL_REQUEST = 1,
   POOL_WORKER_WAKEUP,
   POOL_POOL_FORWARD_STEAL,
-  POOL_POOL_FORWARDED_STEAL_SUCCESS,
-  POOL_POOL_WAKEUP_SENT_FORWARD,
-  POOL_POOL_WAKEUP_SENT_REVERSE
+  POOL_POOL_FORWARD_STEAL_SUCCESS,
+  POOL_POOL_WAKEUP_SENT_UP,
+  POOL_POOL_WAKEUP_SENT_DOWN
 } MessageType;
 
 typedef struct {
@@ -180,7 +180,7 @@ typedef struct {
   Processor workerProc;
   unsigned numTasks;
   unsigned hops;
-  bool unsatisfied;
+  bool triedToSatisfy;
 } Request;
 
 
@@ -282,7 +282,7 @@ private:
                                  const MapperMessage& message);
   void handle_POOL_POOL_FORWARD_STEAL(const MapperContext ctx,
                                       const MapperMessage& message);
-  void handle_POOL_POOL_FORWARDED_STEAL_SUCCESS(const MapperContext ctx,
+  void handle_POOL_POOL_FORWARD_STEAL_SUCCESS(const MapperContext ctx,
                                                 const MapperMessage& message);
   void handle_POOL_POOL_WAKEUP_SENT(const MapperContext ctx,
                                     const MapperMessage& message,
@@ -340,6 +340,8 @@ void PsanaMapper::maybeSendStealRequest(MapperContext ctx, Processor target)
     unsigned numTasks = MIN_TASKS_IN_QUEUE - taskQueueSize;
     Request r = { -1, local_proc, target, local_proc, numTasks, 0, false };
     runtime->send_message(ctx, target, &r, sizeof(r), WORKER_POOL_STEAL_REQUEST);
+    log_psana_mapper.debug("proc %llx: send WORKER_POOL_STEAL_REQUEST to %llx",
+                           local_proc.id, target.id);
   }
 }
 
@@ -380,7 +382,9 @@ void PsanaMapper::handle_WORKER_POOL_STEAL_REQUEST(const MapperContext ctx,
   assert(mapperCategory == TASK_POOL);
   Request r = *(Request*)message.message;
   r.id = unsatisfiedUniqueId(numUniqueIds, local_proc.id);
-  triggerSelectTasksToMap(ctx, r);
+  log_psana_mapper.debug("proc %llx: handle_WORKER_POOL_STEAL_REQUEST id %d hops %d from worker %llx",
+                         local_proc.id, r.id, r.hops, r.workerProc.id);
+ triggerSelectTasksToMap(ctx, r);
 }
 
 
@@ -391,6 +395,8 @@ void PsanaMapper::handle_POOL_WORKER_WAKEUP(const MapperContext ctx,
 {
   assert(mapperCategory == WORKER);
   Request r = *(Request*)message.message;
+  log_psana_mapper.debug("proc %llx: handle_POOL_WORKER_WAKEUP id %d numTasks %d from %llx",
+                         local_proc.id, r.id, r.numTasks, r.sourceProc.id);
   maybeSendStealRequest(ctx, r.sourceProc);
 }
 
@@ -401,26 +407,33 @@ void PsanaMapper::handle_POOL_POOL_FORWARD_STEAL(const MapperContext ctx,
 {
   assert(mapperCategory == TASK_POOL);
   Request r = *(Request*)message.message;
-  r.id = unsatisfiedUniqueId(numUniqueIds, local_proc.id);
-  r.hops = 0;
+  log_psana_mapper.debug("proc %llx: handle_POOL_POOL_FORWARD_STEAL id %d hops %d from worker %llx",
+                         local_proc.id, r.id, r.hops, r.workerProc.id);
   triggerSelectTasksToMap(ctx, r);
 }
 
 //--------------------------------------------------------------------------
-void PsanaMapper::handle_POOL_POOL_FORWARDED_STEAL_SUCCESS(const MapperContext ctx,
+void PsanaMapper::handle_POOL_POOL_FORWARD_STEAL_SUCCESS(const MapperContext ctx,
                                                            const MapperMessage& message)
 //--------------------------------------------------------------------------
 {
   assert(mapperCategory == TASK_POOL);
   Request r = *(Request*)message.message;
+  log_psana_mapper.debug("proc %llx: handle_POOL_POOL_FORWARD_STEAL_SUCCESS id %d hops %d from %llx",
+                         local_proc.id, r.id, r.hops, r.sourceProc.id);
+
   for(std::deque<Request>::iterator it = pendingRequest.begin();
-      it != pendingRequest.end(); it++) {
+      it != pendingRequest.end(); ) {
     Request v = *it;
     if(r.id == v.id && r.hops == v.hops + 1) {
-      pendingRequest.erase(it);
+      it = pendingRequest.erase(it);
       if(v.hops > 0) {
-        runtime->send_message(ctx, v.sourceProc, &v, sizeof(v), POOL_POOL_FORWARDED_STEAL_SUCCESS);
+        runtime->send_message(ctx, v.sourceProc, &v, sizeof(v), POOL_POOL_FORWARD_STEAL_SUCCESS);
+        log_psana_mapper.debug("proc %llx: send POOL_POOL_FORWARD_STEAL_SUCCESS id %d hops %d to %llx",
+                               local_proc.id, v.id, v.hops, v.sourceProc.id);
       }
+    } else {
+      it++;
     }
   }
 }
@@ -434,21 +447,27 @@ void PsanaMapper::handle_POOL_POOL_WAKEUP_SENT(const MapperContext ctx,
 {
   assert(mapperCategory == TASK_POOL);
   Request r = *(Request*)message.message;
+  log_psana_mapper.debug("proc %llx: handle_POOL_POOL_WAKEUP_SENT id %d hops %d from %llx",
+                         local_proc.id, r.id, r.hops, r.sourceProc.id);
+
   for(std::deque<Request>::iterator it = pendingRequest.begin();
-      it != pendingRequest.end(); it++) {
+      it != pendingRequest.end(); ) {
     Request v = *it;
     unsigned expectedHops = isForward ? v.hops - 1 : v.hops + 1;
     if(r.id == v.id && r.hops == expectedHops) {
-      pendingRequest.erase(it);
+      it = pendingRequest.erase(it);
       bool sendFurther = isForward ? v.hops < NUM_TASK_POOL_MAPPERS : v.hops > 0;
       if(sendFurther) {
-        unsigned messageType = isForward ? POOL_POOL_WAKEUP_SENT_FORWARD
-        : POOL_POOL_WAKEUP_SENT_REVERSE;
+        unsigned messageType = isForward ? POOL_POOL_WAKEUP_SENT_UP
+        : POOL_POOL_WAKEUP_SENT_DOWN;
         runtime->send_message(ctx, v.sourceProc, &v, sizeof(v), messageType);
+        log_psana_mapper.debug("proc %llx: send POOL_POOL_WAKEUP_SENT_{UP/DOWN} hops %d to %llx",
+                               local_proc.id, v.hops, v.sourceProc.id);
       }
+    } else {
+      it++;
     }
   }
-  
 }
 
 
@@ -468,13 +487,13 @@ void PsanaMapper::handle_message(const MapperContext ctx,
     case POOL_POOL_FORWARD_STEAL:
       handle_POOL_POOL_FORWARD_STEAL(ctx, message);
       break;
-    case POOL_POOL_FORWARDED_STEAL_SUCCESS:
-      handle_POOL_POOL_FORWARDED_STEAL_SUCCESS(ctx, message);
+    case POOL_POOL_FORWARD_STEAL_SUCCESS:
+      handle_POOL_POOL_FORWARD_STEAL_SUCCESS(ctx, message);
       break;
-    case POOL_POOL_WAKEUP_SENT_FORWARD:
+    case POOL_POOL_WAKEUP_SENT_UP:
       handle_POOL_POOL_WAKEUP_SENT(ctx, message, true);
       break;
-    case POOL_POOL_WAKEUP_SENT_REVERSE:
+    case POOL_POOL_WAKEUP_SENT_DOWN:
       handle_POOL_POOL_WAKEUP_SENT(ctx, message, false);
       break;
     default: assert(false);
@@ -658,7 +677,12 @@ bool PsanaMapper::relocateWorkerTasks(const MapperContext          ctx,
                            local_proc.id,
                            r.workerProc.id);
     
-    if(r.unsatisfied == false) {
+    // only process new requests
+    if(!r.triedToSatisfy) {
+      r.triedToSatisfy = true;
+      *pendingRequestIt = r;
+      
+      // try to relocate the requested number of worker tasks
       while(r.numTasks > 0 && taskIt != input.ready_tasks.end()) {
         const Task* task = *taskIt++;
         
@@ -676,20 +700,43 @@ bool PsanaMapper::relocateWorkerTasks(const MapperContext          ctx,
           r.numTasks--;
           mapped = true;
         }
-        
       }
+      
+      // if the request was not fully satisfied and we are out of tasks
+      //  then forward a steal request to another task pool mapper
+      if(r.numTasks > 0 && taskIt == input.ready_tasks.end()) {
+        if(r.hops < NUM_TASK_POOL_MAPPERS) {
+          Request v = r;
+          v.hops++;
+          v.sourceProc = local_proc;
+          int index = uni(rng);
+          Processor target = task_pool_procs[index];
+          while(target.id == local_proc.id) {
+            index = uni(rng);
+            target = task_pool_procs[index];
+          }
+          v.destinationProc = target;
+          runtime->send_message(ctx, target, &v, sizeof(v), POOL_POOL_FORWARD_STEAL);
+          log_psana_mapper.debug("proc %llx: send POOL_POOL_FORWARD_STEAL to %llx",
+                                 local_proc.id, target.id);
+        }
+      }
+      
       if(r.numTasks == 0) {
         pendingRequestIt = pendingRequest.erase(pendingRequestIt);
       } else {
         pendingRequestIt++;
       }
-    } else {
+    } else {//!r.triedToSatisfy
       pendingRequestIt++;
     }
   }
   
+  // count the number of unmapped worker tasks
   while(taskIt != input.ready_tasks.end()) {
-    numUnmappedWorkerTasks++;
+    if(isWorkerTask(**taskIt)) {
+      numUnmappedWorkerTasks++;
+    }
     taskIt++;
   }
   return mapped;
@@ -710,26 +757,35 @@ void PsanaMapper::wakeUpWorkers(const MapperContext          ctx,
   
   while(pendingRequestIt != pendingRequest.end() && numAvailableTasks > 0) {
     Request r = *pendingRequestIt;
-    if(r.unsatisfied) {
+    if(r.triedToSatisfy) {
       pendingRequestIt = pendingRequest.erase(pendingRequestIt);
       Request v = r;
       v.sourceProc = local_proc;
       v.destinationProc = r.workerProc;
       runtime->send_message(ctx, v.destinationProc, &v, sizeof(v), POOL_WORKER_WAKEUP);
+      log_psana_mapper.debug("proc %llx: send POOL_WORKER_WAKEUP to worker %llx",
+                             local_proc.id, v.destinationProc.id);
+      
       if(r.hops > 0) {
         v = r;
         v.sourceProc = local_proc;
         v.destinationProc = r.sourceProc;
-        runtime->send_message(ctx, v.destinationProc, &v, sizeof(v), POOL_POOL_WAKEUP_SENT_REVERSE);
+        runtime->send_message(ctx, v.destinationProc, &v, sizeof(v), POOL_POOL_WAKEUP_SENT_DOWN);
+        log_psana_mapper.debug("proc %llx: send POOL_POOL_WAKEUP_SENT_DOWN hops %d to worker %llx",
+                               local_proc.id, v.hops, v.destinationProc.id);
       }
+      
       if(r.hops < NUM_TASK_POOL_MAPPERS) {
         v = r;
         v.sourceProc = local_proc;
         v.destinationProc = r.destinationProc;
-        runtime->send_message(ctx, v.destinationProc, &v, sizeof(v), POOL_POOL_WAKEUP_SENT_FORWARD);
-      }
+        runtime->send_message(ctx, v.destinationProc, &v, sizeof(v), POOL_POOL_WAKEUP_SENT_UP);
+        log_psana_mapper.debug("proc %llx: send POOL_POOL_WAKEUP_SENT_UP hops %d to worker %llx",
+                               local_proc.id, v.hops, v.destinationProc.id);
+     }
       pendingRequestIt = pendingRequest.erase(pendingRequestIt);
       numAvailableTasks--;
+      
     } else {
       pendingRequestIt++;
     }
