@@ -60,9 +60,14 @@ worker_timeline_4.png:
 	@make worker_timeline.png PROC='4'
 
 all_png: taskpool_timeline_1.png taskpool_timeline_2.png worker_timeline_3.png worker_timeline_4.png
+	@make almost_clean
 
-clean:
+almost_clean:
 	rm -f make.*sortedlog 
-	rm -f make.worker*.dat make.worker*.gnuplot worker*png
-	rm -f make.taskpool*.dat make.taskpool*.gnuplot taskpool*png
+	rm -f make.worker*.dat make.worker*.gnuplot 
+	rm -f make.taskpool*.dat make.taskpool*.gnuplot 
 	rm -f make.*.xmin make.*.xmax
+
+clean:	almost_clean
+	rm -f worker*png taskpool*png
+
