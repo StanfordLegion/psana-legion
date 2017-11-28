@@ -276,8 +276,9 @@ void PsanaMapper::report_profiling(const MapperContext ctx,
          max_tasks_in_flight*(100-tasks_in_flight_hysteresis)/100) &&
         defer_select_tasks_to_map.exists())
     {
-      runtime->trigger_mapper_event(ctx, defer_select_tasks_to_map);
+      MapperEvent trigger = defer_select_tasks_to_map;
       defer_select_tasks_to_map = MapperEvent();
+      runtime->trigger_mapper_event(ctx, trigger);
     }
   } else {
     assert(false); // Shouldn't get profiling responses for any other tasks.
