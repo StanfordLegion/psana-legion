@@ -45,11 +45,11 @@ def convertTrace(logfile):
         if function != '':
           print function, proc, '(' + str(numTasks) + ')', sumActive, ', (', timeStart, ':', lastTaskEnded, ')'
           if startupIdle == None:
-            startupIdle = timeStart - oldLastTaskEnded
+            startupIdle = oldLastTaskEnded - timeStart
 
         timeStart = int(words[0])
         totalActive = totalActive + sumActive
-        sumActive = int(words[5])
+        duration = int(words[5])
         oldLastTaskEnded = lastTaskEnded
         function = words[1]
         proc = words[4]
