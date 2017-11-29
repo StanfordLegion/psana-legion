@@ -21,9 +21,6 @@
  
  There are n mappers running for n processors.
  Mappers send and respond to these kinds of messages.
- The first two words of the message name indicate the sender and receiver.
- Message arguments are descrined in braces {}.  Here pool proc means the sender
- pool proc and worker proc means the sender worker proc if sender is a worker.
  
  WORKER_POOL_STEAL_REQUEST
  WORKER_POOL_STEAL_ACK
@@ -33,7 +30,7 @@
  POOL_POOL_FORWARD_STEAL_SUCCESS
  
  Message payloads, also used as request record:
- { source, destination, worker, numTasks, hops, unique-d, triedToSatisfy }
+ { source, destination, worker, numTasks, hops, unique-id, triedToSatisfy }
  
  Algorithm:
  
@@ -80,16 +77,15 @@
  3. Worker w sends WORKER_POOL_STEAL_REQUEST to pool p0.  p0 cannot satisfy the
  request and neither can any other pools so request is marked "triedToSatisfy" in
  every pool.  Pool pi spontaneously gets work, sends POOL_WORKER_WAKEUP to
- original worker w, and sends POOL_POOL_WAKEUP_SENT to all other pools.
- Worker w sends WORKER_POOL_STEAL_REQUEST to pool.
+ original worker w. Worker w sends WORKER_POOL_STEAL_REQUEST to pool.
  4. Same as 2 but while POOL_POOL_FORWARD_STEAL is being forwarded another
  WORKER_POOL_STEAL_REQUEST comes in and causes another set of messages to happen
  in parallel with the first set.
  5. Same as 3 but multiple pools spontaneously get work at the same time.
  6. Same as 3 but a new POOL_POOL_FORWARD_STEAL comes in immediately after a
- pool issues the first POOL_POOL_WAKEUP_SENT.
+ pool issues the first POOL_WORKER_WAKEUP.
  7. Same as 3 but a new POOL_POOL_FORWARD_STEAL sequence is in progress before any
- pool issues the first POOL_POOL_WAKEUP_SENT.
+ pool issues the first POOL_WORKER_WAKEUP.
  8. Multiple unsatisfied worker requests lead to multiple simultaneous chains of
  POOL_POOL_FORWARD_STEAL.
  
