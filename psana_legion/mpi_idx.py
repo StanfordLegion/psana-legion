@@ -13,7 +13,7 @@ times = run.times()
 size = MPI.COMM_WORLD.Get_size()
 rank = MPI.COMM_WORLD.Get_rank()
 
-limit = int(os.environ['SLURM_JOB_NUM_NODES']) * 5000
+limit = int(os.environ['LIMIT']) if 'LIMIT' in os.environ else None
 if limit: times = times[:limit]
 
 if rank == 0:

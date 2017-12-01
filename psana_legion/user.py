@@ -33,5 +33,5 @@ def analyze(event):
 def filter(event):
     return True
 
-limit = int(os.environ['SLURM_JOB_NUM_NODES']) * 5000
+limit = int(os.environ['LIMIT']) if 'LIMIT' in os.environ else None
 ds.start(analyze, filter, limit=limit)

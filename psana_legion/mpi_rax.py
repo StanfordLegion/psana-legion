@@ -29,7 +29,7 @@ if rank == 0:
     ds = psana.DataSource('exp=cxid9114:run=%s:smd' % run_number)
 
     events = ds.events()
-    limit = int(os.environ['SLURM_JOB_NUM_NODES']) * 5000
+    limit = int(os.environ['LIMIT']) if 'LIMIT' in os.environ else None
     if limit:
         events = itertools.islice(events, limit)
 
