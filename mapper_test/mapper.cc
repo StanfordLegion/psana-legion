@@ -16,6 +16,7 @@
 #include "mapper.h"
 
 
+
 /*
  Goal: write a distributed task pool to serve a set of worker processors.
  
@@ -397,14 +398,12 @@ void PsanaMapper::handle_POOL_WORKER_STEAL_ACK(const MapperContext ctx,
   assert(mapperCategory == WORKER);
   stealRequestOutstanding = false;
   Request r = *(Request*)message.message;
-  taskQueueSize += r.numTasks;
   log_psana_mapper.debug("%lld proc %llx: handle_POOL_WORKER_STEAL_ACK id %d from "
-                         "proc %llx numTasks %d taskQueueSize %d",
+                         "proc %llx taskQueueSize %d",
                          timeNow(),
                          local_proc.id,
                          r.id,
                          r.sourceProc.id,
-                         r.numTasks,
                          taskQueueSize);
 }
 
@@ -652,19 +651,14 @@ void PsanaMapper::handleStealRequest(const MapperContext          ctx,
     // Grab the tasks that we are going to steal
     std::vector<const Task*> tasks;
     std::set<const Task*>::const_iterator to_steal = worker_ready_queue.begin();
-    unsigned numRelocated = 0;
     
     while ((r.numTasks > 0) && (to_steal != worker_ready_queue.end()))
     {
       tasks.push_back(*to_steal);
       to_steal = worker_ready_queue.erase(to_steal);
       r.numTasks--;
-      numRelocated++;
     }
-
-    Request v = r;
-    v.numTasks = numRelocated;
-    send_queue.push_back(std::make_pair(v, tasks));
+    send_queue.push_back(std::make_pair(r, tasks));
     
     if(messageType == POOL_POOL_FORWARD_STEAL) {
       Request v = r;
@@ -978,8 +972,8 @@ void PsanaMapper::map_task(const MapperContext      ctx,
       ProfilingRequest completionRequest;
       completionRequest.add_measurement<Realm::ProfilingMeasurements::OperationStatus>();
       output.task_prof_requests = completionRequest;
+      taskQueueSize++;
       if(task.orig_proc == local_proc) {
-        taskQueueSize++;
         log_psana_mapper.debug("%lld proc %llx: map_task maps self task %s"
                                " taskQueueSize %d",
                                timeNow(),

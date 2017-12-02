@@ -15,7 +15,7 @@ def convertTrace(logfile, proc):
   
   for line in open(logfile):
     words = line.strip().split(' ')
-    dummy0, dummy1, dummy2, dummy3, t, dummy4, p, procID, dummy5, load = words
+    dummy0, dummy1, dummy2, dummy3, t, dummy4, longProcId, dummy5, dummy6, p, procID, dummy7, dummy8, load = words
     duration = long(t) - long(tLast)
     tMid = long(tLast) + duration / 2
     output.write(str(tMid) + " " + load + " " + str(duration) + "\n")

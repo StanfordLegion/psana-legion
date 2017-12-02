@@ -32,7 +32,7 @@ make.taskpool.xrange:  make.sortedlog
 	rm -f make.taskpool*tmp
 
 make.worker_${PROC}.sortedlog: make.sortedlog
-	egrep "p ${PROC} taskQueueSize" make.sortedlog | sort -n -k 5 > $@
+	egrep "p ${PROC} .* taskQueueSize" make.sortedlog | sort -n -k 5 > $@
 
 worker_timeline.png: make.worker_${PROC}.sortedlog make.worker.xrange make.taskpool.xrange
 	python worker_gnuplot.py -l $< -p ${PROC}
