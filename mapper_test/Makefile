@@ -3,6 +3,9 @@ all:	all_png
 run: test.rg mapper.cc mapper.h Makefile
 	${LG_RT_DIR}/../language/regent.py test.rg -ll:cpu 4 -level psana_mapper=2 -lg:safe_mapper
 
+debug: test.rg mapper.cc mapper.h Makefile
+	${LG_RT_DIR}/../language/regent.py test.rg -ll:cpu 4 -level psana_mapper=1 -lg:safe_mapper
+
 gdb:
 	LAUNCHER="gdb --args" ${LG_RT_DIR}/../language/regent.py test.rg -ll:cpu 4 -level psana_mapper=1 -lg:safe_mapper
 
@@ -29,7 +32,7 @@ make.taskpool.xrange:  make.sortedlog
 	rm -f make.taskpool*tmp
 
 make.worker_${PROC}.sortedlog: make.sortedlog
-	egrep "fetch.* p ${PROC}|fetch_and_analyze.* p ${PROC}|^analyze.* p ${PROC}" make.sortedlog > $@
+	egrep "p ${PROC} taskQueueSize" make.sortedlog | sort -n -k 5 > $@
 
 worker_timeline.png: make.worker_${PROC}.sortedlog make.worker.xrange make.taskpool.xrange
 	python worker_gnuplot.py -l $< -p ${PROC}
@@ -60,7 +63,7 @@ worker_timeline_4.png:
 	@make worker_timeline.png PROC='4'
 
 all_png: taskpool_timeline_1.png taskpool_timeline_2.png worker_timeline_3.png worker_timeline_4.png
-	@make almost_clean
+#	@make almost_clean
 
 almost_clean:
 	rm -f make.*sortedlog 

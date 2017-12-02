@@ -313,9 +313,11 @@ proc_sysmems(*_proc_sysmems)
   rng = std::mt19937(rd());    // random-number engine used (Mersenne-Twister in this case)
   uni = std::uniform_int_distribution<int>(0, task_pool_procs.size() - 1); // guaranteed unbiased
   runtime = rt;
-  taskQueueSize = 0;
   numUniqueIds = 0;
   stealRequestOutstanding = false;
+  taskQueueSize = 0;
+  log_psana_mapper.info("%lld # p %d taskQueueSize %u",
+                        timeNow(), (int)(local_proc.id & 0xff), taskQueueSize);
 }
 
 
@@ -325,15 +327,22 @@ void PsanaMapper::maybeSendStealRequest(MapperContext ctx, Processor target)
 {
   assert(mapperCategory == WORKER);
   if(taskQueueSize < MIN_TASKS_IN_QUEUE && !stealRequestOutstanding) {
-    log_psana_mapper.debug("%lld proc %llx: maybeSendStealRequest id %llx",
-                           timeNow(), local_proc.id, target.id);
     unsigned numTasks = MIN_TASKS_IN_QUEUE - taskQueueSize;
     Request r = { uniqueId(), local_proc, target, local_proc, numTasks, 0 };
-    runtime->send_message(ctx, target, &r, sizeof(r), WORKER_POOL_STEAL_REQUEST);
-    log_psana_mapper.debug("%lld proc %llx: send WORKER_POOL_STEAL_REQUEST numTasks %d to %llx",
+    log_psana_mapper.debug("%lld proc %llx: maybeSendStealRequest "
+                           "send WORKER_POOL_STEAL_REQUEST "
+                           "id %d numTasks %d to %llx",
                            timeNow(),
-                           local_proc.id, numTasks, target.id);
+                           local_proc.id, r.id, numTasks, target.id);
     stealRequestOutstanding = true;
+    runtime->send_message(ctx, target, &r, sizeof(r), WORKER_POOL_STEAL_REQUEST);
+  } else {
+    if(taskQueueSize < MIN_TASKS_IN_QUEUE && stealRequestOutstanding) {
+      log_psana_mapper.debug("%lld proc %llx: maybeSendStealRequest "
+                             "cannot send because stealRequestOutstanding",
+                             timeNow(),
+                             local_proc.id);
+    }
   }
 }
 
@@ -387,6 +396,16 @@ void PsanaMapper::handle_POOL_WORKER_STEAL_ACK(const MapperContext ctx,
 {
   assert(mapperCategory == WORKER);
   stealRequestOutstanding = false;
+  Request r = *(Request*)message.message;
+  taskQueueSize += r.numTasks;
+  log_psana_mapper.debug("%lld proc %llx: handle_POOL_WORKER_STEAL_ACK id %d from "
+                         "proc %llx numTasks %d taskQueueSize %d",
+                         timeNow(),
+                         local_proc.id,
+                         r.id,
+                         r.sourceProc.id,
+                         r.numTasks,
+                         taskQueueSize);
 }
 
 //--------------------------------------------------------------------------
@@ -396,6 +415,14 @@ void PsanaMapper::handle_POOL_WORKER_STEAL_NACK(const MapperContext ctx,
 {
   assert(mapperCategory == WORKER);
   stealRequestOutstanding = false;
+  Request r = *(Request*)message.message;
+  log_psana_mapper.debug("%lld proc %llx: handle_POOL_WORKER_STEAL_NACK id %d from "
+                         "proc %llx taskQueueSize %d",
+                         timeNow(),
+                         local_proc.id,
+                         r.id,
+                         r.sourceProc.id,
+                         taskQueueSize);
 }
 
 //--------------------------------------------------------------------------
@@ -404,7 +431,6 @@ void PsanaMapper::handle_POOL_WORKER_WAKEUP(const MapperContext ctx,
 //--------------------------------------------------------------------------
 {
   assert(mapperCategory == WORKER);
-  stealRequestOutstanding = false;
   Request r = *(Request*)message.message;
   log_psana_mapper.debug("%lld proc %llx: handle_POOL_WORKER_WAKEUP id %d from %llx",
                          timeNow(),
@@ -444,11 +470,11 @@ void PsanaMapper::handle_POOL_POOL_FORWARD_STEAL_SUCCESS(const MapperContext ctx
     if(r.id == v.id && r.hops == v.hops + 1) {
       it = failed_requests.erase(it);
       if(v.hops > 0) {
-        runtime->send_message(ctx, v.sourceProc, &v, sizeof(v), POOL_POOL_FORWARD_STEAL_SUCCESS);
         log_psana_mapper.debug("%lld proc %llx: send POOL_POOL_FORWARD_STEAL_SUCCESS "
                                "id %d hops %d numTasks %d to %llx",
                                timeNow(),
                                local_proc.id, v.id, v.hops, v.numTasks, v.sourceProc.id);
+        runtime->send_message(ctx, v.sourceProc, &v, sizeof(v), POOL_POOL_FORWARD_STEAL_SUCCESS);
       }
       // Once we find it we are done
       break;
@@ -532,10 +558,7 @@ inline char* PsanaMapper::taskDescription(const Legion::Task& task)
 //--------------------------------------------------------------------------
 {
   static  char buffer[512];
-  sprintf(buffer, "%s:%llx%s", task.get_task_name(), task.get_unique_id(),
-          (task.is_index_space ?
-           (task.index_point.get_dim() > 0 ? ":Point" : ":Index")
-           : ""));
+  sprintf(buffer, "%s:%llx", task.get_task_name(), task.get_unique_id());
   return buffer;
 }
 
@@ -629,23 +652,29 @@ void PsanaMapper::handleStealRequest(const MapperContext          ctx,
     // Grab the tasks that we are going to steal
     std::vector<const Task*> tasks;
     std::set<const Task*>::const_iterator to_steal = worker_ready_queue.begin();
+    unsigned numRelocated = 0;
+    
     while ((r.numTasks > 0) && (to_steal != worker_ready_queue.end()))
     {
       tasks.push_back(*to_steal);
       to_steal = worker_ready_queue.erase(to_steal);
       r.numTasks--;
+      numRelocated++;
     }
-    // We definitely have things to map at this point
-    send_queue.push_back(std::make_pair(r, tasks));
+
+    Request v = r;
+    v.numTasks = numRelocated;
+    send_queue.push_back(std::make_pair(v, tasks));
+    
     if(messageType == POOL_POOL_FORWARD_STEAL) {
       Request v = r;
       v.sourceProc = local_proc;
       v.destinationProc = r.sourceProc;
-      runtime->send_message(ctx, v.destinationProc, &v, sizeof(v), POOL_POOL_FORWARD_STEAL_SUCCESS);
       log_psana_mapper.debug("%lld proc %llx: send POOL_POOL_FORWARD_STEAL_SUCCESS id %d "
                              "hops %d numTasks %d to %llx",
                              timeNow(),
                              local_proc.id, v.id, v.hops, v.numTasks, v.destinationProc.id);
+      runtime->send_message(ctx, v.destinationProc, &v, sizeof(v), POOL_POOL_FORWARD_STEAL_SUCCESS);
     }
     if(r.numTasks > 0) {
       failed_requests.push_back(r);
@@ -675,19 +704,19 @@ void PsanaMapper::forwardStealRequest(const MapperContext          ctx,
       target = task_pool_procs[index];
     }
     v.destinationProc = target;
-    runtime->send_message(ctx, target, &v, sizeof(v), POOL_POOL_FORWARD_STEAL);
     log_psana_mapper.debug("%lld proc %llx: send POOL_POOL_FORWARD_STEAL id %d "
                            "hops %d numTasks %d to %llx",
                            timeNow(),
                            local_proc.id, v.id, v.hops, v.numTasks, target.id);
+    runtime->send_message(ctx, target, &v, sizeof(v), POOL_POOL_FORWARD_STEAL);
   } else {
     Request v = r;
     v.sourceProc = local_proc;
     v.destinationProc = r.workerProc;
-    runtime->send_message(ctx, r.workerProc, &v, sizeof(v), POOL_WORKER_STEAL_NACK);
     log_psana_mapper.debug("%lld proc %llx: send POOL_WORKER_STEAL_NACK id %d to %llx",
                            timeNow(),
                            local_proc.id, v.id, r.workerProc.id);
+    runtime->send_message(ctx, r.workerProc, &v, sizeof(v), POOL_WORKER_STEAL_NACK);
   }
 }
 
@@ -697,15 +726,13 @@ void PsanaMapper::wakeUpWorkers(const MapperContext          ctx,
 //--------------------------------------------------------------------------
 {
   std::deque<Request>::iterator pendingRequestIt = failed_requests.begin();
-  log_psana_mapper.debug("%lld proc %llx: wakeUpWorkers numAvailableTasks %d "
-                         "pendingRequest size %ld",
-                         timeNow(),
-                         local_proc.id, numAvailableTasks, failed_requests.size());
   std::map<Processor, Request> to_notify;
   while(pendingRequestIt != failed_requests.end() && numAvailableTasks > 0) {
     Request r = *pendingRequestIt;
-    log_psana_mapper.debug("%lld proc %llx: request id %d workerId %llx numTasks %d",
-                           timeNow(), local_proc.id, r.id, r.workerProc.id, r.numTasks);
+    log_psana_mapper.debug("%lld proc %llx: wakeUpWorkers request id %d "
+                           "workerId %llx numTasks %d",
+                           timeNow(), local_proc.id, r.id, r.workerProc.id,
+                           r.numTasks);
     to_notify[r.workerProc] = r;
     pendingRequestIt = failed_requests.erase(pendingRequestIt);
     numAvailableTasks--;
@@ -716,11 +743,11 @@ void PsanaMapper::wakeUpWorkers(const MapperContext          ctx,
     Request v = it->second;
     v.sourceProc = local_proc;
     v.destinationProc = it->first;
-    runtime->send_message(ctx, v.destinationProc, &v, sizeof(v), POOL_WORKER_WAKEUP);
     log_psana_mapper.debug("%lld proc %llx: send POOL_WORKER_WAKEUP id %d to worker %llx",
                            timeNow(),
                            local_proc.id, v.id, v.destinationProc.id);
     
+    runtime->send_message(ctx, v.destinationProc, &v, sizeof(v), POOL_WORKER_WAKEUP);
   }
 }
 
@@ -773,7 +800,8 @@ bool PsanaMapper::sendSatisfiedTasks(const MapperContext          ctx,
                               local_proc.id,
                               taskDescription(*task),
                               processor.id);
-        log_psana_mapper.debug("%lld proc %llx: select_tasks_to_map relocating %s to %llx",
+        log_psana_mapper.debug("%lld proc %llx: select_tasks_to_map relocating "
+                               "%s to %llx",
                                timeNow(), local_proc.id,
                                taskDescription(*task),
                                processor.id);
@@ -782,10 +810,11 @@ bool PsanaMapper::sendSatisfiedTasks(const MapperContext          ctx,
       Request v = r;
       v.sourceProc = local_proc;
       v.destinationProc = processor;
-      runtime->send_message(ctx, processor, &v, sizeof(v), POOL_WORKER_STEAL_ACK);
-      log_psana_mapper.debug("%lld proc %llx: send POOL_WORKER_STEAL_ACK id %d to %llx",
+      log_psana_mapper.debug("%lld proc %llx: send POOL_WORKER_STEAL_ACK id %d"
+                             " numTasks %d to %llx",
                              timeNow(),
-                             local_proc.id, v.id, r.workerProc.id);
+                             local_proc.id, v.id, v.numTasks, r.workerProc.id);
+      runtime->send_message(ctx, processor, &v, sizeof(v), POOL_WORKER_STEAL_ACK);
     }
     
     send_queue.clear();
@@ -800,9 +829,6 @@ void PsanaMapper::select_tasks_to_map(const MapperContext          ctx,
                                       SelectMappingOutput&   output)
 //--------------------------------------------------------------------------
 {
-  log_psana_mapper.debug("%lld proc %llx: select_tasks_to_map",
-                         timeNow(), local_proc.id);
-  
   if(mapperCategory == TASK_POOL) {
     
     log_psana_mapper.debug("%lld proc %llx: select_tasks_to_map readyTasks size %ld",
@@ -918,7 +944,14 @@ void PsanaMapper::report_profiling(const MapperContext      ctx,
 //--------------------------------------------------------------------------
 {
   // task completion request
+  assert(taskQueueSize > 0);
   taskQueueSize--;
+  log_psana_mapper.info("%lld proc %llx: report_profiling # p %d %s taskQueueSize %u",
+                        timeNow(),
+                        local_proc.id,
+                        (int)(local_proc.id & 0xff),
+                        taskDescription(task),
+                        taskQueueSize);
   maybeSendStealRequest(ctx);
 }
 
@@ -938,8 +971,6 @@ void PsanaMapper::map_task(const MapperContext      ctx,
       
       // this tasks succeeds in running on a worker
       
-      log_psana_mapper.debug("%lld proc %llx: map_task worker maps %s to itself, successfully stolen",
-                             timeNow(), local_proc.id, taskDescription(task));
       output.chosen_variant = chosen.variant;
       output.task_priority = 0;
       output.postmap_task = false;
@@ -947,8 +978,23 @@ void PsanaMapper::map_task(const MapperContext      ctx,
       ProfilingRequest completionRequest;
       completionRequest.add_measurement<Realm::ProfilingMeasurements::OperationStatus>();
       output.task_prof_requests = completionRequest;
-      taskQueueSize++;
-      
+      if(task.orig_proc == local_proc) {
+        taskQueueSize++;
+        log_psana_mapper.debug("%lld proc %llx: map_task maps self task %s"
+                               " taskQueueSize %d",
+                               timeNow(),
+                               local_proc.id,
+                               taskDescription(task),
+                               taskQueueSize);
+      } else {
+        log_psana_mapper.debug("%lld proc %llx: map_task maps stolen task %s"
+                               " taskQueueSize %d",
+                               timeNow(),
+                               local_proc.id,
+                               taskDescription(task),
+                               taskQueueSize);
+      }
+
     } else {
       log_psana_mapper.debug("%lld proc %llx: map_task pass %s to default mapper map_task",
                              timeNow(), local_proc.id, taskDescription(task));
