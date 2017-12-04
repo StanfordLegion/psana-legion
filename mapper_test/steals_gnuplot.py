@@ -23,14 +23,14 @@ def convertTrace(logfile, proc):
   xmax_taskpool = open("make.taskpool.xmax", "r").readline().strip().split(" ")
   xmin_worker = open("make.worker.xmin", "r").readline().strip().split(" ")
   xmax_worker = open("make.worker.xmax", "r").readline().strip().split(" ")
-  if long(xmin_taskpool[5]) < long(xmin_worker[0]):
+  if long(xmin_taskpool[5]) < long(xmin_worker[4]):
     xmin = xmin_taskpool[5]
   else:
-    xmin = xmin_worker[0]
-  if long(xmax_taskpool[5]) > long(xmax_worker[0]):
+    xmin = xmin_worker[4]
+  if long(xmax_taskpool[5]) > long(xmax_worker[4]):
     xmax = xmax_taskpool[5]
   else:
-    xmax = xmax_worker[0]
+    xmax = xmax_worker[4]
 
   script = open('make.taskpool_' + proc + '.gnuplot', 'w')
   script.write('set terminal png transparent enhanced font "arial,10" fontscale 1.0 size 600, 400\n')

@@ -5,37 +5,36 @@
 
 import argparse
 
+# [0 - 7f2b26050700] {2}{psana_mapper}: 35073569 # p 3 taskQueueSize 5
+
 
 def convertTrace(logfile, proc):
-  taskStack = []
+  loadLast = 0
+  tLast = 0
   output = open('make.worker_' + proc + '.dat', 'w')
+  
   for line in open(logfile):
     words = line.strip().split(' ')
-    t, function, dummy0, dummy1, procID, duration = words
-    while len(taskStack) > 0:
-      tEnd0, function0 = taskStack[0]
-      if long(tEnd0) < long(t):
-        taskStack = taskStack[1:]
-      else:
-        break
-    tMid = long(t) + long(duration) / 2
-    tEnd = long(t) + long(duration) - 1
-    taskStack = taskStack + [ ( tEnd, function ) ]
-    output.write(str(tMid) + " " + str(len(taskStack)) + " " + str(duration) + "\n")
+    dummy0, dummy1, dummy2, dummy3, t, dummy4, longProcId, dummy5, dummy6, p, procID, dummy7, dummy8, load = words
+    duration = long(t) - long(tLast)
+    tMid = long(tLast) + duration / 2
+    output.write(str(tMid) + " " + load + " " + str(duration) + "\n")
+    tLast = t
+    loadLast = load
   output.close()
 
   xmin_taskpool = open("make.taskpool.xmin", "r").readline().strip().split(" ")
   xmax_taskpool = open("make.taskpool.xmax", "r").readline().strip().split(" ")
   xmin_worker = open("make.worker.xmin", "r").readline().strip().split(" ")
   xmax_worker = open("make.worker.xmax", "r").readline().strip().split(" ")
-  if long(xmin_taskpool[5]) < long(xmin_worker[0]):
+  if long(xmin_taskpool[5]) < long(xmin_worker[4]):
     xmin = xmin_taskpool[5]
   else:
-    xmin = xmin_worker[0]
-  if long(xmax_taskpool[5]) > long(xmax_worker[0]):
+    xmin = xmin_worker[4]
+  if long(xmax_taskpool[5]) > long(xmax_worker[4]):
     xmax = xmax_taskpool[5]
   else:
-    xmax = xmax_worker[0]
+    xmax = xmax_worker[4]
 
   script = open('make.worker_' + proc + '.gnuplot', 'w')
   script.write('set terminal png transparent enhanced font "arial,10" fontscale 1.0 size 600, 400\n')
