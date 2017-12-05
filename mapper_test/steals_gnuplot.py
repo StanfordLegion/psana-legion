@@ -16,7 +16,7 @@ def convertTrace(logfile, proc):
     source_proc = int(source[-1])
     if source_proc == int(proc):
       thief_proc = int(thief[-1])
-      output.write(str(t) + " " + str(thief_proc) + " 10\n");
+      output.write(str(t) + " " + str(thief_proc) + "\n");
   output.close()
 
   xmin_taskpool = open("make.taskpool.xmin", "r").readline().strip().split(" ")
@@ -37,13 +37,9 @@ def convertTrace(logfile, proc):
   script.write("set output 'taskpool_timeline_" + proc + ".png'\n")
   script.write("set title 'steals from taskpool proc " + proc + "'\n")
   script.write("set xrange [" + xmin + ".0:" + xmax + ".0]\n")
-  script.write("set yrange [0:]\n")
+  script.write("set yrange [0:5]\n")
   script.write("set ylabel 'thief processor id (3 or 4)'\n")
-  script.write('plot "make.taskpool_' + proc + '.dat" with boxes\n')
-  script.write("set output 'taskpool_detail_" + proc + ".png'\n")
-  script.write("set xrange [" + "0" + ".0:" + xmax_taskpool[5] + ".0]\n")
-  script.write("set style fill solid 1.0\n")
-  script.write('plot "make.taskpool_' + proc + '.dat" with boxes\n')
+  script.write('plot "make.taskpool_' + proc + '.dat" with dots\n')
   script.close()
 
 

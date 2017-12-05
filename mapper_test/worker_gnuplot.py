@@ -5,8 +5,6 @@
 
 import argparse
 
-# [0 - 7f2b26050700] {2}{psana_mapper}: 35073569 # p 3 taskQueueSize 5
-
 
 def convertTrace(logfile, proc):
   loadLast = 0
@@ -37,8 +35,8 @@ def convertTrace(logfile, proc):
     xmax = xmax_worker[4]
 
   script = open('make.worker_' + proc + '.gnuplot', 'w')
-  script.write('set terminal png transparent enhanced font "arial,10" fontscale 1.0 size 600, 400\n')
-  script.write("set output 'worker_timeline_" + proc + ".png'\n")
+  script.write('set terminal jpeg transparent enhanced font "arial,10" fontscale 1.0 size 600, 400\n')
+  script.write("set output 'worker_timeline_" + proc + ".jpeg'\n")
   script.write("set title 'load on worker proc " + proc + "'\n")
   script.write("set xrange [" + xmin + ".0:" + xmax + ".0]\n")
   script.write("set yrange [0:]\n")
