@@ -134,8 +134,10 @@
 #include <vector>
 #include <deque>
 
-
 #include "default_mapper.h"
+
+
+#define VERBOSE_DEBUG 1
 
 using namespace Legion;
 using namespace Legion::Mapping;
@@ -834,6 +836,7 @@ bool PsanaMapper::sendSatisfiedTasks(const MapperContext          ctx,
   // Send any tasks that we satisfied
   if (!send_queue.empty())
   {
+    std::vector<Request> messages_to_send;
     for(SendQueue::iterator it = send_queue.begin();
         it != send_queue.end(); it++) {
       Request r = it->first;
@@ -859,18 +862,25 @@ bool PsanaMapper::sendSatisfiedTasks(const MapperContext          ctx,
       }
       
       // Send an ack to the worker
-      Request v = r;
+      // Defer sending the messages until we are done with the loop
+      // to avoid preemption that could invalidate our iterator
+      messages_to_send.resize(messages_to_send.size() + 1);
+      Request &v = messages_to_send.back();
+      v = r;
       v.sourceProc = local_proc;
       v.destinationProc = processor;
+    }
+    
+    send_queue.clear();
+    for (unsigned idx = 0; idx < messages_to_send.size(); idx++) {
+      Request &v = messages_to_send[idx];
       log_psana_mapper.debug("%lld proc %llx: %s send POOL_WORKER_STEAL_ACK id %d"
                              " numTasks %d to %llx",
                              timeNow(),
                              local_proc.id, __FUNCTION__,
-                             v.id, v.numTasks, r.workerProc.id);
-      runtime->send_message(ctx, processor, &v, sizeof(v), POOL_WORKER_STEAL_ACK);
+                             v.id, v.numTasks, v.workerProc.id);
+      runtime->send_message(ctx, v.destinationProc, &v, sizeof(v), POOL_WORKER_STEAL_ACK);
     }
-    
-    send_queue.clear();
   }
   return mapped;
 }
@@ -887,7 +897,7 @@ void PsanaMapper::select_tasks_to_map(const MapperContext          ctx,
                            timeNow(), local_proc.id, __FUNCTION__,
                            input.ready_tasks.size());
     
-#if 1
+#if VERBOSE_DEBUG
     for(std::list<const Task*>::const_iterator it = input.ready_tasks.begin();
         it != input.ready_tasks.end(); it++) {
       log_psana_mapper.debug("%lld proc %llx: %s input.ready_tasks %s",
@@ -900,7 +910,7 @@ void PsanaMapper::select_tasks_to_map(const MapperContext          ctx,
     bool mapped = filterInputReadyTasks(input, output);
     mapped |= sendSatisfiedTasks(ctx, output);
     
-#if 1
+#if VERBOSE_DEBUG
     for(std::set<const Task*>::const_iterator mapIt = output.map_tasks.begin();
         mapIt != output.map_tasks.end(); mapIt++) {
       const Task* task = *mapIt;
