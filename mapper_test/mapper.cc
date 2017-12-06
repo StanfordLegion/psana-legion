@@ -900,6 +900,24 @@ void PsanaMapper::select_tasks_to_map(const MapperContext          ctx,
     bool mapped = filterInputReadyTasks(input, output);
     mapped |= sendSatisfiedTasks(ctx, output);
     
+#if 1
+    for(std::set<const Task*>::const_iterator mapIt = output.map_tasks.begin();
+        mapIt != output.map_tasks.end(); mapIt++) {
+      const Task* task = *mapIt;
+      log_psana_mapper.debug("%lld proc %llx: %s output.map_tasks %s",
+                             timeNow(), local_proc.id, __FUNCTION__,
+                             taskDescription(*task));
+    }
+    for(std::map<const Task*, Processor>::const_iterator relIt = output.relocate_tasks.begin();
+        relIt != output.relocate_tasks.end(); ++relIt) {
+      const Task* task = relIt->first;
+      Processor p = relIt->second;
+      log_psana_mapper.debug("%lld proc %llx: %s output.relocate_Tasks %s p %d",
+                             timeNow(), local_proc.id, __FUNCTION__,
+                             taskDescription(*task), (int)(p.id & 0xff));
+    }
+#endif
+    
     // Notify any failed requests that we have work
     if (!worker_ready_queue.empty())
       wakeUpWorkers(ctx, worker_ready_queue.size());
