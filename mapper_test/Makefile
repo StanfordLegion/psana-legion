@@ -6,6 +6,9 @@ run: test.rg mapper.cc mapper.h Makefile
 debug: test.rg mapper.cc mapper.h Makefile
 	${LG_RT_DIR}/../language/regent.py test.rg -ll:cpu 4 -level psana_mapper=1 -lg:safe_mapper
 
+debug.log:
+	make debug > debug.log
+
 gdb:
 	LAUNCHER="gdb --args" ${LG_RT_DIR}/../language/regent.py test.rg -ll:cpu 4 -level psana_mapper=1 -lg:safe_mapper
 
