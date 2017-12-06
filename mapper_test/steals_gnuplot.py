@@ -33,8 +33,8 @@ def convertTrace(logfile, proc):
     xmax = xmax_worker[4]
 
   script = open('make.taskpool_' + proc + '.gnuplot', 'w')
-  script.write('set terminal png transparent enhanced font "arial,10" fontscale 1.0 size 600, 400\n')
-  script.write("set output 'taskpool_timeline_" + proc + ".png'\n")
+  script.write('set terminal jpeg enhanced font "arial,10" fontscale 1.0 size 600, 400\n')
+  script.write("set output 'taskpool_timeline_" + proc + ".jpeg'\n")
   script.write("set title 'steals from taskpool proc " + proc + "'\n")
   script.write("set xrange [" + xmin + ".0:" + xmax + ".0]\n")
   script.write("set yrange [0:5]\n")
