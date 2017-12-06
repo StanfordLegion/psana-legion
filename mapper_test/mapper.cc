@@ -765,6 +765,7 @@ bool PsanaMapper::alreadyQueued(const Task* task)
   if(worker_ready_queue.find(task) != worker_ready_queue.end()) {
     return true;
   }
+  //TODO use a set here instead of searching over the send queue
   for(SendQueue::iterator sqIt = send_queue.begin();
       sqIt != send_queue.end(); sqIt++) {
     std::vector<const Task*> tasks = sqIt->second;
@@ -790,7 +791,21 @@ bool PsanaMapper::filterInputReadyTasks(const SelectMappingInput&    input,
        it != input.ready_tasks.end(); it++)
   {
     const Task* task = *it;
-    if(taskWorkloadSize < MIN_TASKS_PER_PROCESSOR || !isAnalysisTask(*task)) {
+    bool mapLocally = taskWorkloadSize < MIN_TASKS_PER_PROCESSOR || !isAnalysisTask(*task);
+    if(mapLocally) {
+      if (isAnalysisTask(*task))
+      {
+        std::set<const Task*>::iterator finder = worker_ready_queue.find(task);
+        if (finder == worker_ready_queue.end())
+        {
+          // If it's already in the send queue then we can't claim it
+          if (alreadyQueued(task))
+            continue;
+          // Else not seen before so we can claim it
+        }
+        else // Not in send queue yet so we can claim it
+          worker_ready_queue.erase(finder);
+      }
       output.map_tasks.insert(task);
       mapped = true;
       taskWorkloadSize++;
@@ -887,7 +902,7 @@ void PsanaMapper::select_tasks_to_map(const MapperContext          ctx,
     
     // Notify any failed requests that we have work
     if (!worker_ready_queue.empty())
-    wakeUpWorkers(ctx, worker_ready_queue.size());
+      wakeUpWorkers(ctx, worker_ready_queue.size());
     
     if (!mapped && !input.ready_tasks.empty()) {
       log_psana_mapper.debug("%lld proc %llx: %s trigger subsequent invocation",
@@ -938,7 +953,7 @@ Memory PsanaMapper::get_associated_sysmem(Processor proc)
   std::map<Processor,Memory>::const_iterator finder =
   proc_sysmems.find(proc);
   if (finder != proc_sysmems.end())
-  return finder->second;
+    return finder->second;
   Machine::MemoryQuery sysmem_query(machine);
   sysmem_query.same_address_space_as(proc);
   sysmem_query.only_kind(Memory::SYSTEM_MEM);
@@ -1067,7 +1082,7 @@ void PsanaMapper::map_task(const MapperContext      ctx,
   
   for (unsigned idx = 0; idx < task.regions.size(); idx++) {
     if (task.regions[idx].privilege == NO_ACCESS)
-    continue;
+      continue;
     Memory target_mem = get_associated_sysmem(task.target_proc);
     map_task_array(ctx, task.regions[idx].region, target_mem,
                    output.chosen_instances[idx]);
@@ -1156,10 +1171,10 @@ static void create_mappers(Machine machine, HighLevelRuntime *runtime, const std
       if (affinity.m.kind() == Memory::SYSTEM_MEM) {
         (*proc_sysmems)[affinity.p] = affinity.m;
         if (proc_regmems->find(affinity.p) == proc_regmems->end())
-        (*proc_regmems)[affinity.p] = affinity.m;
+          (*proc_regmems)[affinity.p] = affinity.m;
       }
       else if (affinity.m.kind() == Memory::REGDMA_MEM)
-      (*proc_regmems)[affinity.p] = affinity.m;
+        (*proc_regmems)[affinity.p] = affinity.m;
     }
   }
   
@@ -1171,7 +1186,7 @@ static void create_mappers(Machine machine, HighLevelRuntime *runtime, const std
   
   for (std::map<Memory, std::vector<Processor> >::iterator it =
        sysmem_local_procs->begin(); it != sysmem_local_procs->end(); ++it)
-  sysmems_list->push_back(it->first);
+    sysmems_list->push_back(it->first);
   
   for (std::set<Processor>::const_iterator it = local_procs.begin();
        it != local_procs.end(); it++)
