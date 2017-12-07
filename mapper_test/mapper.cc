@@ -138,7 +138,7 @@
 
 
 #define VERBOSE_DEBUG 1
-#define DEBUG_REPEATED_INPUTS 1
+#define DEBUG_REPEATED_INPUTS 0 // not happening, remove this
 
 using namespace Legion;
 using namespace Legion::Mapping;
@@ -220,7 +220,7 @@ private:
   bool stealRequestOutstanding;
   
 #if DEBUG_REPEATED_INPUTS
-  std::set<const Task*> locallyMapped;
+  std::set<std::string> locallyMapped;
 #endif
   
   Timestamp timeNow() const;
@@ -799,14 +799,15 @@ bool PsanaMapper::filterInputReadyTasks(const SelectMappingInput&    input,
   {
     const Task* task = *it;
 #if DEBUG_REPEATED_INPUTS
-    for(std::set<const Task*>::iterator lmIt = locallyMapped.begin();
+    std::string taskStr(taskDescription(*task));
+    for(std::set<std::string>::iterator lmIt = locallyMapped.begin();
         lmIt != locallyMapped.end(); lmIt++) {
-      const Task* lmTask = *lmIt;
-      if(!strcmp(taskDescription(*task), taskDescription(*lmTask))) {
+      std::string lmStr = *lmIt;
+      if(!taskStr.compare(lmStr)) {
         log_psana_mapper.error("%lld proc %llx: %s task %s has reappeared on "
                                "input.ready_tasks after being selected for local mapping",
                                timeNow(), local_proc.id, __FUNCTION__,
-                               taskDescription(**lmIt));
+                               taskStr.c_str());
         assert(false);
       }
     }
@@ -833,7 +834,7 @@ bool PsanaMapper::filterInputReadyTasks(const SelectMappingInput&    input,
                              timeNow(), local_proc.id, __FUNCTION__,
                              taskDescription(*task));
 #if DEBUG_REPEATED_INPUTS
-      locallyMapped.insert(task);
+      locallyMapped.insert(std::string(taskDescription(*task)));
       log_psana_mapper.debug("%lld proc %llx: %s locallyMapper.insert(%s)",
                              timeNow(), local_proc.id, __FUNCTION__,
                              taskDescription(*task));
