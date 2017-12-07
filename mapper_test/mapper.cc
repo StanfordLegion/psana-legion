@@ -138,6 +138,7 @@
 
 
 #define VERBOSE_DEBUG 1
+#define DEBUG_REPEATED_INPUTS 1
 
 using namespace Legion;
 using namespace Legion::Mapping;
@@ -217,6 +218,10 @@ private:
   std::deque<Request> failed_requests;
   unsigned numUniqueIds;
   bool stealRequestOutstanding;
+  
+#if DEBUG_REPEATED_INPUTS
+  std::set<const Task*> locallyMapped;
+#endif
   
   Timestamp timeNow() const;
   unsigned uniqueId();
@@ -793,6 +798,19 @@ bool PsanaMapper::filterInputReadyTasks(const SelectMappingInput&    input,
        it != input.ready_tasks.end(); it++)
   {
     const Task* task = *it;
+#if DEBUG_REPEATED_INPUTS
+    for(std::set<const Task*>::iterator lmIt = locallyMapped.begin();
+        lmIt != locallyMapped.end(); lmIt++) {
+      const Task* lmTask = *lmIt;
+      if(!strcmp(taskDescription(*task), taskDescription(*lmTask))) {
+        log_psana_mapper.error("%lld proc %llx: %s task %s has reappeared on "
+                               "input.ready_tasks after being selected for local mapping",
+                               timeNow(), local_proc.id, __FUNCTION__,
+                               taskDescription(**lmIt));
+        assert(false);
+      }
+    }
+#endif
     bool mapLocally = taskWorkloadSize < MIN_TASKS_PER_PROCESSOR || !isAnalysisTask(*task);
     if(mapLocally) {
       if (isAnalysisTask(*task))
@@ -802,11 +820,11 @@ bool PsanaMapper::filterInputReadyTasks(const SelectMappingInput&    input,
         {
           // If it's already in the send queue then we can't claim it
           if (alreadyQueued(task))
-            continue;
+          continue;
           // Else not seen before so we can claim it
         }
         else // Not in send queue yet so we can claim it
-          worker_ready_queue.erase(finder);
+        worker_ready_queue.erase(finder);
       }
       output.map_tasks.insert(task);
       mapped = true;
@@ -814,6 +832,12 @@ bool PsanaMapper::filterInputReadyTasks(const SelectMappingInput&    input,
       log_psana_mapper.debug("%lld proc %llx: %s pool selects %s for local mapping",
                              timeNow(), local_proc.id, __FUNCTION__,
                              taskDescription(*task));
+#if DEBUG_REPEATED_INPUTS
+      locallyMapped.insert(task);
+      log_psana_mapper.debug("%lld proc %llx: %s locallyMapper.insert(%s)",
+                             timeNow(), local_proc.id, __FUNCTION__,
+                             taskDescription(*task));
+#endif
     } else {
       if(isAnalysisTask(*task) && !alreadyQueued(task)) {
         worker_ready_queue.insert(task);
@@ -904,7 +928,7 @@ void PsanaMapper::select_tasks_to_map(const MapperContext          ctx,
   if(defer_select_tasks_to_map.exists()) {
     triggerSelectTasksToMap(ctx);
   }
-
+  
   if(mapperCategory == TASK_POOL) {
     
     log_psana_mapper.debug("%lld proc %llx: %s readyTasks size %ld",
@@ -916,7 +940,7 @@ void PsanaMapper::select_tasks_to_map(const MapperContext          ctx,
     
     // Notify any failed requests that we have work
     if (!worker_ready_queue.empty())
-      wakeUpWorkers(ctx, worker_ready_queue.size());
+    wakeUpWorkers(ctx, worker_ready_queue.size());
     
     mapped |= sendSatisfiedTasks(ctx, output);
     assert(send_queue.empty());
@@ -962,7 +986,7 @@ void PsanaMapper::select_tasks_to_map(const MapperContext          ctx,
                            taskDescription(*task), (int)(p.id & 0xff));
   }
 #endif
-
+  
 }
 
 
@@ -987,7 +1011,7 @@ Memory PsanaMapper::get_associated_sysmem(Processor proc)
   std::map<Processor,Memory>::const_iterator finder =
   proc_sysmems.find(proc);
   if (finder != proc_sysmems.end())
-    return finder->second;
+  return finder->second;
   Machine::MemoryQuery sysmem_query(machine);
   sysmem_query.same_address_space_as(proc);
   sysmem_query.only_kind(Memory::SYSTEM_MEM);
@@ -1120,7 +1144,7 @@ void PsanaMapper::map_task(const MapperContext      ctx,
   
   for (unsigned idx = 0; idx < task.regions.size(); idx++) {
     if (task.regions[idx].privilege == NO_ACCESS)
-      continue;
+    continue;
     Memory target_mem = get_associated_sysmem(task.target_proc);
     map_task_array(ctx, task.regions[idx].region, target_mem,
                    output.chosen_instances[idx]);
@@ -1209,10 +1233,10 @@ static void create_mappers(Machine machine, HighLevelRuntime *runtime, const std
       if (affinity.m.kind() == Memory::SYSTEM_MEM) {
         (*proc_sysmems)[affinity.p] = affinity.m;
         if (proc_regmems->find(affinity.p) == proc_regmems->end())
-          (*proc_regmems)[affinity.p] = affinity.m;
+        (*proc_regmems)[affinity.p] = affinity.m;
       }
       else if (affinity.m.kind() == Memory::REGDMA_MEM)
-        (*proc_regmems)[affinity.p] = affinity.m;
+      (*proc_regmems)[affinity.p] = affinity.m;
     }
   }
   
@@ -1224,7 +1248,7 @@ static void create_mappers(Machine machine, HighLevelRuntime *runtime, const std
   
   for (std::map<Memory, std::vector<Processor> >::iterator it =
        sysmem_local_procs->begin(); it != sysmem_local_procs->end(); ++it)
-    sysmems_list->push_back(it->first);
+  sysmems_list->push_back(it->first);
   
   for (std::set<Processor>::const_iterator it = local_procs.begin();
        it != local_procs.end(); it++)
