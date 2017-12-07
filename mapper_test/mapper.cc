@@ -1048,7 +1048,6 @@ void PsanaMapper::report_profiling(const MapperContext      ctx,
 //--------------------------------------------------------------------------
 {
   // task completion request
-  assert(taskWorkloadSize > 0);
   taskWorkloadSize--;
   log_psana_mapper.info("%lld proc %llx: report_profiling # p %d %s taskWorkloadSize %d",
                         timeNow(),
