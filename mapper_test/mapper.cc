@@ -138,7 +138,6 @@
 
 
 #define VERBOSE_DEBUG 1
-#define DEBUG_REPEATED_INPUTS 0 // not happening, remove this
 
 using namespace Legion;
 using namespace Legion::Mapping;
@@ -209,7 +208,7 @@ private:
   MapperCategory mapperCategory;
   std::map<std::pair<LogicalRegion,Memory>,PhysicalInstance> local_instances;
   typedef long long Timestamp;
-  unsigned taskWorkloadSize;
+  int taskWorkloadSize;
   MapperRuntime *runtime;
   MapperEvent defer_select_tasks_to_map;
   std::set<const Task*> worker_ready_queue;
@@ -218,10 +217,6 @@ private:
   std::deque<Request> failed_requests;
   unsigned numUniqueIds;
   bool stealRequestOutstanding;
-  
-#if DEBUG_REPEATED_INPUTS
-  std::set<std::string> locallyMapped;
-#endif
   
   Timestamp timeNow() const;
   unsigned uniqueId();
@@ -325,7 +320,7 @@ proc_sysmems(*_proc_sysmems)
   numUniqueIds = 0;
   stealRequestOutstanding = false;
   taskWorkloadSize = 0;
-  log_psana_mapper.info("%lld # p %d taskWorkloadSize %u",
+  log_psana_mapper.info("%lld # p %d taskWorkloadSize %d",
                         timeNow(), (int)(local_proc.id & 0xff), taskWorkloadSize);
 }
 
@@ -407,12 +402,14 @@ void PsanaMapper::handle_POOL_WORKER_STEAL_ACK(const MapperContext ctx,
   assert(mapperCategory == WORKER);
   stealRequestOutstanding = false;
   Request r = *(Request*)message.message;
+  taskWorkloadSize += r.numTasks;
   log_psana_mapper.debug("%lld proc %llx: handle_POOL_WORKER_STEAL_ACK id %d from "
-                         "proc %llx taskWorkloadSize %d",
+                         "proc %llx numTasks %d taskWorkloadSize %d",
                          timeNow(),
                          local_proc.id,
                          r.id,
                          r.sourceProc.id,
+                         r.numTasks,
                          taskWorkloadSize);
 }
 
@@ -664,13 +661,17 @@ void PsanaMapper::handleStealRequest(const MapperContext          ctx,
     std::vector<const Task*> tasks;
     std::set<const Task*>::const_iterator to_steal = worker_ready_queue.begin();
     
+    unsigned numStolen = 0;
     while ((r.numTasks > 0) && (to_steal != worker_ready_queue.end()))
     {
       tasks.push_back(*to_steal);
       to_steal = worker_ready_queue.erase(to_steal);
       r.numTasks--;
+      numStolen++;
     }
-    send_queue.push_back(std::make_pair(r, tasks));
+    Request v = r;
+    v.numTasks = numStolen;
+    send_queue.push_back(std::make_pair(v, tasks));
     
     if(messageType == POOL_POOL_FORWARD_STEAL) {
       Request v = r;
@@ -798,20 +799,6 @@ bool PsanaMapper::filterInputReadyTasks(const SelectMappingInput&    input,
        it != input.ready_tasks.end(); it++)
   {
     const Task* task = *it;
-#if DEBUG_REPEATED_INPUTS
-    std::string taskStr(taskDescription(*task));
-    for(std::set<std::string>::iterator lmIt = locallyMapped.begin();
-        lmIt != locallyMapped.end(); lmIt++) {
-      std::string lmStr = *lmIt;
-      if(!taskStr.compare(lmStr)) {
-        log_psana_mapper.error("%lld proc %llx: %s task %s has reappeared on "
-                               "input.ready_tasks after being selected for local mapping",
-                               timeNow(), local_proc.id, __FUNCTION__,
-                               taskStr.c_str());
-        assert(false);
-      }
-    }
-#endif
     bool mapLocally = taskWorkloadSize < MIN_TASKS_PER_PROCESSOR || !isAnalysisTask(*task);
     if(mapLocally) {
       if (isAnalysisTask(*task))
@@ -833,12 +820,6 @@ bool PsanaMapper::filterInputReadyTasks(const SelectMappingInput&    input,
       log_psana_mapper.debug("%lld proc %llx: %s pool selects %s for local mapping",
                              timeNow(), local_proc.id, __FUNCTION__,
                              taskDescription(*task));
-#if DEBUG_REPEATED_INPUTS
-      locallyMapped.insert(std::string(taskDescription(*task)));
-      log_psana_mapper.debug("%lld proc %llx: %s locallyMapper.insert(%s)",
-                             timeNow(), local_proc.id, __FUNCTION__,
-                             taskDescription(*task));
-#endif
     } else {
       if(isAnalysisTask(*task) && !alreadyQueued(task)) {
         worker_ready_queue.insert(task);
@@ -1069,7 +1050,7 @@ void PsanaMapper::report_profiling(const MapperContext      ctx,
   // task completion request
   assert(taskWorkloadSize > 0);
   taskWorkloadSize--;
-  log_psana_mapper.info("%lld proc %llx: report_profiling # p %d %s taskWorkloadSize %u",
+  log_psana_mapper.info("%lld proc %llx: report_profiling # p %d %s taskWorkloadSize %d",
                         timeNow(),
                         local_proc.id,
                         (int)(local_proc.id & 0xff),
@@ -1091,10 +1072,6 @@ void PsanaMapper::map_task(const MapperContext      ctx,
   VariantInfo chosen = default_find_preferred_variant(task, ctx,
                                                       true/*needs tight bound*/, false/*cache*/, target_kind);
   
-  log_psana_mapper.debug("%lld proc %llx: %s task %s",
-                         timeNow(), local_proc.id, __FUNCTION__,
-                         taskDescription(task));
-  
   if(mapperCategory == WORKER) {
     if(isAnalysisTask(task)) {
       
@@ -1104,8 +1081,8 @@ void PsanaMapper::map_task(const MapperContext      ctx,
       output.task_priority = 0;
       output.postmap_task = false;
       output.target_procs.push_back(local_proc);
-      taskWorkloadSize++;
       if(task.orig_proc == local_proc) {
+        taskWorkloadSize++;
         log_psana_mapper.debug("%lld proc %llx: %s maps self task %s"
                                " taskWorkloadSize %d",
                                timeNow(),

@@ -39,7 +39,7 @@ def convertTrace(logfile, proc):
   script.write("set output 'worker_timeline_" + proc + ".jpeg'\n")
   script.write("set title 'load on worker proc " + proc + "'\n")
   script.write("set xrange [" + xmin + ".0:" + xmax + ".0]\n")
-  script.write("set yrange [0:]\n")
+  script.write("set yrange [0:5]\n")
   script.write('plot "make.worker_' + proc + '.dat" with boxes')
   script.close()
 
