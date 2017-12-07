@@ -834,7 +834,7 @@ bool PsanaMapper::sendSatisfiedTasks(const MapperContext          ctx,
   assert(mapperCategory == TASK_POOL);
   bool mapped = false;
   // Send any tasks that we satisfied
-  if (!send_queue.empty())
+  while (!send_queue.empty())
   {
     std::vector<Request> messages_to_send;
     for(SendQueue::iterator it = send_queue.begin();
@@ -900,6 +900,10 @@ void PsanaMapper::select_tasks_to_map(const MapperContext          ctx,
                            taskDescription(**it));
   }
 #endif
+  
+  if(defer_select_tasks_to_map.exists()) {
+    triggerSelectTasksToMap(ctx);
+  }
 
   if(mapperCategory == TASK_POOL) {
     
@@ -908,12 +912,14 @@ void PsanaMapper::select_tasks_to_map(const MapperContext          ctx,
                            input.ready_tasks.size());
     
     bool mapped = filterInputReadyTasks(input, output);
-    mapped |= sendSatisfiedTasks(ctx, output);
     
     
     // Notify any failed requests that we have work
     if (!worker_ready_queue.empty())
       wakeUpWorkers(ctx, worker_ready_queue.size());
+    
+    mapped |= sendSatisfiedTasks(ctx, output);
+    assert(send_queue.empty());
     
     if (!mapped && !input.ready_tasks.empty()) {
       log_psana_mapper.debug("%lld proc %llx: %s trigger subsequent invocation",
