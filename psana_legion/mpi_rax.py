@@ -3,6 +3,7 @@ from mpi4py import MPI
 import numpy
 import itertools
 import os
+import random
 
 class Location(object):
     __slots__ = ['filenames', 'offsets']
@@ -47,6 +48,13 @@ if rank == 0:
     if repeat > 1:
         assert eager
         events = events * repeat
+
+    randomize = 'RANDOMIZE' in os.environ and os.environ['RANDOMIZE'] == '1'
+    print('Randomize?', randomize)
+    if randomize:
+        assert eager
+        random.seed(123456789) # Don't actually want this to be random
+        random.shuffle(events)
 
     chunksize = 4 # Number of events per task
 
