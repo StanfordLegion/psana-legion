@@ -1,10 +1,25 @@
 all:	all_jpeg
 
-run: test.rg mapper.cc mapper.h Makefile
-	${LG_RT_DIR}/../language/regent.py test.rg -ll:cpu 4 -level psana_mapper=2 -lg:safe_mapper
+launch:
+	if [[ `hostname` == "sh"* ]]  ;\
+	then  \
+	  mpirun -x TERRA_PATH -x INCLUDE_PATH -x LD_LIBRARY_PATH -x LG_RT_DIR -x USE_RDIR ${INVOCATION}  ;\
+	else \
+	  ${INVOCATION} ;\
+	fi
 
-debug: test.rg mapper.cc mapper.h Makefile
-	${LG_RT_DIR}/../language/regent.py test.rg -ll:cpu 4 -level psana_mapper=1 -lg:safe_mapper
+
+runN:
+	@make launch INVOCATION="${LG_RT_DIR}/../language/regent.py test.rg -ll:cpu ${NUMCPU} -level psana_mapper=${DEBUG_LEVEL} -lg:safe_mapper" 
+
+run: test.rg mapper.cc mapper.h Makefile 
+	@make runN NUMCPU=4 DEBUG_LEVEL=2
+
+run8: test.rg mapper.cc mapper.h Makefile 
+	@make runN NUMCPU=8 DEBUG_LEVEL=2
+
+debug: test.rg mapper.cc mapper.h Makefile 
+	@make runN NUMCPU=4 DEBUG_LEVEL=1
 
 debug.log:
 	make debug > debug.log
@@ -13,7 +28,7 @@ gdb:
 	LAUNCHER="gdb --args" ${LG_RT_DIR}/../language/regent.py test.rg -ll:cpu 4 -level psana_mapper=1 -lg:safe_mapper
 
 make.sortedlog: test.rg mapper.cc
-	make run | sort -n > make.sortedlog
+	make run8 | sort -n > make.sortedlog
 
 make.taskpool_${PROC}.sortedlog: make.sortedlog
 	cat make.sortedlog | egrep "p 1d0000000000000${PROC} remapping" | sort -n -k 6 > $@
@@ -77,7 +92,19 @@ worker_timeline_3.jpeg:
 worker_timeline_4.jpeg:
 	@make worker_timeline.jpeg PROC='4'
 
-all_jpeg: taskpool_timeline_1.jpeg taskpool_timeline_2.jpeg worker_timeline_1.jpeg worker_timeline_2.jpeg worker_timeline_3.jpeg worker_timeline_4.jpeg
+worker_timeline_5.jpeg:
+	@make worker_timeline.jpeg PROC='5'
+
+worker_timeline_6.jpeg:
+	@make worker_timeline.jpeg PROC='6'
+
+worker_timeline_7.jpeg:
+	@make worker_timeline.jpeg PROC='7'
+
+worker_timeline_8.jpeg:
+	@make worker_timeline.jpeg PROC='8'
+
+all_jpeg: taskpool_timeline_1.jpeg taskpool_timeline_2.jpeg worker_timeline_1.jpeg worker_timeline_2.jpeg worker_timeline_3.jpeg worker_timeline_4.jpeg worker_timeline_5.jpeg worker_timeline_6.jpeg worker_timeline_7.jpeg worker_timeline_8.jpeg
 #	@make almost_clean
 
 almost_clean:
