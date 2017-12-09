@@ -22,6 +22,7 @@ import legion
 import numpy
 import os
 import psana
+import random
 import sys
 
 # User configurable analysis and filter predicate.
@@ -124,6 +125,13 @@ def main_task():
     if repeat > 1:
         assert eager
         events = events * repeat
+
+    randomize = 'RANDOMIZE' in os.environ and os.environ['RANDOMIZE'] == '1'
+    print('Randomize?', randomize)
+    if randomize:
+        assert eager
+        random.seed(123456789) # Don't actually want this to be random
+        random.shuffle(events)
 
     chunksize = 4 # Number of events per task
     overcommit = 1 # Number of tasks per processor per launch
