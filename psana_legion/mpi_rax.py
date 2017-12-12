@@ -56,7 +56,8 @@ if rank == 0:
         random.seed(123456789) # Don't actually want this to be random
         random.shuffle(events)
 
-    chunksize = 4 # Number of events per task
+    # Number of events per task
+    chunksize = int(os.environ['CHUNKSIZE']) if 'CHUNKSIZE' in os.environ else 4
 
     start = MPI.Wtime()
 
