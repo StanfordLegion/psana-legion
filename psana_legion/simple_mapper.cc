@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-#include "psana_mapper.h"
+#include "simple_mapper.h"
 
 #include "default_mapper.h"
 
@@ -23,10 +23,10 @@
 using namespace Legion;
 using namespace Legion::Mapping;
 
-class PsanaMapper : public DefaultMapper
+class SimpleMapper : public DefaultMapper
 {
 public:
-  PsanaMapper(MapperRuntime *rt, Machine machine, Processor local,
+  SimpleMapper(MapperRuntime *rt, Machine machine, Processor local,
               const char *mapper_name);
   virtual TaskPriority default_policy_select_task_priority(
                                     MapperContext ctx, const Task &task);
@@ -73,7 +73,7 @@ private:
   MapperEvent defer_select_tasks_to_map;
 };
 
-PsanaMapper::PsanaMapper(MapperRuntime *rt, Machine machine, Processor local,
+SimpleMapper::SimpleMapper(MapperRuntime *rt, Machine machine, Processor local,
                          const char *mapper_name)
   : DefaultMapper(rt, machine, local, mapper_name)
   , tasks_in_flight(0)
@@ -85,7 +85,7 @@ PsanaMapper::PsanaMapper(MapperRuntime *rt, Machine machine, Processor local,
 }
 
 TaskPriority
-PsanaMapper::default_policy_select_task_priority(
+SimpleMapper::default_policy_select_task_priority(
                                     MapperContext ctx, const Task &task)
 {
   const char* task_name = task.get_task_name();
@@ -107,8 +107,8 @@ PsanaMapper::default_policy_select_task_priority(
 }
 
 
-PsanaMapper::CachedMappingPolicy
-PsanaMapper::default_policy_select_task_cache_policy(
+SimpleMapper::CachedMappingPolicy
+SimpleMapper::default_policy_select_task_cache_policy(
                                     MapperContext ctx, const Task &task)
 {
   // Don't cache task mappings because the mapper will leak instance
@@ -119,7 +119,7 @@ PsanaMapper::default_policy_select_task_cache_policy(
 
 
 int
-PsanaMapper::default_policy_select_garbage_collection_priority(
+SimpleMapper::default_policy_select_garbage_collection_priority(
                                     MapperContext ctx,
                                     MappingKind kind, Memory memory,
                                     const PhysicalInstance &instance,
@@ -130,7 +130,7 @@ PsanaMapper::default_policy_select_garbage_collection_priority(
 }
 
 void
-PsanaMapper::configure_context(const MapperContext         ctx,
+SimpleMapper::configure_context(const MapperContext         ctx,
                                const Task&                 task,
                                      ContextConfigOutput&  output)
 {
@@ -143,7 +143,7 @@ PsanaMapper::configure_context(const MapperContext         ctx,
 }
 
 void
-PsanaMapper::select_task_options(const MapperContext    ctx,
+SimpleMapper::select_task_options(const MapperContext    ctx,
                                  const Task&            task,
                                        TaskOptions&     output)
 {
@@ -158,11 +158,13 @@ PsanaMapper::select_task_options(const MapperContext    ctx,
 }
 
 void
-PsanaMapper::slice_task(const MapperContext      ctx,
+SimpleMapper::slice_task(const MapperContext      ctx,
                         const Task&              task, 
                         const SliceTaskInput&    input,
                               SliceTaskOutput&   output)
 {
+  // DefaultMapper::slice_task(ctx, task, input, output);
+#if 1
   Processor::Kind target_kind =
     task.must_epoch_task ? local_proc.kind() : task.target_proc.kind();
   switch (target_kind)
@@ -206,9 +208,10 @@ PsanaMapper::slice_task(const MapperContext      ctx,
     default:
       assert(false); // unimplemented processor kind
   }
+#endif
 }
 
-void PsanaMapper::map_task(const MapperContext ctx,
+void SimpleMapper::map_task(const MapperContext ctx,
                            const Task &task,
                            const MapTaskInput &input,
                            MapTaskOutput &output)
@@ -221,7 +224,7 @@ void PsanaMapper::map_task(const MapperContext ctx,
   }
 }
 
-void PsanaMapper::select_tasks_to_map(const MapperContext ctx,
+void SimpleMapper::select_tasks_to_map(const MapperContext ctx,
                                       const SelectMappingInput &input,
                                       SelectMappingOutput &output)
 {
@@ -265,7 +268,7 @@ void PsanaMapper::select_tasks_to_map(const MapperContext ctx,
   }
 }
 
-void PsanaMapper::report_profiling(const MapperContext ctx,
+void SimpleMapper::report_profiling(const MapperContext ctx,
                                    const Task &task,
                                    const TaskProfilingInfo &input)
 {
@@ -286,7 +289,7 @@ void PsanaMapper::report_profiling(const MapperContext ctx,
 }
 
 void
-PsanaMapper::custom_slice_task(const Task &task,
+SimpleMapper::custom_slice_task(const Task &task,
                                const std::vector<Processor> &local,
                                const std::vector<Processor> &remote,
                                const SliceTaskInput &input,
@@ -360,13 +363,13 @@ static void create_mappers(Machine machine, HighLevelRuntime *runtime, const std
   for (std::set<Processor>::const_iterator it = local_procs.begin();
         it != local_procs.end(); it++)
   {
-    PsanaMapper* mapper = new PsanaMapper(runtime->get_mapper_runtime(),
-                                          machine, *it, "psana_mapper");
+    SimpleMapper* mapper = new SimpleMapper(runtime->get_mapper_runtime(),
+                                          machine, *it, "simple_mapper");
     runtime->replace_default_mapper(mapper, *it);
   }
 }
 
-void register_mappers()
+void register_simple_mapper()
 {
   Runtime::add_registration_callback(create_mappers);
 }

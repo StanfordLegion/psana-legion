@@ -13,9 +13,9 @@
  * limitations under the License.
  */
 
-#ifndef __PSANA_H__
-#define __PSANA_H__
+#ifndef __SIMPLE_MAPPER_H__
+#define __SIMPLE_MAPPER_H__
 
-void register_mappers();
+void register_simple_mapper();
 
-#endif // __PSANA_H__
+#endif // __SIMPLE_MAPPER_H__
