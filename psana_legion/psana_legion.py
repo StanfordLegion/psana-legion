@@ -133,8 +133,11 @@ def main_task():
         random.seed(123456789) # Don't actually want this to be random
         random.shuffle(events)
 
-    chunksize = 4 # Number of events per task
-    overcommit = 1 # Number of tasks per processor per launch
+    # Number of events per task
+    chunksize = int(os.environ['CHUNKSIZE']) if 'CHUNKSIZE' in os.environ else 8
+
+    # Number of tasks per processor per launch
+    overcommit = int(os.environ['OVERCOMMIT']) if 'OVERCOMMIT' in os.environ else 1
 
     # Number of tasks per launch
     launchsize = (legion.Tunable.select(legion.Tunable.GLOBAL_PYS).get() - 1) * overcommit

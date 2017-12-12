@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import psana
 from mpi4py import MPI
 import numpy
@@ -50,13 +52,14 @@ if rank == 0:
         events = events * repeat
 
     randomize = 'RANDOMIZE' in os.environ and os.environ['RANDOMIZE'] == '1'
-    print('Randomize?', randomize)
+    print('Randomize? %s' % randomize)
     if randomize:
         assert eager
         random.seed(123456789) # Don't actually want this to be random
         random.shuffle(events)
 
-    chunksize = 4 # Number of events per task
+    # Number of events per task
+    chunksize = int(os.environ['CHUNKSIZE']) if 'CHUNKSIZE' in os.environ else 4
 
     start = MPI.Wtime()
 
