@@ -94,8 +94,15 @@ int main(int argc, char **argv)
 
   Runtime::set_top_level_task_id(TOP_LEVEL_TASK_ID);
 
-  // register_simple_mapper();
-  register_task_pool_mapper();
+  char *mapper = getenv("PSANA_MAPPER");
+  if (mapper && strcmp(mapper, "simple") == 0) {
+    register_simple_mapper();
+  } else if (mapper && strcmp(mapper, "task_pool") == 0) {
+    register_task_pool_mapper();
+  } else {
+    fprintf(stderr, "Error: PSANA_MAPPER is not set.\n");
+    exit(1);
+  }
 
   return Runtime::start(argc, argv);
 }
