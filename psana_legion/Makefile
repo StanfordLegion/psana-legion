@@ -46,7 +46,7 @@ CC_FLAGS += -DPYTHON_MODULES_PATH="\"$(LG_RT_DIR)/../bindings/python:$(dir $(abs
 
 # These flags force GCC 5 to be compatible with GCC 4.9 and
 # earlier. Required to link against pre-build psana binaries.
-CC_FLAGS += -std=c++98 -fabi-version=2 -D_GLIBCXX_USE_CXX11_ABI=0
+CC_FLAGS += -std=c++11 -fabi-version=2 -D_GLIBCXX_USE_CXX11_ABI=0
 
 CC_FLAGS += -fPIC
 ifeq ($(shell uname), Darwin)
@@ -70,7 +70,7 @@ endif
 
 # Hack: Create the real binary
 REAL_OUTFILE ?= psana_legion
-REAL_GEN_OBJ ?= psana_legion.o psana_mapper.o
+REAL_GEN_OBJ ?= psana_legion.o simple_mapper.o task_pool_mapper.o
 .PHONY: all
 all: $(OUTFILE) $(REAL_OUTFILE)
 $(REAL_GEN_OBJ) : %.o : %.cc

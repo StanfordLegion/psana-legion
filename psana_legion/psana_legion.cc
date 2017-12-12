@@ -18,6 +18,7 @@
 #include "realm/python/python_source.h"
 
 #include "simple_mapper.h"
+#include "task_pool_mapper.h"
 
 using namespace Legion;
 
@@ -93,7 +94,8 @@ int main(int argc, char **argv)
 
   Runtime::set_top_level_task_id(TOP_LEVEL_TASK_ID);
 
-  register_simple_mapper();
+  // register_simple_mapper();
+  register_task_pool_mapper();
 
   return Runtime::start(argc, argv);
 }
