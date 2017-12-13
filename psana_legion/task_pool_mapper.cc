@@ -1233,7 +1233,9 @@ static void create_mappers(Machine machine, HighLevelRuntime *runtime, const std
   
   for (unsigned idx = 0; idx < proc_mem_affinities.size(); ++idx) {
     Machine::ProcessorMemoryAffinity& affinity = proc_mem_affinities[idx];
-    if (affinity.p.kind() == Processor::LOC_PROC) {
+    if (affinity.p.kind() == Processor::LOC_PROC
+        || affinity.p.kind() == Processor::IO_PROC
+        || affinity.p.kind() == Processor::PY_PROC) {
       if (affinity.m.kind() == Memory::SYSTEM_MEM) {
         (*proc_sysmems)[affinity.p] = affinity.m;
         if (proc_regmems->find(affinity.p) == proc_regmems->end())
