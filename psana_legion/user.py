@@ -25,7 +25,7 @@ import psana_legion
 # Get the analysis kernel to perform on each event
 import kernels
 if os.environ.get('KERNEL_KIND') == 'memory_bound':
-    kernel = kernels.make_memory_bound_kernel(os.environ.get('KERNEL_ROUNDS', 100))
+    kernel = kernels.make_memory_bound_kernel(int(os.environ.get('KERNEL_ROUNDS', 100)))
 else:
     kernel = None
 

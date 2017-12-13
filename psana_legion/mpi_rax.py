@@ -10,7 +10,7 @@ import random
 # Get the analysis kernel to perform on each event
 import kernels
 if os.environ.get('KERNEL_KIND') == 'memory_bound':
-    kernel = kernels.make_memory_bound_kernel(os.environ.get('KERNEL_ROUNDS', 100))
+    kernel = kernels.make_memory_bound_kernel(int(os.environ.get('KERNEL_ROUNDS', 100)))
 else:
     kernel = None
 
@@ -96,8 +96,8 @@ if rank == 0:
     print('Number of events: %s' % nevents)
     print('Events per second: %e' % (nevents/(stop - start)))
 
-    print('Total kernel time: %e seconds', total_kernel_time)
-    print('Time per kernel call: %e seconds', total_kernel_time/nevents)
+    print('Total kernel time: %e seconds' % total_kernel_time)
+    print('Time per kernel call: %e seconds' % (total_kernel_time/nevents))
 
     # Hack: Estimate bandwidth used
 
