@@ -211,6 +211,8 @@ private:
   std::uniform_int_distribution<int> uni;
   MapperCategory mapperCategory;
   Processor nearestTaskPoolProc;
+  Processor nearestIOProc;
+  Processor nearestLegionCPUProc;
   std::map<std::pair<LogicalRegion,Memory>,PhysicalInstance> local_instances;
   typedef long long Timestamp;
   int taskWorkloadSize;
@@ -533,6 +535,8 @@ void TaskPoolMapper::categorizeMappers()
   unsigned ioProcCount = 0;
   unsigned legionProcCount = 0;
   Processor recentTaskPoolProc;
+  Processor recentIOProc;
+  Processor recentLegionCPUProc;
   
   for(std::map<Processor, Memory>::iterator it = proc_sysmems.begin();
       it != proc_sysmems.end(); it++) {
@@ -545,6 +549,7 @@ void TaskPoolMapper::categorizeMappers()
           mapperCategory = LEGION_CPU;
         }
         legionProcCount++;
+        recentLegionCPUProc = processor;
         break;
       case UTIL_PROC:
         break;
@@ -553,6 +558,7 @@ void TaskPoolMapper::categorizeMappers()
           mapperCategory = IO;
         }
         ioProcCount++;
+        recentIOProc = processor;
         break;
       case PROC_GROUP:
         break;
@@ -567,12 +573,16 @@ void TaskPoolMapper::categorizeMappers()
             mapperCategory = TASK_POOL;
           }
           recentTaskPoolProc = processor;
+          nearestIOProc = recentIOProc;
+          nearestLegionCPUProc = recentLegionCPUProc;
         } else {
           worker_procs.push_back(processor);
           if(processor == local_proc) {
             mapperCategory = WORKER;
           }
           nearestTaskPoolProc = recentTaskPoolProc;
+          nearestIOProc = recentIOProc;
+          nearestLegionCPUProc = recentLegionCPUProc;
         }
         break;
       default: assert(false);
@@ -1008,17 +1018,35 @@ void TaskPoolMapper::select_tasks_to_map(const MapperContext          ctx,
       output.deferral_event = defer_select_tasks_to_map;
     }
     
-  } else {
+  } else {// worker, io, legion_cpu mapper
     
     for (std::list<const Task*>::const_iterator it = input.ready_tasks.begin();
          it != input.ready_tasks.end(); it++) {
       const Task* task = *it;
-      log_task_pool_mapper.debug("%lld proc %llx: %s %s selects %s",
-                                 timeNow(), local_proc.id,
-                                 __FUNCTION__,
-                                 processorKindString(local_proc.kind()),
-                                 taskDescription(*task));
-      output.map_tasks.insert(task);
+      if(task->target_proc.kind() == local_proc.kind()) {
+        log_task_pool_mapper.debug("%lld proc %llx: %s %s selects %s",
+                                   timeNow(), local_proc.id,
+                                   __FUNCTION__,
+                                   processorKindString(local_proc.kind()),
+                                   taskDescription(*task));
+        output.map_tasks.insert(task);
+      } else {
+        log_task_pool_mapper.debug("%lld proc %llx: %s %s relocates %s to %s",
+                                   timeNow(), local_proc.id,
+                                   __FUNCTION__,
+                                   processorKindString(local_proc.kind()),
+                                   taskDescription(*task),
+                                   processorKindString(task->target_proc.kind()));
+       switch(task->target_proc.kind()) {
+          case Realm::Processor::IO_PROC:
+            output.relocate_tasks[task] = nearestIOProc;
+            break;
+          case Realm::Processor::LOC_PROC:
+            output.relocate_tasks[task] = nearestLegionCPUProc;
+            break;
+          default: assert(false);
+        }
+      }
     }
   }
   
