@@ -1186,6 +1186,7 @@ void TaskPoolMapper::map_task(const MapperContext      ctx,
     output.task_priority = 0;
     output.postmap_task = false;
     output.target_procs.push_back(local_proc);
+    taskWorkloadSize++;
   }
   
   ProfilingRequest completionRequest;
