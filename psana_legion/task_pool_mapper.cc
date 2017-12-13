@@ -325,8 +325,10 @@ proc_sysmems(*_proc_sysmems)
   numUniqueIds = 0;
   stealRequestOutstanding = false;
   taskWorkloadSize = 0;
-  log_task_pool_mapper.info("%lld # p %d taskWorkloadSize %d",
-                            timeNow(), (int)(local_proc.id & 0xff), taskWorkloadSize);
+  log_task_pool_mapper.info("%lld # p %d taskWorkloadSize %d mapper category %d %s",
+                            timeNow(), (int)(local_proc.id & 0xff),
+                            taskWorkloadSize, mapperCategory,
+                            processorKindString(local_proc.kind()));
 }
 
 
