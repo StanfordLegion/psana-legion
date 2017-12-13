@@ -1176,10 +1176,12 @@ void TaskPoolMapper::map_task(const MapperContext      ctx,
                                  __FUNCTION__, taskDescription(task));
       this->DefaultMapper::map_task(ctx, task, input, output);
     }
-  } else if(mapperCategory == TASK_POOL) {
-    log_task_pool_mapper.debug("%lld proc %llx: %s task pool maps %s to itself",
+  } else {
+    log_task_pool_mapper.debug("%lld proc %llx: %s %s maps %s to itself",
                                timeNow(), local_proc.id,
-                               __FUNCTION__, taskDescription(task));
+                               __FUNCTION__,
+                               processorKindString(local_proc.kind()),
+                               taskDescription(task));
     output.chosen_variant = chosen.variant;
     output.task_priority = 0;
     output.postmap_task = false;
