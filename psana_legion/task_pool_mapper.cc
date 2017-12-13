@@ -248,6 +248,7 @@ private:
                              SelectMappingOutput&   output);
   bool sendSatisfiedTasks(const MapperContext          ctx,
                           SelectMappingOutput&   output);
+  char* processorKindString(unsigned kind) const;
   void select_tasks_to_map(const MapperContext          ctx,
                            const SelectMappingInput&    input,
                            SelectMappingOutput&   output);
@@ -920,6 +921,33 @@ bool TaskPoolMapper::sendSatisfiedTasks(const MapperContext          ctx,
 }
 
 //--------------------------------------------------------------------------
+char* TaskPoolMapper::processorKindString(unsigned kind) const
+//--------------------------------------------------------------------------
+{
+  switch(kind) {
+    case TOC_PROC:
+      return (char*)"TOC_PROC";
+      break;
+    case LOC_PROC:
+      return (char*)"LOC_PROC";
+      break;
+    case PROC_GROUP:
+      return (char*)"PROC_GROUP";
+      break;
+    case PROC_SET:
+      return (char*)"PROC_SET";
+      break;
+    case OMP_PROC:
+      return (char*)"OMP_PROC";
+      break;
+    case PY_PROC:
+      return (char*)"PY_PROC";
+      break;
+    default: assert(false);
+  }
+}
+
+//--------------------------------------------------------------------------
 void TaskPoolMapper::select_tasks_to_map(const MapperContext          ctx,
                                          const SelectMappingInput&    input,
                                          SelectMappingOutput&   output)
@@ -971,9 +999,11 @@ void TaskPoolMapper::select_tasks_to_map(const MapperContext          ctx,
     for (std::list<const Task*>::const_iterator it = input.ready_tasks.begin();
          it != input.ready_tasks.end(); it++) {
       const Task* task = *it;
-      log_task_pool_mapper.debug("%lld proc %llx: %s worker selects %s",
+      log_task_pool_mapper.debug("%lld proc %llx: %s %s selects %s",
                                  timeNow(), local_proc.id,
-                                 __FUNCTION__, taskDescription(*task));
+                                 __FUNCTION__,
+                                 processorKindString(local_proc.kind()),
+                                 taskDescription(*task));
       output.map_tasks.insert(task);
     }
   }
