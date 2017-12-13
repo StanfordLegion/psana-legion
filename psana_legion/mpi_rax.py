@@ -7,6 +7,13 @@ import itertools
 import os
 import random
 
+# Get the analysis kernel to perform on each event
+import kernels
+if os.environ.get('KERNEL_KIND') == 'memory_bound':
+    kernel = kernels.make_memory_bound_kernel(os.environ.get('KERNEL_ROUNDS', 100))
+else:
+    kernel = kernels.nop_kernel
+
 class Location(object):
     __slots__ = ['filenames', 'offsets']
     def __init__(self, event):
@@ -108,3 +115,4 @@ else:
         locs, calib = chunk
         for loc in locs:
             evt = ds.jump(loc.filenames, loc.offsets, calib)
+            kernel()
