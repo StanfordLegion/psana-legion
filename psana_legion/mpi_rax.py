@@ -12,7 +12,7 @@ import kernels
 if os.environ.get('KERNEL_KIND') == 'memory_bound':
     kernel = kernels.make_memory_bound_kernel(os.environ.get('KERNEL_ROUNDS', 100))
 else:
-    kernel = kernels.nop_kernel
+    kernel = None
 
 class Location(object):
     __slots__ = ['filenames', 'offsets']
@@ -89,10 +89,15 @@ if rank == 0:
 
     stop = MPI.Wtime()
 
+    total_kernel_time = MPI.COMM_WORLD.reduce(0)
+
     print('Elapsed time: %e seconds' % (stop - start))
     print('Number of calib cycles: %s' % ncalib)
     print('Number of events: %s' % nevents)
     print('Events per second: %e' % (nevents/(stop - start)))
+
+    print('Total kernel time: %e seconds', total_kernel_time)
+    print('Time per kernel call: %e seconds', total_kernel_time/nevents)
 
     # Hack: Estimate bandwidth used
 
@@ -107,6 +112,7 @@ else:
     ds = psana.DataSource('exp=cxid9114:run=%s:rax' % run_number)
     det = psana.Detector('CxiDs2.0:Cspad.0', ds.env())
 
+    total_kernel_time = 0
     while True:
         MPI.COMM_WORLD.send(rank, dest=0)
         chunk = MPI.COMM_WORLD.recv(source=0)
@@ -115,4 +121,10 @@ else:
         locs, calib = chunk
         for loc in locs:
             evt = ds.jump(loc.filenames, loc.offsets, calib)
-            kernel()
+            if kernel is not None:
+                kernel_start = MPI.Wtime()
+                kernel()
+                kernel_stop = MPI.Wtime()
+                total_kernel_time += kernel_stop - kernel_start
+
+    MPI.COMM_WORLD.reduce(total_kernel_time)

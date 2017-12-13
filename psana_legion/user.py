@@ -27,7 +27,7 @@ import kernels
 if os.environ.get('KERNEL_KIND') == 'memory_bound':
     kernel = kernels.make_memory_bound_kernel(os.environ.get('KERNEL_ROUNDS', 100))
 else:
-    kernel = kernels.nop_kernel
+    kernel = None
 
 experiment = os.environ['EXPERIMENT'] if 'EXPERIMENT' in os.environ else ('exp=cxid9114:run=%s:rax' % 108)
 detector = os.environ['DETECTOR'] if 'DETECTOR' in os.environ else 'CxiDs2.0:Cspad.0'
@@ -38,7 +38,8 @@ def analyze(event):
     # raw = det.raw(event)
     # calib = det.calib(event) # Calibrate the data
 
-    kernel()
+    if kernel is not None:
+        kernel()
 
 def filter(event):
     return True
