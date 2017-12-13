@@ -933,6 +933,12 @@ char* TaskPoolMapper::processorKindString(unsigned kind) const
     case LOC_PROC:
       return (char*)"LOC_PROC";
       break;
+    case UTIL_PROC:
+      return (char*)"UTIL_PROC";
+      break;
+    case IO_PROC:
+      return (char*)"IO_PROC";
+      break;
     case PROC_GROUP:
       return (char*)"PROC_GROUP";
       break;
@@ -945,7 +951,13 @@ char* TaskPoolMapper::processorKindString(unsigned kind) const
     case PY_PROC:
       return (char*)"PY_PROC";
       break;
-    default: assert(false);
+    case NO_KIND:
+      return (char*)"NO_KIND";
+      break;
+    default:
+      log_task_pool_mapper.debug("%lld proc %llx: %s processor kind %d",
+                                 timeNow(), local_proc.id, __FUNCTION__, kind);
+      assert(false);
   }
 }
 
