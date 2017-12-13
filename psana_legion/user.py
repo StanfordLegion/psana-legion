@@ -22,9 +22,10 @@ import os
 import psana
 import psana_legion
 
-run_number = 108
-ds = psana_legion.LegionDataSource('exp=cxid9114:run=%s:rax' % run_number)
-det = psana.Detector('CxiDs2.0:Cspad.0', ds.env())
+experiment = os.environ['EXPERIMENT'] if 'EXPERIMENT' in os.environ else ('exp=cxid9114:run=%s:rax' % 108)
+detector = os.environ['DETECTOR'] if 'DETECTOR' in os.environ else 'CxiDs2.0:Cspad.0'
+ds = psana_legion.LegionDataSource(experiment)
+det = psana.Detector(detector, ds.env())
 
 def analyze(event):
     raw = det.raw(event)

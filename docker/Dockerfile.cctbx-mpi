@@ -1,0 +1,38 @@
+FROM centos:centos7
+MAINTAINER Elliott Slaughter <slaughter@cs.stanford.edu>
+
+# Before running, go to http://phenix-online.org and follow the
+# instructions to download Phenix. Then extract *only* modules/labelit
+# into the current directory:
+#
+# tar xfzv phenix-installer.tar.gz --strip 1 --wildcards '*/modules/labelit'
+
+RUN yum clean all && \
+    yum -y install bzip2 gcc-c++ git shasum
+
+ENV CONDA_PREFIX /conda
+ENV PATH $CONDA_PREFIX/bin:$PATH
+ENV LD_LIBRARY_PATH $CONDA_PREFIX/lib:$LD_LIBRARY_PATH
+
+ENV CCTBX_PREFIX /cctbx
+
+RUN mkdir $CCTBX_PREFIX
+
+ADD modules $CCTBX_PREFIX/modules
+
+# https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh
+RUN curl -O https://repo.continuum.io/miniconda/Miniconda2-4.3.21-Linux-x86_64.sh && \
+    echo "b87adda9eb41f3ae6c2999fda739ab61ebb3892e  Miniconda2-4.3.21-Linux-x86_64.sh" | sha1sum --check && \
+    /bin/bash Miniconda2-4.3.21-Linux-x86_64.sh -b -p "$CONDA_PREFIX" && \
+    conda update -y conda && \
+    conda install -y --channel lcls-rhel7 psana-conda && \
+    conda install -y --channel conda-forge "mpich>=3" mpi4py h5py pytables libtiff=4.0.6 && \
+    cd $CCTBX_PREFIX && \
+      curl -O https://raw.githubusercontent.com/cctbx/cctbx_project/master/libtbx/auto_build/bootstrap.py && \
+      mkdir -p modules/cxi_xdr_xes && \
+      python bootstrap.py hot --builder=xfel && \
+      python bootstrap.py update --builder=dials && \
+      python bootstrap.py build --builder=xfel --with-python=$CONDA_PREFIX/bin/python --nproc 8 && \
+    cd .. && \
+    conda uninstall --force mpich && \
+    rm Miniconda2-4.3.21-Linux-x86_64.sh
