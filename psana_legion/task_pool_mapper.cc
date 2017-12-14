@@ -1167,6 +1167,10 @@ void TaskPoolMapper::map_task(const MapperContext      ctx,
 //--------------------------------------------------------------------------
 {
   Processor::Kind target_kind = task.target_proc.kind();
+  log_task_pool_mapper.debug("%lld proc %llx: %s task %s target_kind %s",
+                             timeNow(), local_proc.id, __FUNCTION__,
+                             taskDescription(task),
+                             processorKindString(target_kind));
   VariantInfo chosen = default_find_preferred_variant(task, ctx,
                                                       true/*needs tight bound*/, false/*cache*/, target_kind);
   
@@ -1239,17 +1243,45 @@ void TaskPoolMapper::select_task_options(const MapperContext    ctx,
                                          TaskOptions&     output)
 //--------------------------------------------------------------------------
 {
-  bool mapThisTaskLocally = (mapperCategory == WORKER) ||
-  taskWorkloadSize < MIN_TASKS_PER_PROCESSOR || !isAnalysisTask(task);
-  if(mapThisTaskLocally) {
-    log_task_pool_mapper.debug("%lld proc %llx: %s %s on self proc",
+  DefaultMapper::VariantInfo variantInfo =
+    DefaultMapper::default_find_preferred_variant(task, ctx,
+                                                  /*needs tight bound*/false,
+                                                  /*cache result*/true,
+                                                  NO_KIND); 
+  bool selectThisTask = true;
+  Processor initial_proc = local_proc;
+  
+  if(variantInfo.proc_kind == local_proc.kind()) {
+    if(mapperCategory == TASK_POOL) {
+      selectThisTask = taskWorkloadSize < MIN_TASKS_PER_PROCESSOR
+      || !isAnalysisTask(task);
+    }
+  } else {
+    switch(variantInfo.proc_kind) {
+      case LOC_PROC:
+        initial_proc = nearestLegionCPUProc;
+        break;
+      case IO_PROC:
+        initial_proc = nearestIOProc;
+        break;
+      case PY_PROC:
+        initial_proc = nearestTaskPoolProc;
+        break;
+      default: assert(false);
+    }
+  }
+  
+  if(selectThisTask) {
+    log_task_pool_mapper.debug("%lld proc %llx: %s %s on %s",
                                timeNow(), local_proc.id,
-                               __FUNCTION__, taskDescription(task));
-    output.initial_proc = local_proc;
+                               __FUNCTION__, taskDescription(task),
+                               processorKindString(initial_proc.kind());
+    output.initial_proc = initial_proc;
     output.inline_task = false;
     output.stealable = false;
     output.map_locally = false;
   }
+  
 }
 
 
