@@ -51,4 +51,5 @@ RUN curl -O https://repo.continuum.io/miniconda/Miniconda2-4.3.21-Linux-x86_64.s
     cd "$ORIGINAL_DIR" && \
     conda uninstall --force mpich2 && \
     rm -rf /legion && \
-    rm Miniconda2-4.3.21-Linux-x86_64.sh
+    rm Miniconda2-4.3.21-Linux-x86_64.sh && \
+    apt-get install lldb

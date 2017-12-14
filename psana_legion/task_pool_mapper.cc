@@ -573,6 +573,7 @@ void TaskPoolMapper::categorizeMappers()
             mapperCategory = TASK_POOL;
           }
           recentTaskPoolProc = processor;
+          nearestTaskPoolProc = recentTaskPoolProc;
           nearestIOProc = recentIOProc;
           nearestLegionCPUProc = recentLegionCPUProc;
         } else {
@@ -1247,7 +1248,8 @@ void TaskPoolMapper::select_task_options(const MapperContext    ctx,
     DefaultMapper::default_find_preferred_variant(task, ctx,
                                                   /*needs tight bound*/false,
                                                   /*cache result*/true,
-                                                  NO_KIND); 
+                                                  Processor::NO_KIND); 
+
   bool selectThisTask = true;
   Processor initial_proc = local_proc;
   
@@ -1270,16 +1272,20 @@ void TaskPoolMapper::select_task_options(const MapperContext    ctx,
       default: assert(false);
     }
   }
-  
+
   if(selectThisTask) {
     log_task_pool_mapper.debug("%lld proc %llx: %s %s on %s",
                                timeNow(), local_proc.id,
                                __FUNCTION__, taskDescription(task),
-                               processorKindString(initial_proc.kind());
+                               processorKindString(initial_proc.kind()));
     output.initial_proc = initial_proc;
     output.inline_task = false;
     output.stealable = false;
     output.map_locally = false;
+  } else {
+    log_task_pool_mapper.debug("%lld proc %llx: %s skip task %s",
+                               timeNow(), local_proc.id, __FUNCTION__,
+                               taskDescription(task));
   }
   
 }
