@@ -228,8 +228,8 @@ private:
   Timestamp timeNow() const;
   unsigned uniqueId();
   void categorizeMappers();
-  inline char* taskDescription(const Legion::Task& task);
-  inline char* prolog(const char* function) const;
+  char* taskDescription(const Legion::Task& task);
+  char* prolog(const char* function) const;
   bool isAnalysisTask(const Legion::Task& task);
   void slice_task(const MapperContext      ctx,
                   const Task&              task,
@@ -301,8 +301,28 @@ private:
   }
 };
 
+//--------------------------------------------------------------------------
+char* describeProcId(long long procId)
+//--------------------------------------------------------------------------
+{
+  static char buffer[128];
+  unsigned nodeId = procId >> 40;
+  unsigned pId = procId & 0xffffffffff;
+  sprintf(buffer, "node %x proc %x", nodeId, pId);
+  return buffer;
+}
 
+//--------------------------------------------------------------------------
+char* copyBuffer(char* buffer)
+//--------------------------------------------------------------------------
+{
+  // a stupid thing to allow two invocations of describeProcId in one message
+  static char copy[512];
+  strcpy(copy, buffer);
+  return copy;
+}
 
+//--------------------------------------------------------------------------
 TaskPoolMapper::TaskPoolMapper(MapperRuntime *rt,
                                Machine machine, Processor local,
                                const char *mapper_name,
@@ -317,8 +337,9 @@ sysmems_list(*_sysmems_list),
 //sysmem_local_procs(*_sysmem_local_procs),
 proc_sysmems(*_proc_sysmems)
 // proc_regmems(*_proc_regmems)
+//--------------------------------------------------------------------------
 {
-  log_task_pool_mapper.info("%s constructor", prolog(__FUNCTION__));
+  log_task_pool_mapper.info("%s constructor", describeProcId(local_proc.id));
   categorizeMappers();
   
   rng = std::mt19937(rd());    // random-number engine used (Mersenne-Twister in this case)
@@ -334,16 +355,6 @@ proc_sysmems(*_proc_sysmems)
 }
 
 
-//--------------------------------------------------------------------------
-char* describeProcId(long long procId)
-//--------------------------------------------------------------------------
-{
-  static char buffer[128];
-  unsigned nodeId = procId >> 40;
-  unsigned pId = procId & 0xffffffffff;
-  sprintf(buffer, "node %x proc %x", nodeId, pId);
-  return buffer;
-}
 
 //--------------------------------------------------------------------------
 char* TaskPoolMapper::prolog(const char* function) const
@@ -372,7 +383,7 @@ void TaskPoolMapper::maybeSendStealRequest(MapperContext ctx, Processor target)
                                "send WORKER_POOL_STEAL_REQUEST "
                                "id %d numTasks %d to %s",
                                prolog(__FUNCTION__),
-                               r.id, numTasks, describeProcId(target.id));
+                               r.id, numTasks, copyBuffer(describeProcId(target.id)));
     stealRequestOutstanding = true;
     runtime->send_message(ctx, target, &r, sizeof(r), WORKER_POOL_STEAL_REQUEST);
   } else {
@@ -389,8 +400,11 @@ void TaskPoolMapper::maybeSendStealRequest(MapperContext ctx, Processor target)
 unsigned TaskPoolMapper::uniqueId()
 //--------------------------------------------------------------------------
 {
-  unsigned processorSerialId = (unsigned)(local_proc.id % task_pool_procs.size());
-  unsigned result = numUniqueIds++ * (unsigned)task_pool_procs.size() + processorSerialId;
+  unsigned nodeId = local_proc.id >> 40;
+  unsigned pId = local_proc.id & 0xffffffffff;
+  unsigned maxNodeId = 128 * 1024;
+  unsigned maxProcId = 128;
+  unsigned result = numUniqueIds++ * (maxNodeId * maxProcId) + (nodeId * pId);
   return result;
 }
 
@@ -415,7 +429,7 @@ void TaskPoolMapper::handle_WORKER_POOL_STEAL_REQUEST(const MapperContext ctx,
   log_task_pool_mapper.debug("%s handle_WORKER_POOL_STEAL_REQUEST id %d "
                              "numTasks %d from worker %s",
                              prolog(__FUNCTION__), r.id, r.numTasks, 
-                             describeProcId(r.thiefProc.id));
+                             copyBuffer(describeProcId(r.thiefProc.id)));
   handleStealRequest(ctx, r, (MessageType)message.kind);
 }
 
@@ -432,7 +446,7 @@ void TaskPoolMapper::handle_POOL_WORKER_STEAL_ACK(const MapperContext ctx,
                              "proc %s numTasks %d taskWorkloadSize %d",
                              prolog(__FUNCTION__),
                              r.id,
-                             describeProcId(r.sourceProc.id),
+                             copyBuffer(describeProcId(r.sourceProc.id)),
                              r.numTasks,
                              taskWorkloadSize);
 }
@@ -449,7 +463,7 @@ void TaskPoolMapper::handle_POOL_WORKER_STEAL_NACK(const MapperContext ctx,
                              "proc %s taskWorkloadSize %d",
                              prolog(__FUNCTION__),
                              r.id,
-                             describeProcId(r.sourceProc.id),
+                             copyBuffer(describeProcId(r.sourceProc.id)),
                              taskWorkloadSize);
 }
 
@@ -462,7 +476,7 @@ void TaskPoolMapper::handle_POOL_WORKER_WAKEUP(const MapperContext ctx,
   Request r = *(Request*)message.message;
   log_task_pool_mapper.debug("%s handle_POOL_WORKER_WAKEUP id %d from %s",
                              prolog(__FUNCTION__), r.id, 
-                             describeProcId(r.sourceProc.id));
+                             copyBuffer(describeProcId(r.sourceProc.id)));
   maybeSendStealRequest(ctx, r.sourceProc);
 }
 
@@ -476,7 +490,8 @@ void TaskPoolMapper::handle_POOL_POOL_FORWARD_STEAL(const MapperContext ctx,
   log_task_pool_mapper.debug("%s handle_POOL_POOL_FORWARD_STEAL id %d "
                              "hops %d numTasks %d from worker %s",
                              prolog(__FUNCTION__),
-                             r.id, r.hops, r.numTasks, describeProcId(r.thiefProc.id));
+                             r.id, r.hops, r.numTasks, 
+                             copyBuffer(describeProcId(r.thiefProc.id)));
   handleStealRequest(ctx, r, (MessageType)message.kind);
 }
 
@@ -490,7 +505,8 @@ void TaskPoolMapper::handle_POOL_POOL_FORWARD_STEAL_SUCCESS(const MapperContext 
   log_task_pool_mapper.debug("%s handle_POOL_POOL_FORWARD_STEAL_SUCCESS "
                              "id %d hops %d numTasks %d from %s",
                              prolog(__FUNCTION__),
-                             r.id, r.hops, r.numTasks, describeProcId(r.sourceProc.id));
+                             r.id, r.hops, r.numTasks, 
+                             copyBuffer(describeProcId(r.sourceProc.id)));
   
   for(std::deque<Request>::iterator it = failed_requests.begin();
       it != failed_requests.end(); ) {
@@ -501,7 +517,8 @@ void TaskPoolMapper::handle_POOL_POOL_FORWARD_STEAL_SUCCESS(const MapperContext 
         log_task_pool_mapper.debug("%s send POOL_POOL_FORWARD_STEAL_SUCCESS "
                                    "id %d hops %d numTasks %d to %s",
                                    prolog(__FUNCTION__),
-                                   v.id, v.hops, v.numTasks, describeProcId(v.sourceProc.id));
+                                   v.id, v.hops, v.numTasks, 
+                                   copyBuffer(describeProcId(v.sourceProc.id)));
         runtime->send_message(ctx, v.sourceProc, &v, sizeof(v), POOL_POOL_FORWARD_STEAL_SUCCESS);
       }
       // Once we find it we are done
@@ -692,7 +709,7 @@ void TaskPoolMapper::slice_task(const MapperContext      ctx,
     log_task_pool_mapper.debug("%s task %s target proc %s proc_kind %d",
                                prolog(__FUNCTION__),
                                taskDescription(task),
-                               describeProcId(task.target_proc.id),
+                               copyBuffer(describeProcId(task.target_proc.id)),
                                task.target_proc.kind());
     assert(task.target_proc.kind() == Processor::LOC_PROC);
     assert(input.domain.get_dim() == 1);
@@ -743,7 +760,8 @@ void TaskPoolMapper::handleStealRequest(const MapperContext          ctx,
                                  "POOL_POOL_FORWARD_STEAL_SUCCESS id %d "
                                  "hops %d numTasks %d to %s",
                                  prolog(__FUNCTION__),
-                                 v.id, v.hops, v.numTasks, describeProcId(v.destinationProc.id));
+                                 v.id, v.hops, v.numTasks, 
+                                 copyBuffer(describeProcId(v.destinationProc.id)));
       runtime->send_message(ctx, v.destinationProc, &v, sizeof(v), POOL_POOL_FORWARD_STEAL_SUCCESS);
     }
     if(r.numTasks > 0) {
@@ -777,7 +795,8 @@ void TaskPoolMapper::forwardStealRequest(const MapperContext          ctx,
     log_task_pool_mapper.debug("%s send POOL_POOL_FORWARD_STEAL id %d "
                                "hops %d numTasks %d to %s",
                                prolog(__FUNCTION__),
-                               v.id, v.hops, v.numTasks, describeProcId(target.id));
+                               v.id, v.hops, v.numTasks, 
+                               copyBuffer(describeProcId(target.id)));
     runtime->send_message(ctx, target, &v, sizeof(v), POOL_POOL_FORWARD_STEAL);
   } else {
     Request v = r;
@@ -785,7 +804,7 @@ void TaskPoolMapper::forwardStealRequest(const MapperContext          ctx,
     v.destinationProc = r.thiefProc;
     log_task_pool_mapper.debug("%s send POOL_WORKER_STEAL_NACK id %d to %s",
                                prolog(__FUNCTION__),
-                               v.id, describeProcId(r.thiefProc.id));
+                               v.id, copyBuffer(describeProcId(r.thiefProc.id)));
     runtime->send_message(ctx, r.thiefProc, &v, sizeof(v), POOL_WORKER_STEAL_NACK);
   }
 }
@@ -802,7 +821,7 @@ void TaskPoolMapper::wakeUpWorkers(const MapperContext          ctx,
     log_task_pool_mapper.debug("%s request id %d "
                                "workerId %s numTasks %d",
                                prolog(__FUNCTION__),
-                               r.id, describeProcId(r.thiefProc.id),
+                               r.id, copyBuffer(describeProcId(r.thiefProc.id)),
                                r.numTasks);
     to_notify[r.thiefProc] = r;
     pendingRequestIt = failed_requests.erase(pendingRequestIt);
@@ -816,7 +835,7 @@ void TaskPoolMapper::wakeUpWorkers(const MapperContext          ctx,
     v.destinationProc = it->first;
     log_task_pool_mapper.debug("%s send POOL_WORKER_WAKEUP id %d to worker %s",
                                prolog(__FUNCTION__),
-                               v.id, describeProcId(v.destinationProc.id));
+                               v.id, copyBuffer(describeProcId(v.destinationProc.id)));
     
     runtime->send_message(ctx, v.destinationProc, &v, sizeof(v), POOL_WORKER_WAKEUP);
   }
@@ -920,7 +939,7 @@ bool TaskPoolMapper::sendSatisfiedTasks(const MapperContext          ctx,
                                    "%s to %s",
                                    prolog(__FUNCTION__),
                                    taskDescription(*task),
-                                   describeProcId(processor.id));
+                                   copyBuffer(describeProcId(processor.id)));
       }
       
       // Send an ack to the worker
@@ -939,7 +958,8 @@ bool TaskPoolMapper::sendSatisfiedTasks(const MapperContext          ctx,
       log_task_pool_mapper.debug("%s send POOL_WORKER_STEAL_ACK id %d"
                                  " numTasks %d to %s",
                                  prolog(__FUNCTION__),
-                                 v.id, v.numTasks, describeProcId(v.thiefProc.id));
+                                 v.id, v.numTasks, 
+                                 copyBuffer(describeProcId(v.thiefProc.id)));
       runtime->send_message(ctx, v.destinationProc, &v, sizeof(v), POOL_WORKER_STEAL_ACK);
     }
   }
