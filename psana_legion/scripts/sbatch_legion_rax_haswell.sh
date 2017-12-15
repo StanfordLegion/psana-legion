@@ -40,9 +40,8 @@ for n in 1 2 4 8 16; do
             --volume=$HOST_DATA_DIR:/reg \
             --volume=$PWD:/output \
             /native-psana-legion/psana_legion/scripts/psana_legion.sh \
-              -ll:py 1 -ll:io 1 -ll:concurrent_io $i -ll:csize 6000
+              -ll:py 1 -ll:io 1 -ll:concurrent_io $i -ll:csize 6000 -lg:window 100
               # -lg:prof $(( n * c )) -lg:prof_logfile /output/prof_n"$n"_c"$c"_i"$i"_%.gz
-              # -lg:window 20
       fi
     done
   done
