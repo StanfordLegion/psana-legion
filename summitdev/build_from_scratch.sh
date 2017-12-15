@@ -28,7 +28,7 @@ rm Miniconda3-latest-Linux-ppc64le.sh
 conda update -y conda
 conda install -y conda-build # Must be installed in root environment
 conda create -y -p $REL_DIR python=3.5 cmake h5py ipython numpy
-source $REL_DIR/bin/activate $REL_DIR
+source activate $REL_DIR
 # conda install -y --channel lcls-rhel7 cpsw yaml-cpp
 # conda install -y --channel lightsource2-tag epics-base
 
