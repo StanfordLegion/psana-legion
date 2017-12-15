@@ -66,7 +66,7 @@ popd
 
 # Build psana.
 mkdir "$REL_PREFIX"
-popd "$REL_PREFIX"
+pushd "$REL_PREFIX"
   ln -s "$CONDA_PREFIX/lib/python2.7/site-packages/SConsTools/SConstruct.main" SConstruct
   export SIT_RELEASE=$(conda list | grep psana-conda | tr -s ' ' | cut -f1-2 -d' ' | tr ' ' '-')
   export SIT_REPOS="$CONDA_PREFIX/data/anarelinfo"
