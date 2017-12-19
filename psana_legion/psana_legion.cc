@@ -19,6 +19,7 @@
 
 #include "simple_mapper.h"
 #include "task_pool_mapper.h"
+#include "lifeline_mapper.h"
 
 using namespace Legion;
 
@@ -99,6 +100,8 @@ int main(int argc, char **argv)
     register_simple_mapper();
   } else if (mapper && strcmp(mapper, "task_pool") == 0) {
     register_task_pool_mapper();
+  } else if (mapper && strcmp(mapper, "lifeline") == 0) {
+    register_lifeline_mapper();
   } else {
     fprintf(stderr, "Error: PSANA_MAPPER is not set.\n");
     exit(1);

@@ -159,7 +159,7 @@ private:
 };
 
 //--------------------------------------------------------------------------
-std::string describeProcId(long long procId)
+static std::string describeProcId(long long procId)
 //--------------------------------------------------------------------------
 {
   char buffer[128];
