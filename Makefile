@@ -19,8 +19,11 @@ build:	$(wildcard psana_legion/*.cc) $(wildcard psana_legion/*.py)
 
 .PHONY:	run
 run:
-	LD_LIBRARYPATH=${LD_LIBRARY_PATH}:~/PSANA/psana-legion/psana_legion/
-	EAGER=1 REALM_SYNTHETIC_CORE_MAP= mpirun -n 4 -x USE_GASNET=1 -x LD_LIBRARY_PATH ~/PSANA/psana-legion/psana_legion/psana_legion -ll:py 0 -ll:io 2 -ll:csize 6000 -lg:window 50 -level task_pool_mapper=1
+	EAGER=1 REALM_SYNTHETIC_CORE_MAP= mpirun -n 4 -x USE_GASNET=1 -x LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/home/aheirich/PSANA/psana-legion/psana_legion/ ~/PSANA/psana-legion/psana_legion/psana_legion -ll:py 1 -ll:io 1 -ll:csize 6000 -lg:window 50 -level task_pool_mapper=1,mapper=1
+
+.PHONY:	backtrace
+backtrace:
+	EAGER=1 REALM_SYNTHETIC_CORE_MAP= mpirun -n 4 -x USE_GASNET=1 -x GASNET_BACKTRACE=1 -x LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/home/aheirich/PSANA/psana-legion/psana_legion/ ~/PSANA/psana-legion/psana_legion/psana_legion -ll:py 1 -ll:io 1 -ll:csize 6000 -lg:window 50 -level task_pool_mapper=1,mapper=1
 
 .PHONY:	docker_image
 ${DOCKER_IMAGE_ID_FILE}:	${DOCKER_IMAGE_SOURCE}
