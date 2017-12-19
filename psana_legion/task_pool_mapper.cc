@@ -340,7 +340,7 @@ proc_sysmems(*_proc_sysmems)
   stealRequestOutstanding = false;
   taskWorkloadSize = 0;
   log_task_pool_mapper.info("%lld # %s taskWorkloadSize %d mapper category %d %s",
-                            timeNow(), describeProcessorId(local_proc.id).c_str(),
+                            timeNow(), describeProcId(local_proc.id).c_str(),
                             taskWorkloadSize, mapperCategory,
                             processorKindString(local_proc.kind()));
 }
@@ -1171,7 +1171,7 @@ void TaskPoolMapper::report_profiling(const MapperContext      ctx,
   taskWorkloadSize--;
   log_task_pool_mapper.info("%lld proc %llx: report_profiling # %s %s taskWorkloadSize %d",
                             timeNow(),
-                            describeProcessorId(local_proc.id).c_str(),
+                            describeProcId(local_proc.id).c_str(),
                             (int)(local_proc.id & 0xff),
                             taskDescription(task).c_str(),
                             taskWorkloadSize);
