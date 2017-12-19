@@ -711,7 +711,6 @@ void TaskPoolMapper::slice_task(const MapperContext      ctx,
                                taskDescription(task),
                                copyBuffer(describeProcId(task.target_proc.id)),
                                task.target_proc.kind());
-    assert(task.target_proc.kind() == Processor::LOC_PROC);
     assert(input.domain.get_dim() == 1);
     
     Rect<1, coord_t> point_rect = input.domain;
@@ -1213,6 +1212,9 @@ void TaskPoolMapper::map_task(const MapperContext      ctx,
                                taskDescription(task),
                                taskWorkloadSize);
   } else {
+    if(mapperCategory != WORKER) {
+      taskWorkloadSize++;
+    }
     log_task_pool_mapper.debug("%s maps relocated task %s"
                                " taskWorkloadSize %d",
                                prolog(__FUNCTION__),
