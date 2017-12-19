@@ -339,8 +339,8 @@ proc_sysmems(*_proc_sysmems)
   numUniqueIds = 0;
   stealRequestOutstanding = false;
   taskWorkloadSize = 0;
-  log_task_pool_mapper.info("%lld # p %d taskWorkloadSize %d mapper category %d %s",
-                            timeNow(), (int)(local_proc.id & 0xff),
+  log_task_pool_mapper.info("%lld # %s taskWorkloadSize %d mapper category %d %s",
+                            timeNow(), describeProcessorId(local_proc.id).c_str(),
                             taskWorkloadSize, mapperCategory,
                             processorKindString(local_proc.kind()));
 }
@@ -1083,7 +1083,7 @@ void TaskPoolMapper::select_tasks_to_map(const MapperContext          ctx,
       relIt != output.relocate_tasks.end(); ++relIt) {
     const Task* task = relIt->first;
     Processor p = relIt->second;
-    log_task_pool_mapper.debug("%s output.relocate_Tasks %s p %d",
+    log_task_pool_mapper.debug("%s output.relocate_Tasks %s %s",
                                prolog(__FUNCTION__).c_str(),
                                taskDescription(*task).c_str(), (int)(p.id & 0xff));
   }
@@ -1169,9 +1169,9 @@ void TaskPoolMapper::report_profiling(const MapperContext      ctx,
 {
   // task completion request
   taskWorkloadSize--;
-  log_task_pool_mapper.info("%lld proc %llx: report_profiling # p %d %s taskWorkloadSize %d",
+  log_task_pool_mapper.info("%lld proc %llx: report_profiling # %s %s taskWorkloadSize %d",
                             timeNow(),
-                            local_proc.id,
+                            describeProcessorId(local_proc.id).c_str(),
                             (int)(local_proc.id & 0xff),
                             taskDescription(task).c_str(),
                             taskWorkloadSize);
