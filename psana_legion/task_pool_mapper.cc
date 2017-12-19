@@ -632,12 +632,12 @@ void TaskPoolMapper::categorizeMappers()
 
 
 //--------------------------------------------------------------------------
-inline char* TaskPoolMapper::taskDescription(const Legion::Task& task)
+std::string TaskPoolMapper::taskDescription(const Legion::Task& task)
 //--------------------------------------------------------------------------
 {
-  static  char buffer[512];
+  char buffer[512];
   sprintf(buffer, "<%s:%llx>", task.get_task_name(), task.get_unique_id());
-  return buffer;
+  return std::string(buffer);
 }
 
 
@@ -699,7 +699,7 @@ void TaskPoolMapper::slice_task(const MapperContext      ctx,
   if(isAnalysisTask(task)){
     log_task_pool_mapper.debug("%s task %s target proc %s proc_kind %d",
                                prolog(__FUNCTION__).c_str(),
-                               taskDescription(task),
+                               taskDescription(task).c_str(),
                                (describeProcId(task.target_proc.id).c_str()),
                                task.target_proc.kind());
     assert(input.domain.get_dim() == 1);
@@ -711,7 +711,7 @@ void TaskPoolMapper::slice_task(const MapperContext      ctx,
   } else {
     log_task_pool_mapper.debug("%s pass %s to default mapper",
                                prolog(__FUNCTION__).c_str(),
-                               taskDescription(task));
+                               taskDescription(task).c_str());
     this->DefaultMapper::slice_task(ctx, task, input, output);
   }
 }
@@ -885,13 +885,13 @@ bool TaskPoolMapper::filterInputReadyTasks(const SelectMappingInput&    input,
       taskWorkloadSize++;
       log_task_pool_mapper.debug("%s pool selects %s for local mapping",
                                  prolog(__FUNCTION__).c_str(),
-                                 taskDescription(*task));
+                                 taskDescription(*task).c_str());
     } else {
       if(isAnalysisTask(*task) && !alreadyQueued(task)) {
         worker_ready_queue.insert(task);
         log_task_pool_mapper.debug("%s pool %s on worker_ready_queue",
                                    prolog(__FUNCTION__).c_str(),
-                                   taskDescription(*task));
+                                   taskDescription(*task).c_str());
       }
     }
   }
@@ -923,12 +923,12 @@ bool TaskPoolMapper::sendSatisfiedTasks(const MapperContext          ctx,
         log_task_pool_mapper.info("# %lld p %s remapping %s to %llx",
                                   timeNow(),
                                   describeProcId(local_proc.id).c_str(),
-                                  taskDescription(*task),
+                                  taskDescription(*task).c_str(),
                                   processor.id);
         log_task_pool_mapper.debug("%s relocating "
                                    "%s to %s",
                                    prolog(__FUNCTION__).c_str(),
-                                   taskDescription(*task),
+                                   taskDescription(*task).c_str(),
                                    (describeProcId(processor.id).c_str()));
       }
       
@@ -1006,7 +1006,7 @@ void TaskPoolMapper::select_tasks_to_map(const MapperContext          ctx,
       it != input.ready_tasks.end(); it++) {
     log_task_pool_mapper.debug("%s input.ready_tasks %s",
                                prolog(__FUNCTION__).c_str(),
-                               taskDescription(**it));
+                               taskDescription(**it).c_str());
   }
 #endif
   
@@ -1050,13 +1050,13 @@ void TaskPoolMapper::select_tasks_to_map(const MapperContext          ctx,
         log_task_pool_mapper.debug("%s %s selects %s",
                                    prolog(__FUNCTION__).c_str(),
                                    processorKindString(local_proc.kind()),
-                                   taskDescription(*task));
+                                   taskDescription(*task).c_str());
         output.map_tasks.insert(task);
       } else {
         log_task_pool_mapper.debug("%s %s relocates %s to %s",
                                    prolog(__FUNCTION__).c_str(),
                                    processorKindString(local_proc.kind()),
-                                   taskDescription(*task),
+                                   taskDescription(*task).c_str(),
                                    processorKindString(task->target_proc.kind()));
        switch(chosen.proc_kind) {
           case Realm::Processor::IO_PROC:
@@ -1077,7 +1077,7 @@ void TaskPoolMapper::select_tasks_to_map(const MapperContext          ctx,
     const Task* task = *mapIt;
     log_task_pool_mapper.debug("%s output.map_tasks %s",
                                prolog(__FUNCTION__).c_str(),
-                               taskDescription(*task));
+                               taskDescription(*task).c_str());
   }
   for(std::map<const Task*, Processor>::const_iterator relIt = output.relocate_tasks.begin();
       relIt != output.relocate_tasks.end(); ++relIt) {
@@ -1085,7 +1085,7 @@ void TaskPoolMapper::select_tasks_to_map(const MapperContext          ctx,
     Processor p = relIt->second;
     log_task_pool_mapper.debug("%s output.relocate_Tasks %s p %d",
                                prolog(__FUNCTION__).c_str(),
-                               taskDescription(*task), (int)(p.id & 0xff));
+                               taskDescription(*task).c_str(), (int)(p.id & 0xff));
   }
 #endif
   
@@ -1173,7 +1173,7 @@ void TaskPoolMapper::report_profiling(const MapperContext      ctx,
                             timeNow(),
                             local_proc.id,
                             (int)(local_proc.id & 0xff),
-                            taskDescription(task),
+                            taskDescription(task).c_str(),
                             taskWorkloadSize);
   if(mapperCategory == WORKER) {
     maybeSendStealRequest(ctx, nearestTaskPoolProc);
@@ -1200,7 +1200,7 @@ void TaskPoolMapper::map_task(const MapperContext      ctx,
     log_task_pool_mapper.debug("%s maps self task %s"
                                " taskWorkloadSize %d",
                                prolog(__FUNCTION__).c_str(),
-                               taskDescription(task),
+                               taskDescription(task).c_str(),
                                taskWorkloadSize);
   } else {
     if(mapperCategory != WORKER) {
@@ -1209,7 +1209,7 @@ void TaskPoolMapper::map_task(const MapperContext      ctx,
     log_task_pool_mapper.debug("%s maps relocated task %s"
                                " taskWorkloadSize %d",
                                prolog(__FUNCTION__).c_str(),
-                               taskDescription(task),
+                               taskDescription(task).c_str(),
                                taskWorkloadSize);
   }
   
@@ -1267,7 +1267,7 @@ void TaskPoolMapper::select_task_options(const MapperContext    ctx,
   if(selectThisTask) {
     log_task_pool_mapper.debug("%s %s on %s",
                                prolog(__FUNCTION__).c_str(),
-                               taskDescription(task),
+                               taskDescription(task).c_str(),
                                processorKindString(initial_proc.kind()));
     output.initial_proc = initial_proc;
     output.inline_task = false;
@@ -1276,7 +1276,7 @@ void TaskPoolMapper::select_task_options(const MapperContext    ctx,
   } else {
     log_task_pool_mapper.debug("%s skip task %s",
                                prolog(__FUNCTION__).c_str(),
-                               taskDescription(task));
+                               taskDescription(task).c_str());
   }
   
 }
@@ -1318,7 +1318,7 @@ void TaskPoolMapper::premap_task(const MapperContext      ctx,
 {
   log_task_pool_mapper.debug("%s premap_task %s",
                              prolog(__FUNCTION__).c_str(),
-                             taskDescription(task));
+                             taskDescription(task).c_str());
   this->DefaultMapper::premap_task(ctx, task, input, output);
 }
 
