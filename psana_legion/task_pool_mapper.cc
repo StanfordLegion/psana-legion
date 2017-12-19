@@ -711,7 +711,6 @@ void TaskPoolMapper::slice_task(const MapperContext      ctx,
                                taskDescription(task),
                                copyBuffer(describeProcId(task.target_proc.id)),
                                task.target_proc.kind());
-    assert(task.target_proc.kind() == Processor::LOC_PROC);
     assert(input.domain.get_dim() == 1);
     
     Rect<1, coord_t> point_rect = input.domain;
@@ -1197,10 +1196,9 @@ void TaskPoolMapper::map_task(const MapperContext      ctx,
                               MapTaskOutput&     output)
 //--------------------------------------------------------------------------
 {
-#if 1
   
   VariantInfo chosen = default_find_preferred_variant(task, ctx,
-                                                      true/*needs tight bound*/, false/*cache*/, target_kind);
+                                                      true/*needs tight bound*/, false/*cache*/, Processor::NO_KIND);
   output.chosen_variant = chosen.variant;
   output.task_priority = 0;
   output.postmap_task = false;
@@ -1214,60 +1212,15 @@ void TaskPoolMapper::map_task(const MapperContext      ctx,
                                taskDescription(task),
                                taskWorkloadSize);
   } else {
+    if(mapperCategory != WORKER) {
+      taskWorkloadSize++;
+    }
     log_task_pool_mapper.debug("%s maps relocated task %s"
                                " taskWorkloadSize %d",
                                prolog(__FUNCTION__),
                                taskDescription(task),
                                taskWorkloadSize);
   }
-
-#else
-  
-  VariantInfo chosen = default_find_preferred_variant(task, ctx,
-                                                      true/*needs tight bound*/, false/*cache*/, target_kind);
-  // TODO doesnt make sense to depend on mapperCategory here, variant is already chosen
-  
-  if(mapperCategory == WORKER) {
-    if(isAnalysisTask(task)) {
-      
-      // this tasks succeeds in running on a worker
-      
-      output.chosen_variant = chosen.variant;
-      output.task_priority = 0;
-      output.postmap_task = false;
-      output.target_procs.push_back(local_proc);
-      if(task.orig_proc == local_proc) {
-        taskWorkloadSize++;
-        log_task_pool_mapper.debug("%s maps self task %s"
-                                   " taskWorkloadSize %d",
-                                   prolog(__FUNCTION__),
-                                   taskDescription(task),
-                                   taskWorkloadSize);
-      } else {
-        log_task_pool_mapper.debug("%s maps stolen task %s"
-                                   " taskWorkloadSize %d",
-                                   prolog(__FUNCTION__),
-                                   taskDescription(task),
-                                   taskWorkloadSize);
-      }
-      
-    } else {
-      log_task_pool_mapper.debug("%s pass %s to default mapper map_task",
-                                 prolog(__FUNCTION__), taskDescription(task));
-      this->DefaultMapper::map_task(ctx, task, input, output);
-    }
-  } else {
-    log_task_pool_mapper.debug("%s %s maps %s to itself",
-                               prolog(__FUNCTION__),
-                               processorKindString(local_proc.kind()),
-                               taskDescription(task));
-    output.chosen_variant = chosen.variant;
-    output.task_priority = 0;
-    output.postmap_task = false;
-    output.target_procs.push_back(local_proc);
-    taskWorkloadSize++;
-  }
-#endif
   
   ProfilingRequest completionRequest;
   completionRequest.add_measurement<Realm::ProfilingMeasurements::OperationStatus>();
