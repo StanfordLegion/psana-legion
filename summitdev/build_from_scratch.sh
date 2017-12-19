@@ -2,8 +2,9 @@
 
 set -e
 
-# Setup environment.
+# Setup environment
 cat > env.sh <<EOF
+module load cmake/3.9.2
 module load gcc/7.1.0
 export CC=gcc
 export CXX=g++
@@ -15,13 +16,13 @@ EOF
 
 source env.sh
 
-# Clean up any previous installs.
-
+# Clean up any previous installs
 rm -rf $CONDA_PREFIX
 rm -rf channels
 rm -rf relmanage
+rm -rf lcls2
 
-# Install Conda environment.
+# Install Conda environment
 wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-ppc64le.sh
 bash Miniconda3-latest-Linux-ppc64le.sh -b -p $CONDA_PREFIX
 rm Miniconda3-latest-Linux-ppc64le.sh
@@ -36,3 +37,15 @@ source activate $REL_DIR
 git clone https://github.com/slac-lcls/relmanage.git
 conda build relmanage/recipes/legion/ --output-folder channels/external/
 conda install -y legion -c file://`pwd`/channels/external --override-channels
+
+# Build
+git clone https://github.com/slac-lcls/lcls2.git
+pushd lcls2
+patch -p1 -i ../lcls2.patch
+mkdir build
+pushd build
+cmake -DPSANA_USE_LEGION=ON ..
+make -j8
+make test
+popd
+popd
