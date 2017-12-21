@@ -405,12 +405,9 @@ void LifelineMapper::establishLifelines()
   bool needLOCProc = false;
   bool needIOProc = false;
   bool needPYProc = false;
-  Processor recentLOCProc;
-  Processor recentIOProc;
-  Processor recentPYProc;
-  bool recentLOCProcExists = false;
-  bool recentIOProcExists = false;
-  bool recentPYProcExists = false;
+  Processor recentLOCProc = Processor::NO_PROC;
+  Processor recentIOProc = Processor::NO_PROC;
+  Processor recentPYProc = Processor::NO_PROC;
   
   for(std::map<Processor, Memory>::iterator it = proc_sysmems.begin();
       it != proc_sysmems.end(); it++) {
@@ -423,7 +420,6 @@ void LifelineMapper::establishLifelines()
           needLOCProc = false;
         } else {
           recentLOCProc = processor;
-          recentLOCProcExists = true;
         }
         break;
       case IO_PROC:
@@ -432,7 +428,6 @@ void LifelineMapper::establishLifelines()
           needIOProc = false;
         } else {
           recentIOProc = processor;
-          recentIOProcExists = true;
         }
         break;
       case PY_PROC:
@@ -441,7 +436,6 @@ void LifelineMapper::establishLifelines()
           needPYProc = false;
         } else {
           recentPYProc = processor;
-          recentPYProcExists = true;
         }
         break;
       default: assert(false);
@@ -450,17 +444,17 @@ void LifelineMapper::establishLifelines()
     if(processor.kind() == local_proc.kind()) {
       if(processor == local_proc) {
         localProcId = (unsigned)steal_target_procs.size();
-        if(recentLOCProcExists) {
+        if(recentLOCProc.exists()) {
           nearestLOCProc = recentLOCProc;
         } else {
           needLOCProc = true;
         }
-        if(recentIOProcExists) {
+        if(recentIOProc.exists()) {
           nearestIOProc = recentIOProc;
         } else {
           needIOProc = true;
         }
-        if(recentPYProcExists) {
+        if(recentPYProc.exists()) {
           nearestPYProc = recentPYProc;
         } else {
           needPYProc = true;
@@ -469,10 +463,6 @@ void LifelineMapper::establishLifelines()
       steal_target_procs.push_back(processor);
     }
   }
-  
-  assert(!needLOCProc);
-  assert(!needIOProc);
-  assert(!needPYProc);
   
   if(steal_target_procs.size() > 1) {
     unsigned maxProcId = pow(2.0, (unsigned)log2(steal_target_procs.size() - 1) + 1);
