@@ -106,7 +106,7 @@ private:
   bool quiesced;
   
   Timestamp timeNow() const;
-  void getStealAndNearestProcs(unsigned& localProcId);
+  void getStealAndNearestProcs(unsigned& localProcIndex);
   void identifyRelatedProcs();
   std::string taskDescription(const Legion::Task& task);
   std::string prolog(const char* function) const;
@@ -239,7 +239,7 @@ void LifelineMapper::configure_context(const MapperContext         ctx,
                                        ContextConfigOutput&  output)
 //--------------------------------------------------------------------------
 {
-
+  
 }
 
 //--------------------------------------------------------------------------
@@ -498,7 +498,7 @@ LifelineMapper::Timestamp LifelineMapper::timeNow() const
 
 
 //--------------------------------------------------------------------------
-void LifelineMapper::getStealAndNearestProcs(unsigned& localProcId)
+void LifelineMapper::getStealAndNearestProcs(unsigned& localProcIndex)
 //--------------------------------------------------------------------------
 {
   nearestLOCProc = Processor::NO_PROC;
@@ -531,7 +531,7 @@ void LifelineMapper::getStealAndNearestProcs(unsigned& localProcId)
     
     if(processor.kind() == local_proc.kind()) {
       if(processor == local_proc) {
-        localProcId = (unsigned)steal_target_procs.size();
+        localProcIndex = (unsigned)steal_target_procs.size();
         sawLocalProc = true;
       }
       steal_target_procs.push_back(processor);
@@ -543,22 +543,36 @@ void LifelineMapper::getStealAndNearestProcs(unsigned& localProcId)
 void LifelineMapper::identifyRelatedProcs()
 //--------------------------------------------------------------------------
 {
-  unsigned localProcId;
-  getStealAndNearestProcs(localProcId);
+  unsigned localProcIndex;
+  getStealAndNearestProcs(localProcIndex);
   
   if(steal_target_procs.size() > 1) {
     unsigned maxProcId = pow(2.0, (unsigned)log2(steal_target_procs.size() - 1) + 1);
     unsigned numIdBits = (unsigned)log2(maxProcId);
     
+    log_lifeline_mapper.debug("%s maxProcId %u numIdBits %u steal_targets.size %ld",
+                              prolog(__FUNCTION__).c_str(),
+                              maxProcId, numIdBits, steal_target_procs.size());
+    
     for(unsigned bit = 0; bit < numIdBits; bit++) {
       unsigned mask = 1 << bit;
-      unsigned sourceBit = localProcId & mask;
-      unsigned targetProcId = (localProcId & ~mask) | (~sourceBit & (maxProcId - 1));
-      lifeline_neighbor_procs.push_back(steal_target_procs[targetProcId]);
+      unsigned sourceBit = localProcIndex & mask;
+      unsigned modifiedBit = (!(sourceBit >> bit)) << bit;
+      unsigned localProcIndexNoBit = (localProcIndex & ~mask) & (maxProcId - 1);
+      unsigned targetProcIndex = localProcIndexNoBit | modifiedBit;
+//      log_lifeline_mapper.debug("%s bit %u mask 0x%x source 0x%x modified 0x%x localNoBit 0x%x target 0x%x %u",
+//                                prolog(__FUNCTION__).c_str(),
+//                                bit, mask, sourceBit, modifiedBit,
+//                                localProcIndexNoBit,
+//                                targetProcIndex, targetProcIndex);
       
-      log_lifeline_mapper.debug("%s lifeline to %s",
-                                prolog(__FUNCTION__).c_str(),
-                                describeProcId(steal_target_procs[targetProcId].id).c_str());
+      if(targetProcIndex < steal_target_procs.size()) {
+        lifeline_neighbor_procs.push_back(steal_target_procs[targetProcIndex]);
+        
+        log_lifeline_mapper.debug("%s lifeline to %s",
+                                  prolog(__FUNCTION__).c_str(),
+                                  describeProcId(steal_target_procs[targetProcIndex].id).c_str());
+      }
     }
   }
 }
@@ -781,15 +795,10 @@ void LifelineMapper::select_tasks_to_map(const MapperContext          ctx,
     triggerSelectTasksToMap(ctx);
   }
   bool mappedOrRelocated = false;
-    
+  
   for (std::list<const Task*>::const_iterator it = input.ready_tasks.begin();
        it != input.ready_tasks.end(); it++) {
     const Task* task = *it;
-    
-    log_lifeline_mapper.info("%s input.ready_task %s",
-                             prolog(__FUNCTION__).c_str(),
-                             taskDescription(*task).c_str());
-    
     if(alreadyQueued(task)) continue;
     bool mapHereNow = (task->target_proc.kind() == local_proc.kind()
                        && taskWorkloadSize <= MIN_TASKS_PER_PROCESSOR);
