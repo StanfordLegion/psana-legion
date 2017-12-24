@@ -302,7 +302,7 @@ private:
 };
 
 //--------------------------------------------------------------------------
-std::string describeProcId(long long procId)
+static std::string describeProcId(long long procId)
 //--------------------------------------------------------------------------
 {
  char buffer[128];
@@ -340,7 +340,7 @@ proc_sysmems(*_proc_sysmems)
   stealRequestOutstanding = false;
   taskWorkloadSize = 0;
   log_task_pool_mapper.info("%lld # %s taskWorkloadSize %d mapper category %d %s",
-                            timeNow(), describeProcessorId(local_proc.id).c_str(),
+                            timeNow(), describeProcId(local_proc.id).c_str(),
                             taskWorkloadSize, mapperCategory,
                             processorKindString(local_proc.kind()));
 }
@@ -1085,7 +1085,8 @@ void TaskPoolMapper::select_tasks_to_map(const MapperContext          ctx,
     Processor p = relIt->second;
     log_task_pool_mapper.debug("%s output.relocate_Tasks %s %s",
                                prolog(__FUNCTION__).c_str(),
-                               taskDescription(*task).c_str(), (int)(p.id & 0xff));
+                               taskDescription(*task).c_str(),
+                               describeProcId(p.id).c_str());
   }
 #endif
   
@@ -1169,10 +1170,8 @@ void TaskPoolMapper::report_profiling(const MapperContext      ctx,
 {
   // task completion request
   taskWorkloadSize--;
-  log_task_pool_mapper.info("%lld proc %llx: report_profiling # %s %s taskWorkloadSize %d",
-                            timeNow(),
-                            describeProcessorId(local_proc.id).c_str(),
-                            (int)(local_proc.id & 0xff),
+  log_task_pool_mapper.info("%s report_profiling # %s taskWorkloadSize %d",
+                            prolog(__FUNCTION__).c_str(),
                             taskDescription(task).c_str(),
                             taskWorkloadSize);
   if(mapperCategory == WORKER) {
