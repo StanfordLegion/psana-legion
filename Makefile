@@ -17,9 +17,17 @@ all:	start
 build:	$(wildcard psana_legion/*.cc) $(wildcard psana_legion/*.py)
 	cd psana_legion ; FORCE_PYTHON=1 PYTHON_VERSION_MAJOR=2 PYTHON_LIB=/conda/lib/libpython2.7.so make
 
+.PHONY:	debug
+debug:	
+	@make execute LEVEL=1
+
 .PHONY:	run
-run:
-	EAGER=1 REALM_SYNTHETIC_CORE_MAP= mpirun -n 4 -x USE_GASNET=1 -x LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/home/aheirich/PSANA/psana-legion/psana_legion/ ~/PSANA/psana-legion/psana_legion/psana_legion -ll:py 1 -ll:io 1 -ll:csize 6000 -lg:window 50 -level task_pool_mapper=1,mapper=1
+run:	
+	@make execute LEVEL=2
+
+.PHONY:	execute
+execute:
+	EAGER=1 REALM_SYNTHETIC_CORE_MAP= mpirun -n 4 -x USE_GASNET=1 -x LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/home/aheirich/PSANA/psana-legion/psana_legion/ ~/PSANA/psana-legion/psana_legion/psana_legion -ll:py 1 -ll:io 1 -ll:csize 6000 -lg:window 50 -level task_pool_mapper=${LEVEL}
 
 .PHONY:	backtrace
 backtrace:
