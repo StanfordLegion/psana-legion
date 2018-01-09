@@ -30,7 +30,9 @@ export LD_LIBRARY_PATH=\$REL_PREFIX/arch/\$SIT_ARCH/lib:\$CONDA_PREFIX/lib:\$LD_
 export PYTHONPATH=\$REL_PREFIX/arch/\$SIT_ARCH/python:\$PYTHONPATH
 
 # variables needed for scons only
-export SIT_RELEASE=\$(conda list | grep psana-conda | tr -s ' ' | cut -f1-2 -d' ' | tr ' ' '-')
+if which conda; then
+  export SIT_RELEASE=\$(conda list | grep psana-conda | tr -s ' ' | cut -f1-2 -d' ' | tr ' ' '-')
+fi
 export SIT_REPOS="\$CONDA_PREFIX/data/anarelinfo"
 export SIT_USE_CONDA=1
 
@@ -81,3 +83,6 @@ pushd "$REL_PREFIX"
   git clone https://github.com/lcls-psana/SConsTools.git
   scons
 popd
+
+echo
+echo "Done. Please run 'source env.sh' to use this build."
