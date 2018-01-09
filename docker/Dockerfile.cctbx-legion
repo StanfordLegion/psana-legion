@@ -1,0 +1,74 @@
+FROM ubuntu:16.04
+MAINTAINER Elliott Slaughter <slaughter@cs.stanford.edu>
+
+# Before running, go to http://phenix-online.org and follow the
+# instructions to download Phenix. Then extract *only* modules/labelit
+# into the current directory:
+#
+# tar xfzv phenix-installer.tar.gz --strip 1 --wildcards '*/modules/labelit'
+
+ENV DEBIAN_FRONTEND noninteractive
+
+RUN apt-get update -qq && \
+    apt-get install -qq build-essential bzip2 curl libdigest-sha-perl git zlib1g-dev && \
+    apt-get clean
+
+ENV SIT_ARCH x86_64-rhel7-gcc48-opt
+ENV CONDA_PREFIX /conda
+ENV REL_PREFIX $CONDA_PREFIX/myrel
+ENV PATH $REL_PREFIX/arch/$SIT_ARCH/bin:$CONDA_PREFIX/bin:$PATH
+ENV LD_LIBRARY_PATH $REL_PREFIX/arch/$SIT_ARCH/lib:$CONDA_PREFIX/lib:$LD_LIBRARY_PATH
+ENV PYTHONPATH $REL_PREFIX/arch/$SIT_ARCH/python:$PYTHONPATH
+
+ENV LG_RT_DIR /legion/runtime
+ENV PSANA_LEGION_DIR /psana-legion/psana_legion
+
+ENV CCTBX_PREFIX /cctbx
+
+RUN mkdir $CCTBX_PREFIX
+
+ADD modules $CCTBX_PREFIX/modules
+
+# https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh
+RUN curl -O https://repo.continuum.io/miniconda/Miniconda2-4.3.21-Linux-x86_64.sh && \
+    echo "b87adda9eb41f3ae6c2999fda739ab61ebb3892e  Miniconda2-4.3.21-Linux-x86_64.sh" | sha1sum --check && \
+    /bin/bash Miniconda2-4.3.21-Linux-x86_64.sh -b -p "$CONDA_PREFIX" && \
+    conda update -y conda && \
+    conda install -y scons cython libtiff=4.0.6 icu=54 && \
+    conda install -y --channel lcls-rhel7 psana-conda ndarray && \
+    conda install -y --channel conda-forge "mpich>=3" mpi4py h5py pytables && \
+    git clone -b python https://github.com/StanfordLegion/legion.git /legion && \
+    git clone https://github.com/StanfordLegion/psana-legion.git /psana-legion && \
+    ORIGINAL_DIR=$PWD && \
+    cd "$PSANA_LEGION_DIR" && \
+      DEBUG=0 make -j 2 && \
+    cd "$ORIGINAL_DIR" && \
+    mkdir "$REL_PREFIX" && \
+    cd "$REL_PREFIX" && \
+      ln -s "$CONDA_PREFIX/lib/python2.7/site-packages/SConsTools/SConstruct.main" SConstruct && \
+      export SIT_RELEASE=$(conda list | grep psana-conda | tr -s ' ' | cut -f1-2 -d' ' | tr ' ' '-') && \
+      export SIT_REPOS="$CONDA_PREFIX/data/anarelinfo" && \
+      export SIT_USE_CONDA=1 && \
+      echo "$SIT_RELEASE" > .sit_release && \
+      echo "$CONDA_PREFIX" > .sit_conda_env && \
+      git clone -b legion https://github.com/elliottslaughter/psana.git && \
+      git clone -b legion https://github.com/elliottslaughter/psana_python.git && \
+      git clone https://github.com/lcls-psana/python.git && \
+      git clone https://github.com/lcls-psana/numpy.git && \
+      git clone -b legion https://github.com/elliottslaughter/PSXtcInput.git && \
+      git clone https://github.com/lcls-psana/SConsTools.git && \
+      scons && \
+    cd "$ORIGINAL_DIR" && \
+    cd "$PSANA_LEGION_DIR" && \
+      make clean && \
+    cd "$ORIGINAL_DIR" && \
+    cd $CCTBX_PREFIX && \
+      curl -O https://raw.githubusercontent.com/cctbx/cctbx_project/master/libtbx/auto_build/bootstrap.py && \
+      mkdir -p modules/cxi_xdr_xes && \
+      python bootstrap.py hot --builder=xfel && \
+      python bootstrap.py update --builder=dials && \
+      python bootstrap.py build --builder=xfel --with-python=$CONDA_PREFIX/bin/python --nproc 8 && \
+    cd "$ORIGINAL_DIR" && \
+    conda uninstall --force mpich mpich2 && \
+    rm -rf /legion && \
+    rm Miniconda2-4.3.21-Linux-x86_64.sh
