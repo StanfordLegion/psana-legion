@@ -20,6 +20,7 @@
 #include <time.h>
 #include <vector>
 #include <deque>
+#include <assert.h>
 
 #include "default_mapper.h"
 
@@ -44,7 +45,8 @@ typedef enum {
   STEAL_ACK,
   STEAL_NACK,
   ACTIVATE_LIFELINE,
-  DEACTIVATE_LIFELINE,
+  WITHDRAW_LIFELINE,
+  LIFELINE_WAKEUP,
 } MessageType;
 
 
@@ -82,7 +84,7 @@ private:
   //  std::map<Processor, Memory>& proc_regmems;
   std::vector<Processor> lifeline_neighbor_procs;
   std::vector<Processor> steal_target_procs;
-  std::vector<std::pair<Processor, unsigned>> active_lifelines;
+  std::vector<Processor> active_lifelines;
   Processor nearestLOCProc;
   Processor nearestIOProc;
   Processor nearestPYProc;
@@ -127,7 +129,7 @@ private:
                              SelectMappingOutput&   output);
   bool sendSatisfiedTasks(const MapperContext          ctx,
                           SelectMappingOutput&   output);
-  void reactivateLifelines(const MapperContext          ctx);
+  void giveLifeThroughLifelines(const MapperContext          ctx);
   void select_tasks_to_map(const MapperContext          ctx,
                            const SelectMappingInput&    input,
                            SelectMappingOutput&   output);
@@ -159,6 +161,7 @@ private:
                    const Task&              task,
                    const PremapTaskInput&   input,
                    PremapTaskOutput&        output);
+  void sendStealRequest(MapperContext ctx, Processor target);
   void maybeSendStealRequest(MapperContext ctx);
   void triggerSelectTasksToMap(const MapperContext ctx);
   void handleOneStealRequest(const MapperContext ctx, Request r,
@@ -167,16 +170,16 @@ private:
                           const MapperMessage& message);
   void handleStealAck(const MapperContext ctx,
                       const MapperMessage& message);
-  void reactivate(const MapperContext ctx);
+  void withdrawActiveLifelines(const MapperContext ctx);
   void quiesce(const MapperContext ctx);
   void handleStealNack(const MapperContext ctx,
                        const MapperMessage& message);
-  void handleDeactivateLifeline(const MapperContext ctx,
+  void handleWithdrawLifeline(const MapperContext ctx,
+                                const MapperMessage& message);
+  void handleLifelineWakeup(const MapperContext ctx,
                                 const MapperMessage& message);
   void handleActivateLifeline(const MapperContext ctx,
                               const MapperMessage& message);
-  void handleReactivate(const MapperContext ctx,
-                        const MapperMessage& message);
   virtual void handle_message(const MapperContext           ctx,
                               const MapperMessage&          message);
   
@@ -257,23 +260,32 @@ std::string LifelineMapper::prolog(const char* function) const
 
 
 //--------------------------------------------------------------------------
+void LifelineMapper::sendStealRequest(MapperContext ctx, Processor target)
+//--------------------------------------------------------------------------
+{
+  unsigned numTasks = MIN_TASKS_PER_PROCESSOR - taskWorkloadSize;
+  assert(numTasks > 0);
+  Request r = { target, local_proc, numTasks };
+  log_lifeline_mapper.debug("%s send STEAL_REQUEST numTasks %d to %s",
+                            prolog(__FUNCTION__).c_str(),
+                            numTasks, describeProcId(target.id).c_str());
+  stealRequestOutstanding = true;
+  runtime->send_message(ctx, target, &r, sizeof(r), STEAL_REQUEST);
+
+}
+
+//--------------------------------------------------------------------------
 void LifelineMapper::maybeSendStealRequest(MapperContext ctx)
 //--------------------------------------------------------------------------
 {
   if(!quiesced) {
     if(local_proc.kind() == Processor::PY_PROC) {
       if(taskWorkloadSize < MIN_TASKS_PER_PROCESSOR && !stealRequestOutstanding) {
-        unsigned numTasks = MIN_TASKS_PER_PROCESSOR - taskWorkloadSize;
         Processor target = steal_target_procs[uni(rng)];
         while(target.id == local_proc.id) {
           target = steal_target_procs[uni(rng)];
         }
-        Request r = { target, local_proc, numTasks };
-        log_lifeline_mapper.debug("%s send STEAL_REQUEST numTasks %d to %s",
-                                  prolog(__FUNCTION__).c_str(),
-                                  numTasks, describeProcId(target.id).c_str());
-        stealRequestOutstanding = true;
-        runtime->send_message(ctx, target, &r, sizeof(r), STEAL_REQUEST);
+        sendStealRequest(ctx, target);
       } else {
         if(taskWorkloadSize < MIN_TASKS_PER_PROCESSOR && stealRequestOutstanding) {
           log_lifeline_mapper.debug("%s cannot send because stealRequestOutstanding",
@@ -313,6 +325,9 @@ void LifelineMapper::handleOneStealRequest(const MapperContext ctx,
                             describeProcId(r.thiefProc.id).c_str(),
                             r.numTasks);
   
+  assert(r.numTasks > 0);
+  if(r.numTasks < 1) log_lifeline_mapper.debug("yikes assert not working");
+  
   TaskVector tasks = send_queue[r.thiefProc];
   std::set<const Task*>::iterator it = worker_ready_queue.begin();
   
@@ -331,7 +346,6 @@ void LifelineMapper::handleOneStealRequest(const MapperContext ctx,
     }
   }
   
-  
   if(r.numTasks > 0 && !reactivating) {
     unresolved_requests.push_back(r);
   }
@@ -342,7 +356,10 @@ void LifelineMapper::handleOneStealRequest(const MapperContext ctx,
   } else {
     stolen = false;
     if(!reactivating) {
-      runtime->send_message(ctx, r.thiefProc, &r, sizeof(r), STEAL_NACK);
+      log_lifeline_mapper.debug("%s send STEAL_NACK to %s",
+                                prolog(__FUNCTION__).c_str(),
+                                describeProcId(r.thiefProc.id).c_str());
+      runtime->send_message(ctx, r.thiefProc, NULL, 0, STEAL_NACK);
     }
   }
 }
@@ -352,8 +369,15 @@ void LifelineMapper::handleStealRequest(const MapperContext ctx,
                                         const MapperMessage& message)
 //--------------------------------------------------------------------------
 {
+  log_lifeline_mapper.debug("%s from %s worker_ready_queue.size %ld",
+                            prolog(__FUNCTION__).c_str(),
+                            describeProcId(message.sender.id).c_str(),
+                            worker_ready_queue.size());
   if (worker_ready_queue.empty()) {
     Request r = *(Request*)message.message;
+    log_lifeline_mapper.debug("%s send STEAL_NACK to %s",
+                              prolog(__FUNCTION__).c_str(),
+                              describeProcId(r.thiefProc.id).c_str());
     runtime->send_message(ctx, r.thiefProc, &r, sizeof(r), STEAL_NACK);
   } else {
     for(std::deque<Request>::iterator it = unresolved_requests.begin();
@@ -367,6 +391,7 @@ void LifelineMapper::handleStealRequest(const MapperContext ctx,
     bool stolen;
     handleOneStealRequest(ctx, r, false, stolen);
   }
+  triggerSelectTasksToMap(ctx);
 }
 
 //--------------------------------------------------------------------------
@@ -374,27 +399,37 @@ void LifelineMapper::handleStealAck(const MapperContext ctx,
                                     const MapperMessage& message)
 //--------------------------------------------------------------------------
 {
-  if(quiesced) {
-    reactivate(ctx);
-  }
   Request r = *(Request*)message.message;
+  log_lifeline_mapper.debug("%s from %s numTasks %u taskWorkloadSize %d",
+                            prolog(__FUNCTION__).c_str(),
+                            describeProcId(message.sender.id).c_str(),
+                            r.numTasks, taskWorkloadSize);
+  if(quiesced) {
+    withdrawActiveLifelines(ctx);
+  }
   numFailedSteals = 0;
   stealRequestOutstanding = false;
-  log_lifeline_mapper.debug("%s numTasks %u taskWorkloadSize %d",
-                            prolog(__FUNCTION__).c_str(),
-                            r.numTasks, taskWorkloadSize);
 }
 
 //--------------------------------------------------------------------------
-void LifelineMapper::reactivate(const MapperContext ctx)
+void LifelineMapper::withdrawActiveLifelines(const MapperContext ctx)
 //--------------------------------------------------------------------------
 {
   assert(quiesced);
-  log_lifeline_mapper.debug("%s", prolog(__FUNCTION__).c_str());
   for(std::vector<Processor>::iterator it = lifeline_neighbor_procs.begin();
       it != lifeline_neighbor_procs.end(); ++it) {
     Processor processor = *it;
-    runtime->send_message(ctx, processor, NULL, 0, DEACTIVATE_LIFELINE);
+    log_lifeline_mapper.debug("%s %s",
+                              prolog(__FUNCTION__).c_str(),
+                              describeProcId(processor.id).c_str());
+  }
+  for(std::vector<Processor>::iterator it = lifeline_neighbor_procs.begin();
+      it != lifeline_neighbor_procs.end(); ++it) {
+    Processor processor = *it;
+    log_lifeline_mapper.debug("%s send WITHDRAW_LIFELINE to %s",
+                              prolog(__FUNCTION__).c_str(),
+                              describeProcId(processor.id).c_str());
+    runtime->send_message(ctx, processor, NULL, 0, WITHDRAW_LIFELINE);
   }
   quiesced = false;
   numFailedSteals = 0;
@@ -410,9 +445,10 @@ void LifelineMapper::quiesce(const MapperContext ctx)
   for(std::vector<Processor>::iterator it = lifeline_neighbor_procs.begin();
       it != lifeline_neighbor_procs.end(); ++it) {
     Processor processor = *it;
-    unsigned numTasks = MIN_TASKS_PER_PROCESSOR - taskWorkloadSize;
-    Request r = { processor, local_proc, numTasks };
-    runtime->send_message(ctx, processor, &r, sizeof(r), ACTIVATE_LIFELINE);
+    log_lifeline_mapper.debug("%s send ACTIVATE_LIFELINE to %s",
+                              prolog(__FUNCTION__).c_str(),
+                              describeProcId(processor.id).c_str());
+    runtime->send_message(ctx, processor, NULL, 0, ACTIVATE_LIFELINE);
   }
   quiesced = true;
 }
@@ -424,9 +460,11 @@ void LifelineMapper::handleStealNack(const MapperContext ctx,
 {
   numFailedSteals++;
   stealRequestOutstanding = false;
-  log_lifeline_mapper.debug("%s num failed steals %d",
-                            prolog(__FUNCTION__).c_str(), numFailedSteals);
-  if(numFailedSteals >= MAX_FAILED_STEALS) {
+  log_lifeline_mapper.debug("%s from %s num failed steals %d",
+                            prolog(__FUNCTION__).c_str(),
+                            describeProcId(message.sender.id).c_str(),
+                            numFailedSteals);
+  if(numFailedSteals >= MAX_FAILED_STEALS && taskWorkloadSize < MIN_TASKS_PER_PROCESSOR) {
     quiesce(ctx);
   }
 }
@@ -436,31 +474,56 @@ void LifelineMapper::handleActivateLifeline(const MapperContext ctx,
                                             const MapperMessage& message)
 //--------------------------------------------------------------------------
 {
-  Request r = *(Request*)message.message;
-  log_lifeline_mapper.debug("%s from %s numTasks %d",
+  log_lifeline_mapper.debug("%s from %s",
                             prolog(__FUNCTION__).c_str(),
-                            describeProcId(r.thiefProc.id).c_str(), r.numTasks);
-  active_lifelines.push_back(std::make_pair(message.sender, r.numTasks));
+                            describeProcId(message.sender.id).c_str());
+  bool alreadyActive = false;
+  for(std::vector<Processor>::iterator it = active_lifelines.begin();
+      it != active_lifelines.end(); it++) {
+    Processor sender = *it;
+    if(sender.id == message.sender.id) alreadyActive = true;
+  }
+  if(!alreadyActive) {
+    active_lifelines.push_back(message.sender);
+  }
 }
 
 
 //--------------------------------------------------------------------------
-void LifelineMapper::handleDeactivateLifeline(const MapperContext ctx,
+void LifelineMapper::handleWithdrawLifeline(const MapperContext ctx,
                                               const MapperMessage& message)
 //--------------------------------------------------------------------------
 {
-  for(std::vector<std::pair<Processor, unsigned>>::iterator it = active_lifelines.begin();
+  log_lifeline_mapper.debug("%s",
+                            prolog(__FUNCTION__).c_str());
+  for(std::vector<Processor>::iterator it = active_lifelines.begin();
       it != active_lifelines.end(); ) {
-    Processor processor = it->first;
-    if(processor == message.sender) {
+    Processor processor = *it;
+    if(processor.id == message.sender.id) {
       it = active_lifelines.erase(it);
-      log_lifeline_mapper.debug("%s remove lifeline from %s",
+      log_lifeline_mapper.debug("%s from %s remove lifeline",
                                 prolog(__FUNCTION__).c_str(),
                                 describeProcId(processor.id).c_str());
+      break;
     } else {
       it++;
     }
   }
+}
+
+
+//--------------------------------------------------------------------------
+void LifelineMapper::handleLifelineWakeup(const MapperContext ctx,
+                                          const MapperMessage& message)
+//--------------------------------------------------------------------------
+{
+  log_lifeline_mapper.debug("%s from %s",
+                            prolog(__FUNCTION__).c_str(),
+                            describeProcId(message.sender.id).c_str());
+  if(quiesced) {
+    withdrawActiveLifelines(ctx);
+  }
+  sendStealRequest(ctx, message.sender);
 }
 
 
@@ -482,8 +545,11 @@ void LifelineMapper::handle_message(const MapperContext ctx,
     case ACTIVATE_LIFELINE:
       handleActivateLifeline(ctx, message);
       break;
-    case DEACTIVATE_LIFELINE:
-      handleDeactivateLifeline(ctx, message);
+    case WITHDRAW_LIFELINE:
+      handleWithdrawLifeline(ctx, message);
+      break;
+    case LIFELINE_WAKEUP:
+      handleLifelineWakeup(ctx, message);
       break;
     default: assert(false);
   }
@@ -560,11 +626,11 @@ void LifelineMapper::identifyRelatedProcs()
       unsigned modifiedBit = (!(sourceBit >> bit)) << bit;
       unsigned localProcIndexNoBit = (localProcIndex & ~mask) & (maxProcId - 1);
       unsigned targetProcIndex = localProcIndexNoBit | modifiedBit;
-//      log_lifeline_mapper.debug("%s bit %u mask 0x%x source 0x%x modified 0x%x localNoBit 0x%x target 0x%x %u",
-//                                prolog(__FUNCTION__).c_str(),
-//                                bit, mask, sourceBit, modifiedBit,
-//                                localProcIndexNoBit,
-//                                targetProcIndex, targetProcIndex);
+      //      log_lifeline_mapper.debug("%s bit %u mask 0x%x source 0x%x modified 0x%x localNoBit 0x%x target 0x%x %u",
+      //                                prolog(__FUNCTION__).c_str(),
+      //                                bit, mask, sourceBit, modifiedBit,
+      //                                localProcIndexNoBit,
+      //                                targetProcIndex, targetProcIndex);
       
       if(targetProcIndex < steal_target_procs.size()) {
         lifeline_neighbor_procs.push_back(steal_target_procs[targetProcIndex]);
@@ -747,41 +813,33 @@ bool LifelineMapper::send_stolen_tasks(MapperContext ctx,
     }
   }
   
-  send_queue.empty();
+  send_queue.clear();
   
   for(std::vector<std::pair<Processor, unsigned>>::iterator it = thiefProcs.begin();
       it != thiefProcs.end(); it++) {
     Processor processor = it->first;
     unsigned numTasks = it->second;
     Request r = { local_proc, processor, numTasks };
+    log_lifeline_mapper.debug("%s send STEAL_ACK to %s",
+                              prolog(__FUNCTION__).c_str(),
+                              describeProcId(processor.id).c_str());
     runtime->send_message(ctx, processor, &r, sizeof(r), STEAL_ACK);
   }
-  
   return relocated;
 }
 
 //--------------------------------------------------------------------------
-void LifelineMapper::reactivateLifelines(const MapperContext          ctx)
+void LifelineMapper::giveLifeThroughLifelines(const MapperContext          ctx)
 //--------------------------------------------------------------------------
 {
-  for(std::vector<std::pair<Processor, unsigned>>::iterator it = active_lifelines.begin();
+  for(std::vector<Processor>::iterator it = active_lifelines.begin();
       it != active_lifelines.end(); ) {
-    Processor processor = it->first;
-    unsigned numTasks = it->second;
-    Request r = { local_proc, processor, numTasks };
-    bool stolen;
-    handleOneStealRequest(ctx, r, true, stolen);
-    if(stolen) {
-      it = active_lifelines.erase(it);
-      log_lifeline_mapper.debug("%s reactivated %s over lifeline",
-                                prolog(__FUNCTION__).c_str(),
-                                describeProcId(processor.id).c_str());
-    } else {
-      it++;
-      log_lifeline_mapper.debug("%s no tasks available to reactivate %s over lifeline",
-                                prolog(__FUNCTION__).c_str(),
-                                describeProcId(processor.id).c_str());
-    }
+    Processor processor = *it;
+    log_lifeline_mapper.debug("%s send LIFELINE_WAKEUP to %s",
+                              prolog(__FUNCTION__).c_str(),
+                              describeProcId(processor.id).c_str());
+    runtime->send_message(ctx, processor, NULL, 0, LIFELINE_WAKEUP);
+    it = active_lifelines.erase(it);
   }
 }
 
@@ -791,10 +849,17 @@ void LifelineMapper::select_tasks_to_map(const MapperContext          ctx,
                                          SelectMappingOutput&   output)
 //--------------------------------------------------------------------------
 {
+  
+  log_lifeline_mapper.debug("%s relocated_tasks.size %ld worker_ready_queue.size %ld",
+                            prolog(__FUNCTION__).c_str(),
+                            relocated_tasks.size(),
+                            worker_ready_queue.size());
+  
   if(defer_select_tasks_to_map.exists()) {
     triggerSelectTasksToMap(ctx);
   }
   bool mappedOrRelocated = false;
+  bool sawWorkerReadyTasks = false;
   
   for (std::list<const Task*>::const_iterator it = input.ready_tasks.begin();
        it != input.ready_tasks.end(); it++) {
@@ -810,17 +875,26 @@ void LifelineMapper::select_tasks_to_map(const MapperContext          ctx,
                                 taskDescription(*task).c_str());
     } else {
       worker_ready_queue.insert(task);
+      sawWorkerReadyTasks = true;
       log_lifeline_mapper.debug("%s move task %s to ready queue",
                                 prolog(__FUNCTION__).c_str(),
                                 taskDescription(*task).c_str());
     }
   }
   
-  if(!active_lifelines.empty()) {
-    reactivateLifelines(ctx);
+  if(quiesced && (mappedOrRelocated || sawWorkerReadyTasks)) {
+    withdrawActiveLifelines(ctx);
+  }
+  
+  if(!active_lifelines.empty() && worker_ready_queue.size() > 0) {
+    giveLifeThroughLifelines(ctx);
   }
   
   mappedOrRelocated |= send_stolen_tasks(ctx, input, output);
+  
+  log_lifeline_mapper.debug("%s worker_ready_queue.size %ld",
+                            prolog(__FUNCTION__).c_str(),
+                            worker_ready_queue.size());
   
   if (!mappedOrRelocated && !input.ready_tasks.empty()) {
     if (!defer_select_tasks_to_map.exists()) {
