@@ -14,6 +14,10 @@ if [[ -z $SIT_PSDM_DATA ]]; then
     echo "Please set SIT_PSDM_DATA and run again"
     exit 1
 fi
+if [[ ! -d $SIT_PSDM_DATA/cxi ]]; then
+    echo "SIT_PSDM_DATA does not contain a subdirectory named 'cxi', are you sure it's pointing to the right place?"
+    exit 1
+fi
 if [[ ! -e phenix-installer.tar.gz ]]; then
     echo "Please download Phenix from http://phenix-online.org"
     echo "And name the file phenix-installer.tar.gz"
