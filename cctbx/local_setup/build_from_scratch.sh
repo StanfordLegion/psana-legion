@@ -36,7 +36,9 @@ export SIT_ARCH=x86_64-rhel7-gcc48-opt
 export CONDA_PREFIX=$PWD/conda
 export REL_PREFIX=\$CONDA_PREFIX/myrel
 
-export PATH=\$REL_PREFIX/arch/\$SIT_ARCH/bin:\$CONDA_PREFIX/bin:\$PATH
+export GCC_WRAPPER_DIR=$PWD/gcc_wrapper
+
+export PATH=\$REL_PREFIX/arch/\$SIT_ARCH/bin:\$CONDA_PREFIX/bin:\$GCC_WRAPPER_DIR:\$PATH
 export LD_LIBRARY_PATH=\$REL_PREFIX/arch/\$SIT_ARCH/lib:\$CONDA_PREFIX/lib:\$LD_LIBRARY_PATH
 export PYTHONPATH=\$REL_PREFIX/arch/\$SIT_ARCH/python:\$PYTHONPATH
 
@@ -72,6 +74,7 @@ source env.sh
 rm -rf $CONDA_PREFIX
 rm -rf $CCTBX_PREFIX
 rm -rf $GASNET_ROOT_DIR
+rm -rf $GCC_WRAPPER_DIR
 
 # Install Conda environment.
 wget https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh
@@ -108,6 +111,17 @@ pushd "$REL_PREFIX"
   git clone https://github.com/lcls-psana/SConsTools.git
   scons
 popd
+
+# CCTBX can't handle the new ABIs in GCC >= 5. Since the CCTBX build
+# system doesn't recognize the CXX environment variable, we use a
+# wrapper to pass the necessary flags.
+mkdir $GCC_WRAPPER_DIR
+cat > $GCC_WRAPPER_DIR/g++ <<EOF
+#!/bin/bash
+
+$(which g++) -std=c++11 -fabi-version=2 -D_GLIBCXX_USE_CXX11_ABI=0 "\$@"
+EOF
+chmod +x $GCC_WRAPPER_DIR/g++
 
 # Build CCTBX.
 mkdir $CCTBX_PREFIX
