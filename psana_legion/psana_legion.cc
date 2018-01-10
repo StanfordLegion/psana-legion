@@ -79,7 +79,11 @@ int main(int argc, char **argv)
     setenv("PYTHONPATH", PYTHON_MODULES_PATH, true /*overwrite*/);
   }
 
-  Realm::Python::PythonModule::import_python_module("user");
+  const char *module = getenv("PSANA_MODULE");
+  if (!module) {
+    module = "user";
+  }
+  Realm::Python::PythonModule::import_python_module(module);
 
   {
     TaskVariantRegistrar registrar(TOP_LEVEL_TASK_ID, "top_level_task");
