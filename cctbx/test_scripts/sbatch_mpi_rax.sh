@@ -20,12 +20,14 @@ HOST_DATA_DIR=$SCRATCH/data/reg
 
 export SIT_PSDM_DATA=$HOST_DATA_DIR/d/psdm
 
-t_start=`date +%s`
-# FIXME (Elliott): Does the trial number matter????
-for n in 4; do # 8
+export IN_DIR=$PWD/input
+
+for n in 8; do
   echo "Running n$n"
+
+  export OUT_DIR=$PWD/output_"$SLURM_JOB_ID"_n$n
+  mkdir $OUT_DIR
+
   srun -n $n -N 1 --cpus-per-task $(( 256 / n )) --cpu_bind cores \
-    shifter ./index.sh cxid9114 108 0 # 95 89 lustre
+    shifter ./index_mpi.sh cxid9114 108 0 # 95 89 lustre
 done
-t_end=`date +%s`
-echo PSJobCompleted TotalElapsed $((t_end-t_start)) $t_start $t_end
