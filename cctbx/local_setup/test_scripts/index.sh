@@ -44,6 +44,8 @@ export PYTHONPATH="$CCTBX_PREFIX/modules/cctbx_project/xfel/command_line:$PYTHON
 
 export PYTHONUNBUFFERED=1
 
+export REALM_SYNTHETIC_CORE_MAP=
+
 # psana-legion variables:
 export EAGER=1
 export LIMIT=10
