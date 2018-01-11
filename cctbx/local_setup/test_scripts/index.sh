@@ -44,6 +44,10 @@ export PYTHONPATH="$CCTBX_PREFIX/modules/cctbx_project/xfel/command_line:$PYTHON
 
 export PYTHONUNBUFFERED=1
 
+# psana-legion variables:
+export EAGER=1
+export LIMIT=10
+
 $PSANA_LEGION_DIR/psana_legion -ll:py 1 -ll:io 1 -ll:csize 6000 \
   input.experiment=$EXP \
   input.run_num=$RUN \
