@@ -135,6 +135,11 @@ pushd $CCTBX_PREFIX
   mkdir -p modules/cxi_xdr_xes
   python bootstrap.py hot --builder=xfel
   python bootstrap.py update --builder=dials
+  pushd modules/cctbx_project
+    git remote add elliott https://github.com/elliottslaughter/cctbx_project.git
+    git fetch elliott
+    git checkout -b psana-tasking elliott/psana-tasking
+  popd
   python bootstrap.py build --builder=xfel --with-python=$CONDA_PREFIX/bin/python --nproc $(nproc --all)
 popd
 
