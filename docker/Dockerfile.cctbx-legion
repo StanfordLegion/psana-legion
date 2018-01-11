@@ -29,6 +29,10 @@ RUN mkdir $CCTBX_PREFIX
 
 ADD modules $CCTBX_PREFIX/modules
 
+# CCTBX can't handle the new ABIs in GCC >= 5. Since the CCTBX build
+# system doesn't recognize the CXX environment variable, we use a
+# wrapper to pass the necessary flags.
+
 # https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh
 RUN curl -O https://repo.continuum.io/miniconda/Miniconda2-4.3.21-Linux-x86_64.sh && \
     echo "b87adda9eb41f3ae6c2999fda739ab61ebb3892e  Miniconda2-4.3.21-Linux-x86_64.sh" | sha1sum --check && \
@@ -41,7 +45,7 @@ RUN curl -O https://repo.continuum.io/miniconda/Miniconda2-4.3.21-Linux-x86_64.s
     git clone https://github.com/StanfordLegion/psana-legion.git /psana-legion && \
     ORIGINAL_DIR=$PWD && \
     cd "$PSANA_LEGION_DIR" && \
-      DEBUG=0 make -j 2 && \
+      DEBUG=0 make -j 8 && \
     cd "$ORIGINAL_DIR" && \
     mkdir "$REL_PREFIX" && \
     cd "$REL_PREFIX" && \
@@ -62,11 +66,17 @@ RUN curl -O https://repo.continuum.io/miniconda/Miniconda2-4.3.21-Linux-x86_64.s
     cd "$PSANA_LEGION_DIR" && \
       make clean && \
     cd "$ORIGINAL_DIR" && \
+    export PATH="$ORIGINAL_DIR/gcc_wrapper:$PATH" && \
     cd $CCTBX_PREFIX && \
       curl -O https://raw.githubusercontent.com/cctbx/cctbx_project/master/libtbx/auto_build/bootstrap.py && \
       mkdir -p modules/cxi_xdr_xes && \
       python bootstrap.py hot --builder=xfel && \
       python bootstrap.py update --builder=dials && \
+      cd modules/cctbx_project && \
+        git remote add elliott https://github.com/elliottslaughter/cctbx_project.git && \
+        git fetch elliott && \
+        git checkout -b psana-tasking elliott/psana-tasking && \
+      cd ../.. && \
       python bootstrap.py build --builder=xfel --with-python=$CONDA_PREFIX/bin/python --nproc 8 && \
     cd "$ORIGINAL_DIR" && \
     conda uninstall --force mpich mpich2 && \
