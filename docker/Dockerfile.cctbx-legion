@@ -24,14 +24,15 @@ ENV LG_RT_DIR /legion/runtime
 ENV PSANA_LEGION_DIR /psana-legion/psana_legion
 
 ENV CCTBX_PREFIX /cctbx
-
 RUN mkdir $CCTBX_PREFIX
-
 ADD modules $CCTBX_PREFIX/modules
 
 # CCTBX can't handle the new ABIs in GCC >= 5. Since the CCTBX build
 # system doesn't recognize the CXX environment variable, we use a
 # wrapper to pass the necessary flags.
+
+ENV GCC_WRAPPER /gcc_wrapper
+ADD gcc_wrapper $GCC_WRAPPER
 
 # https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh
 RUN curl -O https://repo.continuum.io/miniconda/Miniconda2-4.3.21-Linux-x86_64.sh && \
@@ -66,7 +67,7 @@ RUN curl -O https://repo.continuum.io/miniconda/Miniconda2-4.3.21-Linux-x86_64.s
     cd "$PSANA_LEGION_DIR" && \
       make clean && \
     cd "$ORIGINAL_DIR" && \
-    export PATH="$ORIGINAL_DIR/gcc_wrapper:$PATH" && \
+    export PATH="$GCC_WRAPPER:$PATH" && \
     cd $CCTBX_PREFIX && \
       curl -O https://raw.githubusercontent.com/cctbx/cctbx_project/master/libtbx/auto_build/bootstrap.py && \
       mkdir -p modules/cxi_xdr_xes && \
