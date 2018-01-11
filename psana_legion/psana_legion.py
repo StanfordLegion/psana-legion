@@ -183,8 +183,10 @@ def main_task():
     legion.execution_fence(block=True)
     stop = legion.c.legion_get_current_time_in_micros()
 
-    for idx in legion.IndexLaunch([nprocs]): # FIXME: Should be a must-epoch launch
-        teardown()
+    if _ds.config.teardown is not None:
+        # FIXME: Should be a must-epoch launch
+        for idx in legion.IndexLaunch([nprocs]):
+            teardown()
 
     print('Elapsed time: %e seconds' % ((stop - start)/1e6))
     print('Number of calib cycles: %s' % ncalib)
