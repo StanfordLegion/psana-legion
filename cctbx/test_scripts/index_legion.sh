@@ -49,6 +49,9 @@ external_psana_dir=$PWD/../../psana_legion
 export PYTHONPATH="$external_psana_dir:$PYTHONPATH"
 export LD_LIBRARY_PATH="$external_psana_dir:$external_psana_dir/lib64:$LD_LIBRARY_PATH"
 
+# FIXME: This seems to be necessary (otherwise Python can't find __future__ ???)
+export PYTHONHOME="$CONDA_PREFIX"
+
 $external_psana_dir/psana_legion -ll:py 1 -ll:io 1 -ll:csize 6000 \
   input.experiment=$EXP \
   input.run_num=$RUN \
