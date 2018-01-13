@@ -27,17 +27,18 @@ import sys
 
 # User configurable analysis and filter predicate.
 class Config(object):
-    __slots__ = ['analysis', 'predicate', 'limit']
+    __slots__ = ['analysis', 'predicate', 'teardown', 'limit']
     def __init__(self):
         self.analysis = None
         self.predicate = None
+        self.teardown = None
         self.limit = None
 
 _ds = None
 class LegionDataSource(object):
     __slots__ = ['descriptor', 'ds_rax', 'ds_smd', 'config']
     def __init__(self, descriptor):
-        if not descriptor.endswith(':rax'):
+        if ':rax' not in descriptor:
             raise Exception('LegionDataSource requires RAX mode')
         self.descriptor = descriptor
 
@@ -51,22 +52,26 @@ class LegionDataSource(object):
     def env(self):
         return self.rax().env()
 
+    def runs(self):
+        return self.rax().runs()
+
     def jump(self, *args):
         return self.rax().jump(*args)
 
     def smd(self):
         if self.ds_smd is None:
-            descriptor = self.descriptor[:-4] + ':smd'
+            descriptor = self.descriptor.replace(':rax', ':smd')
             self.ds_smd = psana.DataSource(descriptor)
         return self.ds_smd
 
-    def start(self, analysis, predicate=None, limit=None):
+    def start(self, analysis, predicate=None, teardown=None, limit=None):
         global _ds
         assert _ds is None
         _ds = self
 
         self.config.analysis = analysis
         self.config.predicate = predicate
+        self.config.teardown = teardown
         self.config.limit = limit
 
 class Location(object):
@@ -93,6 +98,10 @@ def analyze(locs, calib):
     print("analyze")
     for loc in locs:
         future = analyze_leaf(loc, calib)
+
+@legion.task
+def teardown():
+    _ds.config.teardown() # Performs user teardown
 
 def chunk(iterable, chunksize):
     it = iter(iterable)
@@ -142,8 +151,11 @@ def main_task():
     # Number of tasks per processor per launch
     overcommit = int(os.environ['OVERCOMMIT']) if 'OVERCOMMIT' in os.environ else 1
 
+    # Number of Python processors
+    nprocs = legion.Tunable.select(legion.Tunable.GLOBAL_PYS).get()
+
     # Number of tasks per launch
-    launchsize = (legion.Tunable.select(legion.Tunable.GLOBAL_PYS).get() - 1) * overcommit
+    launchsize = (nprocs - 1) * overcommit
 
     print('Chunk size %s' % chunksize)
     print('Launch size %s' % launchsize)
@@ -170,6 +182,11 @@ def main_task():
 
     legion.execution_fence(block=True)
     stop = legion.c.legion_get_current_time_in_micros()
+
+    if _ds.config.teardown is not None:
+        # FIXME: Should be a must-epoch launch
+        for idx in legion.IndexLaunch([nprocs]):
+            teardown()
 
     print('Elapsed time: %e seconds' % ((stop - start)/1e6))
     print('Number of calib cycles: %s' % ncalib)

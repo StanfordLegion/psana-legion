@@ -4,7 +4,7 @@
 #SBATCH --partition=debug # regular
 #SBATCH --constraint=knl,quad,cache
 #SBATCH --core-spec=4
-#SBATCH --image=docker:stanfordlegion/cctbx-mpi:latest
+#SBATCH --image=docker:stanfordlegion/cctbx-legion:latest
 #SBATCH --exclusive # causes shifter to preload image before run
 #SBATCH --mail-type=ALL
 #SBATCH --account=ACCOUNT
@@ -22,12 +22,15 @@ export SIT_PSDM_DATA=$HOST_DATA_DIR/d/psdm
 
 export IN_DIR=$PWD/input
 
+export EAGER=1
+export LIMIT=1
+
 for n in 8; do
   echo "Running n$n"
 
-  export OUT_DIR=$PWD/output_mpi_"$SLURM_JOB_ID"_n$n
+  export OUT_DIR=$PWD/output_legion_"$SLURM_JOB_ID"_n$n
   mkdir $OUT_DIR
 
   srun -n $n -N 1 --cpus-per-task $(( 256 / n )) --cpu_bind cores \
-    shifter ./index_mpi.sh cxid9114 108 0 # 95 89 lustre
+    shifter ./index_legion.sh cxid9114 108 0 # 95 89 lustre
 done

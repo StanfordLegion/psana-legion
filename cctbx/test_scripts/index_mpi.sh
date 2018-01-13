@@ -1,15 +1,13 @@
 #!/bin/bash
+
 START_XTC=$(date +"%s")
 EXP=$1
 RUN=$2
 TRIAL=$3
 
+# FIXME (Elliott): Does the trial number matter????
+
 source $CCTBX_PREFIX/build/setpaths.sh
-
-IN_DIR=$PWD/input
-OUT_DIR=$PWD/output
-
-mkdir -p $OUT_DIR
 
 DATA_DIR=$SIT_PSDM_DATA/cxi/cxid9114/xtc
 

@@ -73,12 +73,21 @@ private:
   MapperEvent defer_select_tasks_to_map;
 };
 
+static unsigned getenv_or_default(const char *name, unsigned value)
+{
+  const char *env_value = getenv(name);
+  if (env_value) {
+    return atoi(env_value);
+  }
+  return value;
+}
+
 SimpleMapper::SimpleMapper(MapperRuntime *rt, Machine machine, Processor local,
                          const char *mapper_name)
   : DefaultMapper(rt, machine, local, mapper_name)
   , tasks_in_flight(0)
   , last_tasks_in_flight(0)
-  , max_tasks_in_flight(MAX_TASKS_IN_FLIGHT)
+  , max_tasks_in_flight(getenv_or_default("MAX_TASKS_IN_FLIGHT", MAX_TASKS_IN_FLIGHT))
   , tasks_in_flight_hysteresis(TASKS_IN_FLIGHT_HYSTERESIS)
   , task_queue_index(0)
 {

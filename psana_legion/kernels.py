@@ -15,14 +15,17 @@
 # limitations under the License.
 #
 
+import os
 import numpy
 
 def nop_kernel():
     pass
 
+_memory_size = int(os.environ.get('KERNEL_MEMORY_SIZE', 64)) # MB
+
 def make_memory_bound_kernel(rounds):
     def kernel():
-        x = numpy.zeros(1<<23) # allocate 64 MB array (larger than L3 cache)
+        x = numpy.zeros(_memory_size/8) # allocate array of doubles
         for i in range(rounds):
             numpy.add(x, 1, out=x)
     return kernel
