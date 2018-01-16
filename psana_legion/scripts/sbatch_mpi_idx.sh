@@ -28,6 +28,6 @@ for n in 1 2 4 8 16; do
   for c in 128 64; do # 32 16 8 4 2 1
     srun -n $(( n * c )) -N $n --cpus-per-task $(( 256 / c )) --cpu_bind cores --output idx_n"$n"_c"$c".log \
       shifter \
-        python $HOST_PSANA_DIR/mpi_idx.py
+        python $HOST_PSANA_DIR/psana_legion/mpi_idx.py
   done
 done

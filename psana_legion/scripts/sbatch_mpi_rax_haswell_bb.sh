@@ -31,7 +31,7 @@ for n in 1 2 4 8 16; do
     if [[ ! -e rax_n"$n"_c"$c".log ]]; then
       srun -n $(( n * c + 1 )) -N $(( n + 1 )) --cpus-per-task $(( 64 / c )) --cpu_bind threads --distribution=arbitrary --output rax_n"$n"_c"$c".log \
         shifter \
-          python $HOST_PSANA_DIR/mpi_rax.py
+          python $HOST_PSANA_DIR/psana_legion/mpi_rax.py
     fi
   done
 done
