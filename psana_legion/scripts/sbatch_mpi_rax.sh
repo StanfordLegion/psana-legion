@@ -21,6 +21,8 @@ HOST_PSANA_DIR=$HOME/psana_legion/psana-legion
 # HOST_DATA_DIR=$SCRATCH/stripe_c24_s16_data/reg
 HOST_DATA_DIR=$SCRATCH/noepics_data/reg
 
+export SIT_PSDM_DATA=$HOST_DATA_DIR/d/psdm
+
 echo "HOST_DATA_DIR=$HOST_DATA_DIR"
 
 export EAGER=1
@@ -32,9 +34,7 @@ for n in 1 2 4 8 16; do
     if [[ ! -e rax_n"$n"_c"$c".log ]]; then
       srun -n $(( n * c + 1 )) -N $(( n + 1 )) --cpus-per-task $(( 256 / c )) --cpu_bind threads --distribution=arbitrary --output rax_n"$n"_c"$c".log \
         shifter \
-          --volume=$HOST_PSANA_DIR:/native-psana-legion \
-          --volume=$HOST_DATA_DIR:/reg \
-          python /native-psana-legion/psana_legion/mpi_rax.py
+          python $HOST_PSANA_DIR/mpi_rax.py
     fi
   done
 done
