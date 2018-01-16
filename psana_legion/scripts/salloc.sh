@@ -14,5 +14,5 @@ salloc \
 --image=docker:stanfordlegion/psana-legion:latest \
 --exclusive \
 --mail-type=ALL \
---account=ACCOUNT \
+--account=lcls \
 --bbf="bbf.conf"

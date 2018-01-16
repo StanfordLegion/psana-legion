@@ -5,7 +5,7 @@
 #SBATCH --constraint=knl,quad,flat
 #SBATCH --core-spec=4 # reserve 4 cores for the OS
 #SBATCH --mail-type=ALL
-#SBATCH --account=ACCOUNT
+#SBATCH --account=lcls
 
 # Meaning of --constraint:
 # flat vs cache: use MCDRAM as a scratchpad vs a cache

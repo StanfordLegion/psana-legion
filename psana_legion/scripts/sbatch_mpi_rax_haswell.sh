@@ -8,7 +8,7 @@
 #SBATCH --image=docker:stanfordlegion/psana-mpi:latest
 #SBATCH --exclusive # causes shifter to preload image before run
 #SBATCH --mail-type=ALL
-#SBATCH --account=ACCOUNT
+#SBATCH --account=lcls
 
 # Host directory where Psana is located
 # (Needed for Python script)

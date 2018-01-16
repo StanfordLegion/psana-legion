@@ -4,5 +4,5 @@
 #SBATCH --partition=debug
 #SBATCH --constraint=haswell
 #SBATCH --mail-type=ALL
-#SBATCH --account=ACCOUNT
+#SBATCH --account=lcls
 #BB destroy_persistent name=slaughte_data_noepics

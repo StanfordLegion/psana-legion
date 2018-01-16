@@ -9,7 +9,7 @@
 #SBATCH --image=docker:stanfordlegion/psana-legion:latest
 #SBATCH --exclusive # causes shifter to preload image before run
 #SBATCH --mail-type=ALL
-#SBATCH --account=ACCOUNT
+#SBATCH --account=lcls
 
 # Host directory where Psana is located
 # (Needed for native Legion shared library)
