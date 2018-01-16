@@ -105,6 +105,8 @@ private:
   int promisedRelocatedTaskCount;
   int slicedPointTaskCount;
   int localTaskCount;
+  int mappedRelocatedTaskCount;
+  int mappedSelfTaskCount;
   MapperRuntime *runtime;
   MapperEvent defer_select_tasks_to_map;
   std::set<const Task*> worker_ready_queue;
@@ -115,7 +117,7 @@ private:
   SendQueue send_queue;
   unsigned numUniqueIds;
   bool stealRequestOutstanding;
-  std::deque<Request> unresolved_requests;
+//  std::deque<Request> unresolved_requests;
   unsigned numFailedSteals;
   bool quiesced;
   
@@ -252,6 +254,8 @@ proc_sysmems(*_proc_sysmems)
   promisedRelocatedTaskCount = 0;
   slicedPointTaskCount = 0;
   localTaskCount = 0;
+  mappedRelocatedTaskCount = 0;
+  mappedSelfTaskCount = 0;
   numFailedSteals = 0;
   quiesced = false;
   
@@ -275,8 +279,9 @@ int LifelineMapper::totalPendingWorkload() const
 //--------------------------------------------------------------------------
 {
   int result = promisedStealTaskCount + promisedRelocatedTaskCount + slicedPointTaskCount
-  + localTaskCount - sliceTaskCount - stolenTaskCount;
-  log_lifeline_mapper.debug("%s = %d promisedSteal %d promisedRelocated %d slicedPoint %d local %d - slice %d stolen %d",
+  + localTaskCount - sliceTaskCount - stolenTaskCount - mappedRelocatedTaskCount
+  - mappedSelfTaskCount;
+  log_lifeline_mapper.debug("%s = %d promisedSteal %d promisedRelocated %d slicedPoint %d local %d - slice %d stolen %d mappedRelocated %d mappedSelf %d",
                             prolog(__FUNCTION__, __LINE__).c_str(),
                             result,
                             promisedStealTaskCount,
@@ -284,7 +289,9 @@ int LifelineMapper::totalPendingWorkload() const
                             slicedPointTaskCount,
                             localTaskCount,
                             sliceTaskCount,
-                            stolenTaskCount);
+                            stolenTaskCount,
+                            mappedRelocatedTaskCount,
+                            mappedSelfTaskCount);
   assert(result >= 0);
   return result;
 }
@@ -294,7 +301,7 @@ std::string LifelineMapper::workloadState() const
 //--------------------------------------------------------------------------
 {
   char buffer[256];
-  sprintf(buffer, "totalPending %d = Running %d promisedSteal %d promisedRelocated %d slicedPoint %d local %d - slice %d stolen %d",
+  sprintf(buffer, "totalPending %d = Running %d promisedSteal %d promisedRelocated %d slicedPoint %d local %d - slice %d stolen %d mappedRelocated %d mappedSelf %d",
           totalPendingWorkload(),
           locallyRunningTaskCount,
           promisedStealTaskCount,
@@ -302,7 +309,9 @@ std::string LifelineMapper::workloadState() const
           slicedPointTaskCount,
           localTaskCount,
           sliceTaskCount,
-          stolenTaskCount);
+          stolenTaskCount,
+          mappedRelocatedTaskCount,
+          mappedSelfTaskCount);
   return std::string(buffer);
 }
 
@@ -475,9 +484,11 @@ void LifelineMapper::handleOneStealRequest(const MapperContext ctx,
     }
   }
   
+#if 0
   if(r.numTasks > 0 && !reactivating) {
     unresolved_requests.push_back(r);
   }
+#endif
   
   if(numStolen > 0) {
     send_queue[r.thiefProc] = tasks;
@@ -509,6 +520,7 @@ void LifelineMapper::handleStealRequest(const MapperContext ctx,
                               describeProcId(r.thiefProc.id).c_str());
     runtime->send_message(ctx, r.thiefProc, &r, sizeof(r), STEAL_NACK);
   } else {
+#if 0
     for(std::deque<Request>::iterator it = unresolved_requests.begin();
         it != unresolved_requests.end(); ) {
       Request r = *it;
@@ -516,6 +528,7 @@ void LifelineMapper::handleStealRequest(const MapperContext ctx,
       handleOneStealRequest(ctx, r, false, stolen);
       it = unresolved_requests.erase(it);
     }
+#endif
     Request r = *(Request*)message.message;
     bool stolen;
     handleOneStealRequest(ctx, r, false, stolen);
@@ -1027,7 +1040,9 @@ void LifelineMapper::select_tasks_to_map(const MapperContext          ctx,
                        && locallyRunningTaskCount < MIN_RUNNING_TASKS);
     if(mapHereNow) {
       output.map_tasks.insert(task);
-      locallyRunningTaskCount++;
+      if(isAnalysisTask(*task)) {
+        locallyRunningTaskCount++;
+      }
       mappedOrRelocated = true;
       log_lifeline_mapper.debug("%s select task %s for here now",
                                 prolog(__FUNCTION__, __LINE__).c_str(),
@@ -1045,8 +1060,10 @@ void LifelineMapper::select_tasks_to_map(const MapperContext          ctx,
       it != tasks_to_map_locally.end(); ++it) {
     const Task* task = *it;
     output.map_tasks.insert(task);
-    locallyRunningTaskCount++;
-    
+    if(isAnalysisTask(*task)) {
+      locallyRunningTaskCount++;
+    }
+
     log_lifeline_mapper.debug("%s select local task %s for here now",
                               prolog(__FUNCTION__, __LINE__).c_str(),
                               taskDescription(*task).c_str());
@@ -1147,7 +1164,9 @@ void LifelineMapper::report_profiling(const MapperContext      ctx,
 //--------------------------------------------------------------------------
 {
   // task completion request
-  locallyRunningTaskCount--;
+  if(isAnalysisTask(task)) {
+    locallyRunningTaskCount--;
+  }
   log_lifeline_mapper.info("%s # %s %s",
                            prolog(__FUNCTION__, __LINE__).c_str(),
                            taskDescription(task).c_str(),
@@ -1171,11 +1190,13 @@ void LifelineMapper::map_task(const MapperContext      ctx,
   output.target_procs.push_back(local_proc);
   
   if(task.orig_proc.id == local_proc.id) {
+    mappedSelfTaskCount++;
     log_lifeline_mapper.debug("%s maps self task %s %s",
                               prolog(__FUNCTION__, __LINE__).c_str(),
                               taskDescription(task).c_str(),
                               workloadState().c_str());
   } else {
+    mappedRelocatedTaskCount++;
     log_lifeline_mapper.debug("%s maps relocated task %s %s",
                               prolog(__FUNCTION__, __LINE__).c_str(),
                               taskDescription(task).c_str(),
