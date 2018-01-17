@@ -29,6 +29,7 @@ export SIT_PSDM_DATA=$HOST_DATA_DIR/d/psdm
 echo "HOST_DATA_DIR=$HOST_DATA_DIR"
 
 export EAGER=1
+export PSANA_MAPPER=simple
 
 for n in 1 2 4 8 16; do
   for c in 8; do
