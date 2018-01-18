@@ -4,7 +4,7 @@
 #SBATCH --partition=debug
 #SBATCH --constraint=haswell
 #SBATCH --mail-type=ALL
-#SBATCH --account=ACCOUNT
+#SBATCH --account=lcls
 #DW persistentdw name=slaughte_data_noepics
 
 export SRC=$SCRATCH/noepics_data/reg

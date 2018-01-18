@@ -8,7 +8,7 @@
 #SBATCH --image=docker:stanfordlegion/psana-legion:latest
 #SBATCH --exclusive # causes shifter to preload image before run
 #SBATCH --mail-type=ALL
-#SBATCH --account=ACCOUNT
+#SBATCH --account=lcls
 #DW persistentdw name=slaughte_data_noepics
 
 # Host directory where Psana is located
@@ -22,9 +22,12 @@ HOST_LEGION_DIR=$HOME/psana_legion/legion
 # Host directory where data is located
 HOST_DATA_DIR=$DW_PERSISTENT_STRIPED_slaughte_data_noepics/reg
 
+export SIT_PSDM_DATA=$HOST_DATA_DIR/d/psdm
+
 echo "HOST_DATA_DIR=$HOST_DATA_DIR"
 
 export EAGER=1
+export PSANA_MAPPER=simple
 
 for n in 1 2 4 8 16; do
   for c in 8; do
@@ -34,13 +37,9 @@ for n in 1 2 4 8 16; do
       if [[ ! -e rax_n"$n"_c"$c"_i"$i".log ]]; then
         srun -n $(( n * c + 1 )) -N $(( n + 1 )) --cpus-per-task $(( 64 / c )) --cpu_bind cores --distribution=arbitrary --output rax_n"$n"_c"$c"_i"$i".log \
           shifter \
-            --volume=$HOST_PSANA_DIR:/native-psana-legion \
-            --volume=$HOST_LEGION_DIR:/legion \
-            --volume=$HOST_DATA_DIR:/reg \
-            --volume=$PWD:/output \
-            /native-psana-legion/psana_legion/scripts/psana_legion.sh \
+            $HOST_PSANA_DIR/psana_legion/scripts/psana_legion.sh \
               -ll:py 1 -ll:io 1 -ll:concurrent_io $i -ll:csize 6000 -lg:window 100
-              # -lg:prof $(( n * c )) -lg:prof_logfile /output/prof_n"$n"_c"$c"_i"$i"_%.gz
+              # -lg:prof $(( n * c )) -lg:prof_logfile prof_n"$n"_c"$c"_i"$i"_%.gz
       fi
     done
   done
