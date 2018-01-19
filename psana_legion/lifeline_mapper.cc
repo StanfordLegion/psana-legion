@@ -20,13 +20,14 @@
 #include <time.h>
 #include <vector>
 #include <deque>
+#include <sysexits.h>
 //#include <assert.h>
 
 
 #include "default_mapper.h"
 
 #undef assert
-#define assert(condition) if(!(condition)) { log_lifeline_mapper.fatal("%s assert %s", prolog(__FUNCTION__, __LINE__).c_str(), #condition); exit(-1); }
+#define assert(condition) if(!(condition)) { log_lifeline_mapper.fatal("%s assert %s", prolog(__FUNCTION__, __LINE__).c_str(), #condition); exit(EX_SOFTWARE); }
 
 using namespace Legion;
 using namespace Legion::Mapping;
@@ -775,11 +776,6 @@ void LifelineMapper::identifyRelatedProcs()
       unsigned modifiedBit = (!(sourceBit >> bit)) << bit;
       unsigned localProcIndexNoBit = (localProcIndex & ~mask) & (maxProcId - 1);
       unsigned targetProcIndex = localProcIndexNoBit | modifiedBit;
-      //      log_lifeline_mapper.debug("%s bit %u mask 0x%x source 0x%x modified 0x%x localNoBit 0x%x target 0x%x %u",
-      //                                prolog(__FUNCTION__, __LINE__).c_str(),
-      //                                bit, mask, sourceBit, modifiedBit,
-      //                                localProcIndexNoBit,
-      //                                targetProcIndex, targetProcIndex);
       
       if(targetProcIndex < steal_target_procs.size()) {
         lifeline_neighbor_procs.push_back(steal_target_procs[targetProcIndex]);
