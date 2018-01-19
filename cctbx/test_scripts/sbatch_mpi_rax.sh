@@ -7,7 +7,7 @@
 #SBATCH --image=docker:stanfordlegion/cctbx-mpi:latest
 #SBATCH --exclusive # causes shifter to preload image before run
 #SBATCH --mail-type=ALL
-#SBATCH --account=ACCOUNT
+#SBATCH --account=lcls
 
 # temporarily disable the following sbatch flags:
 # --job-name=psana_legion
