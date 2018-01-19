@@ -19,10 +19,6 @@ mkdir -p $OUT_DIR/discovery/dials/$RUN_F/$TRIAL_F/stdout
 mkdir -p $OUT_DIR/discovery/dials/$RUN_F/$TRIAL_F/tmp
 
 #run index
-# The CCTBX wrapper script uses a Python wrapper that doesn't order PYTHONPATH
-# (et al) correctly, so we have to hack all the paths ourselves
-
-### Original version:
 cctbx.xfel.xtc_process \
   input.experiment=$EXP \
   input.run_num=$RUN \

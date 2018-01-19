@@ -32,7 +32,7 @@ cctbx.xfel.xtc_process \
   output.tmp_output_dir=$OUT_DIR/discovery/dials/$RUN_F/$TRIAL_F/tmp \
   input.reference_geometry=$IN_DIR/geom_ld91.json \
   input.xtc_dir=$DATA_DIR \
-  max_events=1 # Hack
+  max_events=$LIMIT # Hack
 
 END_XTC=$(date +"%s")
 ELAPSED=$((END_XTC-START_XTC))

@@ -22,6 +22,9 @@ export SIT_PSDM_DATA=$HOST_DATA_DIR/d/psdm
 
 export IN_DIR=$PWD/input
 
+# export EAGER=1 # Not supported
+export LIMIT=1
+
 for n in 8; do
   echo "Running n$n"
 
