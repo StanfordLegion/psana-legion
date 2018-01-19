@@ -14,9 +14,10 @@
 # --dependency=singleton
 
 # Host directory where data is located
-HOST_DATA_DIR=$SCRATCH/data/reg
+# HOST_DATA_DIR=$SCRATCH/data/reg
 # HOST_DATA_DIR=$SCRATCH/stripe_24_data/reg
 # HOST_DATA_DIR=$SCRATCH/noepics_data/reg
+HOST_DATA_DIR=$SCRATCH/demo_data/reg
 
 export SIT_PSDM_DATA=$HOST_DATA_DIR/d/psdm
 
