@@ -48,7 +48,7 @@ export REALM_SYNTHETIC_CORE_MAP=
 
 # psana-legion variables:
 export EAGER=1
-export LIMIT=10
+export LIMIT=1
 
 $PSANA_LEGION_DIR/psana_legion -ll:py 1 -ll:io 1 -ll:csize 6000 \
   input.experiment=$EXP \
@@ -61,7 +61,7 @@ $PSANA_LEGION_DIR/psana_legion -ll:py 1 -ll:io 1 -ll:csize 6000 \
   output.tmp_output_dir=$OUT_DIR/discovery/dials/$RUN_F/$TRIAL_F/tmp \
   input.reference_geometry=$IN_DIR/geom_ld91.json \
   input.xtc_dir=$DATA_DIR \
-  max_events=1 \
+  max_events=$LIMIT \
   < /dev/null # Hack: otherwise cctbx freezes in option parsing
 
 END_XTC=$(date +"%s")
