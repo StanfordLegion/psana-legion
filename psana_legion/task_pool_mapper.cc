@@ -353,10 +353,11 @@ std::string TaskPoolMapper::prolog(const char* function) const
 {
  char buffer[512];
   assert(strlen(function) < sizeof(buffer));
-  sprintf(buffer, "%lld %s%s: %s",
+  sprintf(buffer, "%lld %s(%s): %s %s",
           timeNow(), describeProcId(local_proc.id).c_str(),
-          (mapperCategory == WORKER ? "(W)" : (mapperCategory == TASK_POOL ? "(T)" :
-            (mapperCategory == IO ? "(I)" : (mapperCategory == LEGION_CPU ? "(L)" : "")))),
+          processorKindString(local_proc.kind()),
+          (mapperCategory == WORKER ? "W" : (mapperCategory == TASK_POOL ? "T" :
+            (mapperCategory == IO ? "I" : (mapperCategory == LEGION_CPU ? "L" : "")))),
           function);
   return std::string(buffer);
 }
@@ -1170,9 +1171,15 @@ void TaskPoolMapper::report_profiling(const MapperContext      ctx,
 {
   // task completion request
   taskWorkloadSize--;
-  log_task_pool_mapper.info("%s report_profiling # %s taskWorkloadSize %d",
+  
+  Realm::ProfilingMeasurements::OperationTimeline timeline;
+  input.profiling_responses.get_measurement<Realm::ProfilingMeasurements::OperationTimeline>(timeline);
+  Realm::ProfilingMeasurements::OperationTimeline::timestamp_t elapsedNS = timeline.end_time - timeline.start_time;
+
+  log_task_pool_mapper.info("%s %s %lld taskWorkloadSize %d",
                             prolog(__FUNCTION__).c_str(),
                             taskDescription(task).c_str(),
+                            elapsedNS,
                             taskWorkloadSize);
   if(mapperCategory == WORKER) {
     maybeSendStealRequest(ctx, nearestTaskPoolProc);
@@ -1214,6 +1221,7 @@ void TaskPoolMapper::map_task(const MapperContext      ctx,
   
   ProfilingRequest completionRequest;
   completionRequest.add_measurement<Realm::ProfilingMeasurements::OperationStatus>();
+  completionRequest.add_measurement<Realm::ProfilingMeasurements::OperationTimeline>();
   output.task_prof_requests = completionRequest;
   
   for (unsigned idx = 0; idx < task.regions.size(); idx++) {
