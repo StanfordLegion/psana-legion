@@ -24,6 +24,30 @@
 //#include <assert.h>
 
 
+/*
+ note to self - in discussing these results identify the span of time when the mapper will
+ count a task in locallyStartedTaskCount until locallEndedTaskCount; compare this to the actual time form when the task starts running in map_task.  Account for the difference in time, we
+ start to count the task when it gets promsied, which is sooner than when it gets mapped.
+ Try to estimate the impact of this appoximation.
+ 
+ use the random assignment probability formula from J Supercomputing as a baseline for the
+ psana testbed tasks, compute mean and variance, generate scaling prediction for desired
+ imbalanve epsilon as a function of problem scale, show whether either mapper performs better
+ than random.  how to measure workload, think about it.  total execution time of all tasks
+ mapped to a processor between start and finish?  then also need to account for system overheads
+ that are the difference between the sum of the tasks times and the actual oveall elapsed time (how efficiently did we run)?
+ plot the probability surface in 3D using wolfram alpha
+ 
+ need to measure the elaped time of each task to get mean and variance, also need to compute
+ total time on each proceasor = sum of task times on each processor.
+ 
+ need to define some appropriate metrics to measure as processor count scales.  load balance is one.
+ are there others?
+ 
+ capture some plots of representative processors using legion_prof, plots of workload over time using eg gnuplot or wolfram alpha
+ */
+
+
 #include "default_mapper.h"
 
 #undef assert
@@ -32,7 +56,9 @@
 using namespace Legion;
 using namespace Legion::Mapping;
 
-#define _T {log_lifeline_mapper.debug("%s line %d", prolog(__FUNCTION__).c_str(), __LINE__);}
+#define _T {log_lifeline_mapper.debug("%s", prolog(__FUNCTION__, __LINE__).c_str());}
+
+#define _X {log_lifeline_mapper.debug("%s trace mappedRelocated %d", prolog(__FUNCTION__, __LINE__).c_str(), mappedRelocatedTaskCount);}
 
 static const char* ANALYSIS_TASK_NAMES[] = {
   "psana_legion.analyze",
@@ -98,16 +124,19 @@ private:
   std::uniform_int_distribution<int> uni;
   std::map<std::pair<LogicalRegion,Memory>,PhysicalInstance> local_instances;
   typedef long long Timestamp;
-  int totalTaskCount;
-  int sliceTaskCount;
-  int locallyRunningTaskCount;
-  int stolenTaskCount;
-  int promisedStealTaskCount;
-  int promisedRelocatedTaskCount;
-  int slicedPointTaskCount;
-  int localTaskCount;
-  int mappedRelocatedTaskCount;
-  int mappedSelfTaskCount;
+  
+  // these are the counters that track workload
+  int locallyStartedTaskCount; // tasks that start running here
+  int locallyEndedTaskCount; // tasks that report completion here
+  int stolenAwayTaskCount; // tasks that are stolen away due to receiving a steal request from another processor
+  int promisedFromStealsTaskCount; // tasks that are promised here by another processor because we sent a steal request
+  int promisedRelocatedTaskCount; // tasks that are promised here by a processor of a different kind() executing select_task_options, we are a nearest neighbor (of the right kind()) of this processor
+  int sliceTaskCount; // slice tasks seen here in slice_task
+  int slicedPointTaskCount; // point tasks generated here from slice tasks
+  int selfGeneratedTaskCount; // tasks for processor of our kind() seen here in select_task_options
+  int mappedRelocatedTaskCount; // tasks that were sent here from another processor and mapped
+  int mappedSelfGeneratedTaskCount; // tasks that were generated here and mapped
+  
   MapperRuntime *runtime;
   MapperEvent defer_select_tasks_to_map;
   std::set<const Task*> worker_ready_queue;
@@ -122,6 +151,7 @@ private:
   unsigned numFailedSteals;
   bool quiesced;
   
+  int locallyRunningTaskCount() const;
   int totalPendingWorkload() const;
   std::string workloadState() const;
   Timestamp timeNow() const;
@@ -244,7 +274,6 @@ proc_sysmems(*_proc_sysmems)
 // proc_regmems(*_proc_regmems)
 //--------------------------------------------------------------------------
 {
-  log_lifeline_mapper.info("%s constructor", prolog(__FUNCTION__, __LINE__).c_str());
   identifyRelatedProcs();
   
   rng = std::mt19937(rd());    // random-number engine used (Mersenne-Twister in this case)
@@ -252,16 +281,16 @@ proc_sysmems(*_proc_sysmems)
   runtime = rt;
   numUniqueIds = 0;
   stealRequestOutstanding = false;
-  totalTaskCount = 0;
   sliceTaskCount = 0;
-  locallyRunningTaskCount = 0;
-  stolenTaskCount = 0;
-  promisedStealTaskCount = 0;
+  locallyStartedTaskCount = 0;
+  locallyEndedTaskCount = 0;
+  stolenAwayTaskCount = 0;
+  promisedFromStealsTaskCount = 0;
   promisedRelocatedTaskCount = 0;
   slicedPointTaskCount = 0;
-  localTaskCount = 0;
+  selfGeneratedTaskCount = 0;
   mappedRelocatedTaskCount = 0;
-  mappedSelfTaskCount = 0;
+  mappedSelfGeneratedTaskCount = 0;
   numFailedSteals = 0;
   quiesced = false;
   
@@ -284,40 +313,55 @@ void LifelineMapper::configure_context(const MapperContext         ctx,
 int LifelineMapper::totalPendingWorkload() const
 //--------------------------------------------------------------------------
 {
-  int result = promisedStealTaskCount + promisedRelocatedTaskCount + slicedPointTaskCount
-  + localTaskCount - sliceTaskCount - stolenTaskCount - mappedRelocatedTaskCount
-  - mappedSelfTaskCount;
-  log_lifeline_mapper.debug("%s = %d promisedSteal %d promisedRelocated %d slicedPoint %d local %d - slice %d stolen %d mappedRelocated %d mappedSelf %d",
+  int result = promisedFromStealsTaskCount + promisedRelocatedTaskCount + slicedPointTaskCount
+  + selfGeneratedTaskCount - sliceTaskCount - stolenAwayTaskCount - locallyEndedTaskCount;
+  log_lifeline_mapper.debug("%s = %d promisedSteal %d promisedRelocated %d slicedPoint %d local %d - slice %d stolen %d locallyEnded %d",
                             prolog(__FUNCTION__, __LINE__).c_str(),
                             result,
-                            promisedStealTaskCount,
+                            promisedFromStealsTaskCount,
                             promisedRelocatedTaskCount,
                             slicedPointTaskCount,
-                            localTaskCount,
+                            selfGeneratedTaskCount,
                             sliceTaskCount,
-                            stolenTaskCount,
-                            mappedRelocatedTaskCount,
-                            mappedSelfTaskCount);
+                            stolenAwayTaskCount,
+                            locallyEndedTaskCount);
   assert(result >= 0);
   return result;
 }
+
+
+
+//--------------------------------------------------------------------------
+int LifelineMapper::locallyRunningTaskCount() const
+//--------------------------------------------------------------------------
+{
+  int result = locallyStartedTaskCount - locallyEndedTaskCount;
+  log_lifeline_mapper.info("%s locallyRunning %d = locallyStarted %d - locallyEnded %d",
+                           prolog(__FUNCTION__, __LINE__).c_str(),
+                           result,
+                           locallyStartedTaskCount,
+                           locallyEndedTaskCount);
+  return result;
+}
+
 
 //--------------------------------------------------------------------------
 std::string LifelineMapper::workloadState() const
 //--------------------------------------------------------------------------
 {
   char buffer[256];
-  sprintf(buffer, "totalPending %d = Running %d promisedSteal %d promisedRelocated %d slicedPoint %d local %d - slice %d stolen %d mappedRelocated %d mappedSelf %d",
+  sprintf(buffer, "locallyRunning %d, totalPending %d = promisedSteal %d promisedRelocated %d slicedPoint %d local %d - slice %d stolen %d mappedRelocated %d mappedSelf %d",
+          locallyRunningTaskCount(),
           totalPendingWorkload(),
-          locallyRunningTaskCount,
-          promisedStealTaskCount,
+          promisedFromStealsTaskCount,
           promisedRelocatedTaskCount,
           slicedPointTaskCount,
-          localTaskCount,
+          selfGeneratedTaskCount,
           sliceTaskCount,
-          stolenTaskCount,
+          stolenAwayTaskCount,
           mappedRelocatedTaskCount,
-          mappedSelfTaskCount);
+          mappedSelfGeneratedTaskCount);
+  log_lifeline_mapper.info("workloadState %s", buffer);
   return std::string(buffer);
 }
 
@@ -339,7 +383,7 @@ std::string LifelineMapper::prolog(const char* function, int line) const
 void LifelineMapper::sendStealRequest(MapperContext ctx, Processor target)
 //--------------------------------------------------------------------------
 {
-  unsigned numTasks = MIN_RUNNING_TASKS - locallyRunningTaskCount;
+  unsigned numTasks = MIN_RUNNING_TASKS - locallyRunningTaskCount();
   assert(numTasks > 0);
   Request r = { target, local_proc, numTasks };
   log_lifeline_mapper.debug("%s send STEAL_REQUEST numTasks %d to %s",
@@ -354,8 +398,8 @@ void LifelineMapper::sendStealRequest(MapperContext ctx, Processor target)
 bool LifelineMapper::maybeGetLocalTasks(MapperContext ctx)
 //--------------------------------------------------------------------------
 {
-  if(locallyRunningTaskCount < MIN_RUNNING_TASKS && worker_ready_queue.size() > 0) {
-    int numTasks = MIN_RUNNING_TASKS - locallyRunningTaskCount;
+  if(locallyRunningTaskCount() < MIN_RUNNING_TASKS && worker_ready_queue.size() > 0) {
+    int numTasks = MIN_RUNNING_TASKS - locallyRunningTaskCount();
     
     for(std::set<const Task*>::iterator it = worker_ready_queue.begin();
         it != worker_ready_queue.end() && numTasks > 0; ) {
@@ -363,6 +407,14 @@ bool LifelineMapper::maybeGetLocalTasks(MapperContext ctx)
       tasks_to_map_locally.insert(task);
       it = worker_ready_queue.erase(it);
       numTasks--;
+      if(isAnalysisTask(*task)) {
+        locallyStartedTaskCount++;
+        
+        log_lifeline_mapper.info("%s incremebnt locallyStartedTaskCount to %d",
+                                 prolog(__FUNCTION__, __LINE__).c_str(),
+                                 locallyStartedTaskCount);/***/
+        
+      }
       log_lifeline_mapper.debug("%s task %s should map locally, tasks_to_map_locally.size %ld",
                                 prolog(__FUNCTION__, __LINE__).c_str(),
                                 taskDescription(*task).c_str(),
@@ -380,7 +432,7 @@ void LifelineMapper::stealTasks(MapperContext ctx, Processor target)
 //--------------------------------------------------------------------------
 {
   if(local_proc.kind() == Processor::PY_PROC) {
-    int notRunning = MIN_RUNNING_TASKS - locallyRunningTaskCount;
+    int notRunning = MIN_RUNNING_TASKS - locallyRunningTaskCount();
     bool wantMoreTasks = notRunning > 0;
     bool havePendingTasks = totalPendingWorkload() >= notRunning;
     log_lifeline_mapper.debug("%s wantMore %d havePending %d stealOutstanding %d %s",
@@ -420,7 +472,7 @@ void LifelineMapper::maybeGetMoreTasks(MapperContext ctx, Processor target)
 {
   if(local_proc.kind() == Processor::PY_PROC) {
     if(!quiesced) {
-      int notRunning = MIN_RUNNING_TASKS - locallyRunningTaskCount;
+      int notRunning = MIN_RUNNING_TASKS - locallyRunningTaskCount();
       bool wantMoreTasks = notRunning > 0;
       if(wantMoreTasks) {
         if(!maybeGetLocalTasks(ctx)) {
@@ -464,7 +516,6 @@ void LifelineMapper::handleOneStealRequest(const MapperContext ctx,
   
   assert(r.numTasks > 0);
   
-  
   TaskVector tasks = send_queue[r.thiefProc];
   std::set<const Task*>::iterator it = worker_ready_queue.begin();
   
@@ -477,8 +528,12 @@ void LifelineMapper::handleOneStealRequest(const MapperContext ctx,
       relocated_tasks.insert(task);
       r.numTasks--;
       numStolen++;
-      log_lifeline_mapper.debug("%s increment stolenTaskCount", prolog(__FUNCTION__, __LINE__).c_str());
-      stolenTaskCount++;
+      stolenAwayTaskCount++;
+
+      log_lifeline_mapper.info("%s increment stolenAwayTaskCount to %d",
+                                prolog(__FUNCTION__, __LINE__).c_str(),
+                                stolenAwayTaskCount);/***/
+      
       it = worker_ready_queue.erase(it);
       log_lifeline_mapper.debug("%s relocate task %s to %s %s",
                                 prolog(__FUNCTION__, __LINE__).c_str(),
@@ -533,7 +588,12 @@ void LifelineMapper::handleStealAck(const MapperContext ctx,
 //--------------------------------------------------------------------------
 {
   Request r = *(Request*)message.message;
-  promisedStealTaskCount += r.numTasks;
+  promisedFromStealsTaskCount += r.numTasks;
+  
+  log_lifeline_mapper.info("%s increased promisedFromStealsTaskCount to %d",
+                           prolog(__FUNCTION__, __LINE__).c_str(),
+                           promisedFromStealsTaskCount); /***/
+  
   log_lifeline_mapper.debug("%s from %s numTasks %u %s",
                             prolog(__FUNCTION__, __LINE__).c_str(),
                             describeProcId(message.sender.id).c_str(),
@@ -552,6 +612,11 @@ void LifelineMapper::handleRelocateTaskInfo(const MapperContext ctx,
 {
   Request r = *(Request*)message.message;
   promisedRelocatedTaskCount += r.numTasks;
+  
+  log_lifeline_mapper.info("%s increased promisedRelocatedTaskCount to %d",
+                           prolog(__FUNCTION__, __LINE__).c_str(),
+                           promisedRelocatedTaskCount);/***/
+  
   log_lifeline_mapper.debug("%s from %s numTasks %u %s",
                             prolog(__FUNCTION__, __LINE__).c_str(),
                             describeProcId(message.sender.id).c_str(),
@@ -611,7 +676,7 @@ void LifelineMapper::handleStealNack(const MapperContext ctx,
                             prolog(__FUNCTION__, __LINE__).c_str(),
                             describeProcId(message.sender.id).c_str(),
                             numFailedSteals);
-  if(numFailedSteals >= MAX_FAILED_STEALS && locallyRunningTaskCount < MIN_RUNNING_TASKS) {
+  if(numFailedSteals >= MAX_FAILED_STEALS && locallyRunningTaskCount() < MIN_RUNNING_TASKS) {
     quiesce(ctx);
   }
 }
@@ -867,6 +932,11 @@ void LifelineMapper::slice_task(const MapperContext      ctx,
     decompose_points(point_rect, num_blocks, output.slices);
     slicedPointTaskCount += point_rect.volume();
     
+    log_lifeline_mapper.info("%s increased slicedPointTaskCount to %d",
+                             prolog(__FUNCTION__, __LINE__).c_str(),
+                            slicedPointTaskCount);/***/
+    
+    
   } else {
     log_lifeline_mapper.debug("%s pass %s to default mapper",
                               prolog(__FUNCTION__, __LINE__).c_str(),
@@ -1004,13 +1074,18 @@ void LifelineMapper::processNewReadyTasks(const SelectMappingInput&    input,
     const Task* task = *it;
     if(!alreadyQueued(task)) {
       
-      bool mapHereNow = (locallyRunningTaskCount < MIN_RUNNING_TASKS)
+      bool mapHereNow = (locallyRunningTaskCount() < MIN_RUNNING_TASKS)
       || (local_proc.kind() != Processor::PY_PROC);
       
       if(mapHereNow) {
         output.map_tasks.insert(task);
         if(isAnalysisTask(*task)) {
-          locallyRunningTaskCount++;
+          locallyStartedTaskCount++;
+          
+          log_lifeline_mapper.info("S%s increment locallyStartedTaskCount to %d",
+                                   prolog(__FUNCTION__, __LINE__).c_str(),
+                                   locallyStartedTaskCount);/***/
+          
         }
         mappedOrRelocated = true;
         log_lifeline_mapper.debug("%s select task %s for here now",
@@ -1034,7 +1109,6 @@ void LifelineMapper::select_tasks_to_map(const MapperContext          ctx,
                                          SelectMappingOutput&   output)
 //--------------------------------------------------------------------------
 {
-  
   log_lifeline_mapper.debug("%s relocated_tasks %ld "
                             "worker_ready_queue %ld "
                             "input.ready_tasks %ld "
@@ -1059,10 +1133,6 @@ void LifelineMapper::select_tasks_to_map(const MapperContext          ctx,
       it != tasks_to_map_locally.end(); ++it) {
     const Task* task = *it;
     output.map_tasks.insert(task);
-    if(isAnalysisTask(*task)) {
-      locallyRunningTaskCount++;
-    }
-    
     log_lifeline_mapper.debug("%s select local task %s for here now",
                               prolog(__FUNCTION__, __LINE__).c_str(),
                               taskDescription(*task).c_str());
@@ -1164,7 +1234,12 @@ void LifelineMapper::report_profiling(const MapperContext      ctx,
 {
   // task completion request
   if(isAnalysisTask(task)) {
-    locallyRunningTaskCount--;
+    locallyEndedTaskCount++;
+    
+    log_lifeline_mapper.info("%s increment locallyEndedTaskCount to %d",
+                             prolog(__FUNCTION__, __LINE__).c_str(),
+                             locallyEndedTaskCount);/***/
+    
   }
   log_lifeline_mapper.info("%s # %s %s",
                            prolog(__FUNCTION__, __LINE__).c_str(),
@@ -1180,7 +1255,6 @@ void LifelineMapper::map_task(const MapperContext      ctx,
                               MapTaskOutput&     output)
 //--------------------------------------------------------------------------
 {
-  
   VariantInfo chosen = default_find_preferred_variant(task, ctx,
                                                       true/*needs tight bound*/, false/*cache*/, Processor::NO_KIND);
   output.chosen_variant = chosen.variant;
@@ -1189,13 +1263,26 @@ void LifelineMapper::map_task(const MapperContext      ctx,
   output.target_procs.push_back(local_proc);
   
   if(task.orig_proc.id == local_proc.id) {
-    mappedSelfTaskCount++;
+    
+    mappedSelfGeneratedTaskCount++;
+    
+    log_lifeline_mapper.info("%s increment mappedSelfGeneratedTaskCount to %d",
+                             prolog(__FUNCTION__, __LINE__).c_str(),
+                             mappedSelfGeneratedTaskCount);/***/
+    
+
     log_lifeline_mapper.debug("%s maps self task %s %s",
                               prolog(__FUNCTION__, __LINE__).c_str(),
                               taskDescription(task).c_str(),
                               workloadState().c_str());
   } else {
+    
     mappedRelocatedTaskCount++;
+    
+    log_lifeline_mapper.info("%s increment mappedRelocatedTaskCount to %d",
+                             prolog(__FUNCTION__, __LINE__).c_str(),
+                            mappedRelocatedTaskCount);/***/
+    
     log_lifeline_mapper.debug("%s maps relocated task %s %s",
                               prolog(__FUNCTION__, __LINE__).c_str(),
                               taskDescription(task).c_str(),
@@ -1250,13 +1337,17 @@ void LifelineMapper::select_task_options(const MapperContext    ctx,
                                                 /*cache result*/true,
                                                 Processor::NO_KIND);
   assert(variantInfo.proc_kind != Processor::NO_KIND);
-  totalTaskCount++;
   bool sendRelocateTaskInfo = false;
   
   Processor initial_proc;
   if(variantInfo.proc_kind == local_proc.kind()) {
     initial_proc = local_proc;
-    localTaskCount++;
+    selfGeneratedTaskCount++;
+    
+    log_lifeline_mapper.info("%s increment selfGeneratedTaskCount to %d",
+                             prolog(__FUNCTION__, __LINE__).c_str(),
+                            selfGeneratedTaskCount);/***/
+    
   } else {
     sendRelocateTaskInfo = true;
     initial_proc = nearestProcessor(variantInfo.proc_kind);
