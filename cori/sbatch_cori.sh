@@ -9,9 +9,13 @@
 
 source ~/PSANA/setup.bash
 pushd ~/PSANA/psana-legion/psana_legion
-export PSANA_MAPPER=task_pool
-export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:`pwd`
-export PYTHON_PATH=${PYTHON_PATH}:`pwd`
+export PSANA_MAPPER=lifeline
+source ../local_setup/env.sh
 
-srun -n 4 ./psana_legion -ll:py 1 -ll:io 1 -ll:csize 6000 -lg:window 100 -level taskpool_mapper=1
+echo PSANA_MAPPER $PSANA_MAPPER
+echo SIT_PSDM_DATA $SIT_PSDM_DATA
+echo EXPERIMENT $EXPERIMENT
+echo DETECTOR $DETECTOR
+
+srun -n 4 ./psana_legion -ll:py 1 -ll:io 1 -ll:csize 6000 -lg:window 100 -level taskpool_mapper=1,lifeline_mapper=1
 
