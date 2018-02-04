@@ -294,10 +294,6 @@ proc_sysmems(*_proc_sysmems)
   numFailedSteals = 0;
   quiesced = false;
   
-  log_lifeline_mapper.info("%lld # %s %s %s",
-                           timeNow(), describeProcId(local_proc.id).c_str(),
-                           workloadState().c_str(),
-                           processorKindString(local_proc.kind()));
 }
 
 //--------------------------------------------------------------------------
@@ -403,11 +399,6 @@ bool LifelineMapper::maybeGetLocalTasks(MapperContext ctx)
       numTasks--;
       if(isAnalysisTask(*task)) {
         locallyStartedTaskCount++;
-        
-        log_lifeline_mapper.info("%s incremebnt locallyStartedTaskCount to %d",
-                                 prolog(__FUNCTION__, __LINE__).c_str(),
-                                 locallyStartedTaskCount);/***/
-        
       }
       log_lifeline_mapper.debug("%s task %s should map locally, tasks_to_map_locally.size %ld",
                                 prolog(__FUNCTION__, __LINE__).c_str(),
@@ -524,10 +515,6 @@ void LifelineMapper::handleOneStealRequest(const MapperContext ctx,
       numStolen++;
       stolenAwayTaskCount++;
 
-      log_lifeline_mapper.info("%s increment stolenAwayTaskCount to %d",
-                                prolog(__FUNCTION__, __LINE__).c_str(),
-                                stolenAwayTaskCount);/***/
-      
       it = worker_ready_queue.erase(it);
       log_lifeline_mapper.debug("%s relocate task %s to %s %s",
                                 prolog(__FUNCTION__, __LINE__).c_str(),
@@ -831,7 +818,7 @@ void LifelineMapper::identifyRelatedProcs()
       if(targetProcIndex < steal_target_procs.size()) {
         lifeline_neighbor_procs.push_back(steal_target_procs[targetProcIndex]);
         
-        log_lifeline_mapper.debug("%s lifeline to %s",
+        log_lifeline_mapper.info("%s lifeline to %s",
                                   prolog(__FUNCTION__, __LINE__).c_str(),
                                   describeProcId(steal_target_procs[targetProcIndex].id).c_str());
       }
