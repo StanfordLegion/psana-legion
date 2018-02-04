@@ -21,7 +21,7 @@ fi
 
 NODES=$2
 
-SBATCH=sbatch_${MAPPER}_${NODES}
+SBATCH=sbatch_${MAPPER}_${NODES}.bash
 rm -f ${SBATCH}
 cat sbatch_cori.template | sed -e "s/_MAPPER_/${MAPPER}/g" | sed -e "s/_NODES_/${NODES}/g" > ${SBATCH}
 ls -l ${SBATCH}

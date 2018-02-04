@@ -1,0 +1,22 @@
+#!/bin/bash
+#SBATCH --job-name=psana_legion
+#SBATCH --nodes=_NODES_
+#SBATCH --time=00:30:00
+#SBATCH --partition=regular
+#SBATCH --constraint=knl,quad,cache
+
+source ~/PSANA/setup.bash
+pushd ${PSANA_LEGION_DIR}
+source ../local_setup/env.sh
+export PSANA_MAPPER=_MAPPER_
+
+echo PSANA_MAPPER $PSANA_MAPPER
+echo SIT_PSDM_DATA $SIT_PSDM_DATA
+echo EXPERIMENT $EXPERIMENT
+echo DETECTOR $DETECTOR
+
+DIR=${PSANA_LEGION_DIR}/../cori/_MAPPER___NODES_
+rm -rf ${DIR}
+mkdir ${DIR}
+srun -n _NODES_ ./psana_legion -ll:cpu 22 -ll:py 22 -ll:io 22 -ll:csize 6000 -lg:window 100 -level _MAPPER__mapper=2 -logfile ${DIR}/_MAPPER__%.log
+
