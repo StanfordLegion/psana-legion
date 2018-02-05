@@ -18,6 +18,10 @@ mkdir -p $OUT_DIR/discovery/dials/$RUN_F/$TRIAL_F/out
 mkdir -p $OUT_DIR/discovery/dials/$RUN_F/$TRIAL_F/stdout
 mkdir -p $OUT_DIR/discovery/dials/$RUN_F/$TRIAL_F/tmp
 
+# psana-legion variables:
+# export EAGER=1 # FIXME: Not supported
+export LIMIT=1
+
 #run index
 cctbx.xfel.xtc_process \
   input.experiment=$EXP \
@@ -30,7 +34,7 @@ cctbx.xfel.xtc_process \
   output.tmp_output_dir=$OUT_DIR/discovery/dials/$RUN_F/$TRIAL_F/tmp \
   input.reference_geometry=$IN_DIR/geom_ld91.json \
   input.xtc_dir=$DATA_DIR \
-  max_events=1 \
+  max_events=$LIMIT \
   < /dev/null # Hack: otherwise cctbx freezes in option parsing
 
 END_XTC=$(date +"%s")
