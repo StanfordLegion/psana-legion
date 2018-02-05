@@ -85,7 +85,6 @@ class Location(object):
 
 @legion.task
 def analyze_leaf(loc, calib):
-    print("analyze_leaf")
     runtime = long(legion.ffi.cast("unsigned long long", legion._my.ctx.runtime_root))
     ctx = long(legion.ffi.cast("unsigned long long", legion._my.ctx.context_root))
 
@@ -95,7 +94,6 @@ def analyze_leaf(loc, calib):
 
 @legion.task(inner=True)
 def analyze(locs, calib):
-    print("analyze")
     for loc in locs:
         future = analyze_leaf(loc, calib)
 
@@ -114,7 +112,6 @@ def chunk(iterable, chunksize):
 # top_level_task in psana_legion.cc.
 @legion.task(inner=True)
 def main_task():
-    print("main_task")
     assert _ds is not None
 
     events = _ds.smd().events()

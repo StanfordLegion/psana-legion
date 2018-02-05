@@ -22,7 +22,11 @@ fi
 NODES=$2
 
 SBATCH=sbatch_${MAPPER}_${NODES}.bash
+let NODESPLUSONE=${NODES}+1
 rm -f ${SBATCH}
-cat sbatch_cori.template | sed -e "s/_MAPPER_/${MAPPER}/g" | sed -e "s/_NODES_/${NODES}/g" > ${SBATCH}
+cat sbatch_cori.template | \
+	sed -e "s/_MAPPER_/${MAPPER}/g" | \
+	sed -e "s/_NODES_/${NODES}/g" | \
+	sed -e "s/_NODESPLUSONE_/${NODESPLUSONE}/g" > ${SBATCH}
 ls -l ${SBATCH}
 
