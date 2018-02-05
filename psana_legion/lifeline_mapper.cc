@@ -311,7 +311,7 @@ int LifelineMapper::totalPendingWorkload() const
 {
   int result = promisedFromStealsTaskCount + promisedRelocatedTaskCount + slicedPointTaskCount
   + selfGeneratedTaskCount - sliceTaskCount - stolenAwayTaskCount - locallyEndedTaskCount;
-  log_lifeline_mapper.debug("%s = %d promisedSteal %d promisedRelocated %d slicedPoint %d local %d - slice %d stolen %d locallyEnded %d",
+  log_lifeline_mapper.debug("%s = %d, promisedSteal %d promisedRelocated %d slicedPoint %d selfGenerated %d - slice %d stolen %d locallyEnded %d",
                             prolog(__FUNCTION__, __LINE__).c_str(),
                             result,
                             promisedFromStealsTaskCount,
@@ -1244,6 +1244,8 @@ void LifelineMapper::map_task(const MapperContext      ctx,
                               taskDescription(task).c_str(),
                               workloadState().c_str());
   }
+  
+  int pending = totalPendingWorkload();//debug remove this statement
   
   ProfilingRequest completionRequest;
   completionRequest.add_measurement<Realm::ProfilingMeasurements::OperationStatus>();
