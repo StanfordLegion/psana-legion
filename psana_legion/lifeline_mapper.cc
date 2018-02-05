@@ -341,7 +341,7 @@ std::string LifelineMapper::workloadState() const
 //--------------------------------------------------------------------------
 {
   char buffer[256];
-  sprintf(buffer, "locallyRunning %d, totalPending %d = promisedSteal %d promisedRelocated %d slicedPoint %d local %d - slice %d stolen %d mappedRelocated %d mappedSelf %d",
+  sprintf(buffer, "locallyRunning %d, totalPending %d = promisedSteal %d promisedRelocated %d slicedPoint %d selfGenerated %d - slice %d stolen %d locallyEnded %d",
           locallyRunningTaskCount(),
           totalPendingWorkload(),
           promisedFromStealsTaskCount,
@@ -350,8 +350,7 @@ std::string LifelineMapper::workloadState() const
           selfGeneratedTaskCount,
           sliceTaskCount,
           stolenAwayTaskCount,
-          mappedRelocatedTaskCount,
-          mappedSelfGeneratedTaskCount);
+          locallyEndedTaskCount);
   return std::string(buffer);
 }
 
@@ -1239,8 +1238,9 @@ void LifelineMapper::map_task(const MapperContext      ctx,
     
     mappedRelocatedTaskCount++;
     
-    log_lifeline_mapper.debug("%s maps relocated task %s %s",
+    log_lifeline_mapper.debug("%s maps relocated (from %s) task %s %s",
                               prolog(__FUNCTION__, __LINE__).c_str(),
+                              describeProcId(task.orig_proc.id).c_str(),
                               taskDescription(task).c_str(),
                               workloadState().c_str());
   }
