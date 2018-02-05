@@ -24,10 +24,13 @@ import psana_legion
 
 # Get the analysis kernel to perform on each event
 import kernels
-if os.environ.get('KERNEL_KIND') == 'memory_bound':
+kernel_kind = os.environ.get('KERNEL_KIND')
+if kernel_kind == 'memory_bound':
     kernel = kernels.make_memory_bound_kernel(int(os.environ.get('KERNEL_ROUNDS', 100)))
-else:
+elif kernel_kind is None:
     kernel = None
+else:
+    raise Exception('Unrecognized kernel kind: %s' % kernel_kind)
 
 experiment = os.environ['EXPERIMENT'] if 'EXPERIMENT' in os.environ else ('exp=cxid9114:run=%s:rax' % 108)
 detector = os.environ['DETECTOR'] if 'DETECTOR' in os.environ else 'CxiDs2.0:Cspad.0'

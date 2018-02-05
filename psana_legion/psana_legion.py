@@ -199,3 +199,6 @@ def main_task():
     fraction_events = float(nevents)/total_events
     bw = fraction_events * total_size / ((stop - start)/1e6)
     print('Estimated bandwidth used: %e GB/s' % bw)
+
+    print('End of run')
+    sys.stdout.flush()
