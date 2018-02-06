@@ -321,7 +321,6 @@ int LifelineMapper::totalPendingWorkload() const
                             sliceTaskCount,
                             stolenAwayTaskCount,
                             locallyEndedTaskCount);
-  assert(result >= 0);
   return result;
 }
 
