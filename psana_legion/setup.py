@@ -19,7 +19,9 @@ from distutils.core import setup, Extension
 
 module = Extension('native_kernels',
                    sources=['native_kernels.c',
-                            'native_kernels_pyext.c'])
+                            'native_kernels_helper.c',
+                            'native_kernels_pyext.c'],
+                   extra_compile_args=['-O3', '-march=native'])
 
 setup(name='native_kernels',
       version='1.0',
