@@ -18,8 +18,16 @@
 
 #include <stddef.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void memory_bound_kernel(size_t buffer_size, size_t rounds);
 
 void memory_bound_kernel_default(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // __NATIVE_KERNELS_H__
