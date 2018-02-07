@@ -81,7 +81,7 @@ BIN_OUTFILE ?= psana_legion
 BIN_GEN_OBJ ?= psana_legion.o native_kernels_tasks.o simple_mapper.o task_pool_mapper.o lifeline_mapper.o
 
 .PHONY: all
-all: $(OUTFILE) $(BIN_OUTFILE) pyext
+all: $(OUTFILE) $(CORE_OUTFILE) $(BIN_OUTFILE)
 
 $(CORE_GEN_OBJ) : %.o : %.cc
 	$(CXX) -o $@ -c $< $(CC_FLAGS) $(INC_FLAGS) -O3
@@ -97,7 +97,7 @@ $(BIN_OUTFILE) : $(BIN_GEN_OBJ) $(OUTFILE) $(CORE_OUTFILE)
 
 .PHONY: pyext
 pyext: $(CORE_OUTFILE)
-	python setup.py install --prefix=$(PWD)/install
+	python setup.py install
 
 ###########################################################################
 #
