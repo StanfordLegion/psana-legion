@@ -18,6 +18,12 @@
 
 #include <stddef.h>
 
-void memory_bound_helper(float *restrict buffer, size_t count);
+#ifdef __cplusplus
+#define RESTRICT __restrict__
+#else
+#define RESTRICT restrict
+#endif
+
+void memory_bound_helper(float * RESTRICT buffer, size_t count);
 
 #endif // __NATIVE_KERNELS_HELPER_H__

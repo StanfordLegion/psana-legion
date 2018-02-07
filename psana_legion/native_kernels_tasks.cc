@@ -13,13 +13,24 @@
  * limitations under the License.
  */
 
-#ifndef __NATIVE_KERNELS_H__
-#define __NATIVE_KERNELS_H__
+#include "legion.h"
 
-#include <stddef.h>
+#include "native_kernels.h"
 
-void memory_bound_kernel(size_t buffer_size, size_t rounds);
+using namespace Legion;
 
-void memory_bound_kernel_default(void);
+void memory_bound_task(const Task *task,
+                       const std::vector<PhysicalRegion> &regions,
+                       Context ctx, Runtime *runtime)
+{
+  memory_bound_kernel_default();
+}
 
-#endif // __NATIVE_KERNELS_H__
+void register_native_kernels_tasks(int memory_bound_task_id)
+{
+  {
+    TaskVariantRegistrar registrar(memory_bound_task_id, "memory_bound_task");
+    registrar.add_constraint(ProcessorConstraint(Processor::LOC_PROC));
+    Runtime::preregister_task_variant<memory_bound_task>(registrar, "memory_bound_task");
+  }
+}

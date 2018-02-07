@@ -70,14 +70,17 @@ endif
 
 # Hack: Create the real binary
 REAL_OUTFILE ?= psana_legion
-REAL_GEN_OBJ ?= psana_legion.o simple_mapper.o task_pool_mapper.o lifeline_mapper.o
+REAL_GEN_OBJ ?= psana_legion.o native_kernels_tasks.o simple_mapper.o task_pool_mapper.o lifeline_mapper.o
+REAL_GEN_COBJ ?= native_kernels.o native_kernels_helper.o
 .PHONY: all
 all: $(OUTFILE) $(REAL_OUTFILE)
 $(REAL_GEN_OBJ) : %.o : %.cc
 	$(CXX) -o $@ -c $< $(CC_FLAGS) $(INC_FLAGS)
-$(REAL_OUTFILE) : $(REAL_GEN_OBJ) $(OUTFILE)
+$(REAL_GEN_COBJ) : %.o : %.c
+	$(CXX) -o $@ -c $< $(CC_FLAGS) $(INC_FLAGS) -O3
+$(REAL_OUTFILE) : $(REAL_GEN_OBJ) $(REAL_GEN_COBJ) $(OUTFILE)
 	@echo "---> Linking objects into one binary: $(REAL_OUTFILE)"
-	$(CXX) -o $(REAL_OUTFILE) $(REAL_GEN_OBJ) $(REAL_LD_FLAGS) -L. -lpsana_legion $(REAL_LIBS)
+	$(CXX) -o $(REAL_OUTFILE) $(REAL_GEN_OBJ) $(REAL_GEN_COBJ) $(REAL_LD_FLAGS) -L. -lpsana_legion $(REAL_LIBS)
 
 
 ###########################################################################
@@ -89,4 +92,4 @@ $(REAL_OUTFILE) : $(REAL_GEN_OBJ) $(OUTFILE)
 include $(LG_RT_DIR)/runtime.mk
 
 clean::
-	$(RM) -f $(OUTFILE) $(SLIB_LEGION) $(SLIB_REALM) $(GEN_OBJS) $(GEN_GPU_OBJS) $(LOW_RUNTIME_OBJS) $(HIGH_RUNTIME_OBJS) $(GPU_RUNTIME_OBJS) $(MAPPER_OBJS) $(ASM_OBJS) $(REAL_OUTFILE) $(REAL_GEN_OBJ)
+	$(RM) -f $(OUTFILE) $(SLIB_LEGION) $(SLIB_REALM) $(GEN_OBJS) $(GEN_GPU_OBJS) $(LOW_RUNTIME_OBJS) $(HIGH_RUNTIME_OBJS) $(GPU_RUNTIME_OBJS) $(MAPPER_OBJS) $(ASM_OBJS) $(REAL_OUTFILE) $(REAL_GEN_OBJ) $(REAL_GEN_COBJ)

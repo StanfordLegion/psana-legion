@@ -17,6 +17,8 @@
 #include "realm/python/python_module.h"
 #include "realm/python/python_source.h"
 
+#include "native_kernels_tasks.h"
+
 #include "simple_mapper.h"
 #include "task_pool_mapper.h"
 #include "lifeline_mapper.h"
@@ -26,6 +28,7 @@ using namespace Legion;
 enum TaskIDs {
   TOP_LEVEL_TASK_ID = 1,
   MAIN_TASK_ID = 2,
+  MEMORY_BOUND_TASK_ID = 3,
 };
 
 enum FieldIDs {
@@ -98,6 +101,8 @@ int main(int argc, char **argv)
   }
 
   Runtime::set_top_level_task_id(TOP_LEVEL_TASK_ID);
+
+  register_native_kernels_tasks(MEMORY_BOUND_TASK_ID);
 
   char *mapper = getenv("PSANA_MAPPER");
   if (mapper && strcmp(mapper, "simple") == 0) {

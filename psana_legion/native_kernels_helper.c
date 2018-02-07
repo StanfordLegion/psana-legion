@@ -21,7 +21,8 @@
 // This is separated into its own file so that the compiler doesn't
 // inline it and optimize away the computation.
 
-void memory_bound_helper(float *restrict buffer, size_t count)
+__attribute__((target_clones("arch=knl","arch=haswell","default")))
+void memory_bound_helper(float * RESTRICT buffer, size_t count)
 {
   for (size_t i = 0; i < count; i++) {
     buffer[i] += 1.0;

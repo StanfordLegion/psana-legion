@@ -13,13 +13,9 @@
  * limitations under the License.
  */
 
-#ifndef __NATIVE_KERNELS_H__
-#define __NATIVE_KERNELS_H__
+#ifndef __NATIVE_KERNELS_TASKS_H__
+#define __NATIVE_KERNELS_TASKS_H__
 
-#include <stddef.h>
+void register_native_kernels_tasks(int memory_bound_task_id);
 
-void memory_bound_kernel(size_t buffer_size, size_t rounds);
-
-void memory_bound_kernel_default(void);
-
-#endif // __NATIVE_KERNELS_H__
+#endif // __NATIVE_KERNELS_TASKS_H__

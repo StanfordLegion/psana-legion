@@ -19,20 +19,12 @@
 
 static PyObject *pyext_memory_bound_kernel(PyObject *self, PyObject *args)
 {
-  unsigned long long buffer_size;
-  unsigned long long rounds;
-
-  if (!PyArg_ParseTuple(args, "KK", &buffer_size, &rounds)) {
-    PyErr_SetString(PyExc_TypeError, "incorrect arguments to memory_bound_kernel");
-    return NULL;
-  }
-
-  memory_bound_kernel(buffer_size, rounds);
+  memory_bound_kernel_default();
   Py_RETURN_NONE;
 }
 
 static PyMethodDef PyextMethods[] = {
-  {"memory_bound_kernel", pyext_memory_bound_kernel, METH_VARARGS,
+  {"memory_bound_kernel", pyext_memory_bound_kernel, METH_NOARGS,
    "Execute memory-bound kernel."},
   {NULL, NULL, 0, NULL}
 };
