@@ -73,7 +73,7 @@ REAL_OUTFILE ?= psana_legion
 REAL_GEN_OBJ ?= psana_legion.o native_kernels_tasks.o simple_mapper.o task_pool_mapper.o lifeline_mapper.o
 REAL_GEN_COBJ ?= native_kernels.o native_kernels_helper.o
 .PHONY: all
-all: $(OUTFILE) $(REAL_OUTFILE)
+all: $(OUTFILE) $(REAL_OUTFILE) pyext
 $(REAL_GEN_OBJ) : %.o : %.cc
 	$(CXX) -o $@ -c $< $(CC_FLAGS) $(INC_FLAGS)
 $(REAL_GEN_COBJ) : %.o : %.c
@@ -82,6 +82,8 @@ $(REAL_OUTFILE) : $(REAL_GEN_OBJ) $(REAL_GEN_COBJ) $(OUTFILE)
 	@echo "---> Linking objects into one binary: $(REAL_OUTFILE)"
 	$(CXX) -o $(REAL_OUTFILE) $(REAL_GEN_OBJ) $(REAL_GEN_COBJ) $(REAL_LD_FLAGS) -L. -lpsana_legion $(REAL_LIBS)
 
+pyext::
+	python setup.py install --prefix=$(PWD)/install
 
 ###########################################################################
 #
