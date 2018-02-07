@@ -29,7 +29,7 @@ RUN curl -O https://repo.continuum.io/miniconda/Miniconda2-4.3.21-Linux-x86_64.s
     ORIGINAL_DIR=$PWD && \
     cd "$PSANA_LEGION_DIR" && \
       DEBUG=0 make -j 8 && \
-      python setup.py install && \
+      DEBUG=0 make pyext && \
     cd "$ORIGINAL_DIR" && \
     mkdir "$REL_PREFIX" && \
     cd "$REL_PREFIX" && \
