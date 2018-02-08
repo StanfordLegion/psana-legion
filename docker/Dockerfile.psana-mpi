@@ -1,34 +1,35 @@
-FROM ubuntu:16.04
+FROM centos:centos7
 MAINTAINER Elliott Slaughter <slaughter@cs.stanford.edu>
 
-ENV DEBIAN_FRONTEND noninteractive
-
-RUN apt-get update -qq && \
-    apt-get install -qq build-essential bzip2 curl libdigest-sha-perl git zlib1g-dev && \
-    apt-get clean
+RUN yum clean all && \
+    yum -y install bzip2 gcc-c++ git make shasum zlib-devel
 
 ENV CONDA_PREFIX /conda
 ENV PATH $CONDA_PREFIX/bin:$PATH
 ENV LD_LIBRARY_PATH $CONDA_PREFIX/lib:$LD_LIBRARY_PATH
-
-ENV LG_RT_DIR /legion/runtime
-ENV PSANA_LEGION_DIR /psana-legion/psana_legion
 
 # https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh
 RUN curl -O https://repo.continuum.io/miniconda/Miniconda2-4.3.21-Linux-x86_64.sh && \
     echo "b87adda9eb41f3ae6c2999fda739ab61ebb3892e  Miniconda2-4.3.21-Linux-x86_64.sh" | sha1sum --check && \
     /bin/bash Miniconda2-4.3.21-Linux-x86_64.sh -b -p "$CONDA_PREFIX" && \
     conda update -y conda && \
-    conda install -y scons cython libtiff=4.0.6 icu=54 && \
-    conda install -y --channel lcls-rhel7 psana-conda ndarray && \
-    git clone -b python https://github.com/StanfordLegion/legion.git /legion && \
+    conda install -y --channel lcls-rhel7 psana-conda && \
+    conda install -y --channel conda-forge "mpich>=3" mpi4py libtiff=4.0.6 && \
+    conda uninstall --force mpich && \
+    rm Miniconda2-4.3.21-Linux-x86_64.sh
+
+ENV LG_RT_DIR /legion/runtime
+ENV PSANA_LEGION_DIR /psana-legion/psana_legion
+
+RUN git clone -b python https://github.com/StanfordLegion/legion.git /legion && \
     git clone https://github.com/StanfordLegion/psana-legion.git /psana-legion && \
     ORIGINAL_DIR=$PWD && \
     cd "$PSANA_LEGION_DIR" && \
-      DEBUG=0 make -j 8 && \
-      DEBUG=0 make pyext && \
+      echo "build step 1" && \
+      FORCE_PYTHON=1 PYTHON_VERSION_MAJOR=2 PYTHON_LIB=/conda/lib/libpython2.7.so DEBUG=0 make -j 8 && \
+      echo "build step 2" && \
+      FORCE_PYTHON=1 PYTHON_VERSION_MAJOR=2 PYTHON_LIB=/conda/lib/libpython2.7.so DEBUG=0 make pyext && \
+      echo "finished build" && \
     cd "$ORIGINAL_DIR" && \
     rm -rf /legion && \
-    rm -rf /psana-legion && \
-    conda uninstall --force mpich2 && \
-    rm Miniconda2-4.3.21-Linux-x86_64.sh
+    rm -rf /psana-legion
