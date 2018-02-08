@@ -64,8 +64,6 @@ else
 endif
 
 ifneq ($(CRAYPE_VERSION),)
-	CORE_LD_FLAGS += -dynamic
-
 	BIN_LD_FLAGS += -dynamic
 	BIN_LD_FLAGS += ${CRAY_UGNI_POST_LINK_OPTS}
 	BIN_LD_FLAGS += ${CRAY_PMI_POST_LINK_OPTS}
