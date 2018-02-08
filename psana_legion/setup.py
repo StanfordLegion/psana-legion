@@ -15,17 +15,14 @@
 # limitations under the License.
 #
 
-import os
-import numpy
+from distutils.core import setup, Extension
 
-def nop_kernel():
-    pass
+module = Extension('native_kernels',
+                   sources=['native_kernels_pyext.c'],
+                   libraries=['native_kernels_core'],
+                   library_dirs=['.'])
 
-_memory_size = int(os.environ.get('KERNEL_MEMORY_SIZE', 64)) # MB
-
-def make_memory_bound_kernel(rounds):
-    def kernel():
-        x = numpy.zeros(_memory_size << 17) # allocate array of doubles
-        for i in range(rounds):
-            numpy.add(x, 1, out=x)
-    return kernel
+setup(name='native_kernels',
+      version='1.0',
+      description='Sample native kernels for psana-legion.',
+      ext_modules=[module])

@@ -13,19 +13,24 @@
  * limitations under the License.
  */
 
-#ifndef __TASK_POOL_MAPPER_H__
-#define __TASK_POOL_MAPPER_H__
+#include "legion.h"
 
+#include "native_kernels.h"
 
+using namespace Legion;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-  
-  void register_task_pool_mapper();
-  
-#ifdef __cplusplus
+void memory_bound_task(const Task *task,
+                       const std::vector<PhysicalRegion> &regions,
+                       Context ctx, Runtime *runtime)
+{
+  memory_bound_kernel_default();
 }
-#endif
 
-#endif // __TASK_POOL_MAPPER_H__
+void register_native_kernels_tasks(int memory_bound_task_id)
+{
+  {
+    TaskVariantRegistrar registrar(memory_bound_task_id, "memory_bound_task");
+    registrar.add_constraint(ProcessorConstraint(Processor::LOC_PROC));
+    Runtime::preregister_task_variant<memory_bound_task>(registrar, "memory_bound_task");
+  }
+}

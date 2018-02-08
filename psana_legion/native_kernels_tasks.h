@@ -7,15 +7,15 @@
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS"BASIS,
+ * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
 
-#ifndef random_mapper_hpp
-#define random_mapper_hpp
+#ifndef __NATIVE_KERNELS_TASKS_H__
+#define __NATIVE_KERNELS_TASKS_H__
 
-#include <stdio.h>
+void register_native_kernels_tasks(int memory_bound_task_id);
 
-#endif /* random_mapper_hpp */
+#endif // __NATIVE_KERNELS_TASKS_H__

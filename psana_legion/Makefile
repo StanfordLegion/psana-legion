@@ -1,4 +1,4 @@
-# Copyright 2017 Stanford University
+# Copyright 2018 Stanford University
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -51,8 +51,10 @@ CC_FLAGS += -std=c++11 -fabi-version=2 -D_GLIBCXX_USE_CXX11_ABI=0
 CC_FLAGS += -fPIC
 ifeq ($(shell uname), Darwin)
 	LD_FLAGS += -dynamiclib -single_module -undefined dynamic_lookup -fPIC
+	CORE_LD_FLAGS += -dynamiclib -single_module -undefined dynamic_lookup -fPIC
 else
 	LD_FLAGS += -shared
+	CORE_LD_FLAGS += -shared
 endif
 
 ifeq ($(shell uname), Darwin)
@@ -62,23 +64,40 @@ else
 endif
 
 ifneq ($(CRAYPE_VERSION),)
-	REAL_LD_FLAGS += -dynamic
-	REAL_LD_FLAGS += ${CRAY_UGNI_POST_LINK_OPTS}
-	REAL_LD_FLAGS += ${CRAY_PMI_POST_LINK_OPTS}
-	REAL_LIBS += -lugni -lpmi -lhugetlbfs
+	CORE_LD_FLAGS += -dynamic
+
+	BIN_LD_FLAGS += -dynamic
+	BIN_LD_FLAGS += ${CRAY_UGNI_POST_LINK_OPTS}
+	BIN_LD_FLAGS += ${CRAY_PMI_POST_LINK_OPTS}
+	BIN_LIBS += -lugni -lpmi -lhugetlbfs
 endif
 
-# Hack: Create the real binary
-REAL_OUTFILE ?= psana_legion
-REAL_GEN_OBJ ?= psana_legion.o simple_mapper.o task_pool_mapper.o lifeline_mapper.o
-.PHONY: all
-all: $(OUTFILE) $(REAL_OUTFILE)
-$(REAL_GEN_OBJ) : %.o : %.cc
-	$(CXX) -o $@ -c $< $(CC_FLAGS) $(INC_FLAGS)
-$(REAL_OUTFILE) : $(REAL_GEN_OBJ) $(OUTFILE)
-	@echo "---> Linking objects into one binary: $(REAL_OUTFILE)"
-	$(CXX) -o $(REAL_OUTFILE) $(REAL_GEN_OBJ) $(REAL_LD_FLAGS) -L. -lpsana_legion $(REAL_LIBS)
+# Create core library that both Legion and MPI can link against
+CORE_OUTFILE ?= libnative_kernels_core.so
+CORE_GEN_OBJ ?= native_kernels.o native_kernels_helper.o
 
+# Create the real binary
+BIN_OUTFILE ?= psana_legion
+BIN_GEN_OBJ ?= psana_legion.o native_kernels_tasks.o simple_mapper.o task_pool_mapper.o lifeline_mapper.o
+
+.PHONY: all
+all: $(OUTFILE) $(CORE_OUTFILE) $(BIN_OUTFILE)
+
+$(CORE_GEN_OBJ) : %.o : %.cc
+	$(CXX) -o $@ -c $< $(CC_FLAGS) $(INC_FLAGS) -O3
+$(CORE_OUTFILE) : $(CORE_GEN_OBJ)
+	@echo "---> Linking objects into one binary: $(CORE_OUTFILE)"
+	$(CXX) -o $(CORE_OUTFILE) $(CORE_GEN_OBJ) $(CORE_LD_FLAGS)
+
+$(BIN_GEN_OBJ) : %.o : %.cc
+	$(CXX) -o $@ -c $< $(CC_FLAGS) $(INC_FLAGS)
+$(BIN_OUTFILE) : $(BIN_GEN_OBJ) $(OUTFILE) $(CORE_OUTFILE)
+	@echo "---> Linking objects into one binary: $(BIN_OUTFILE)"
+	$(CXX) -o $(BIN_OUTFILE) $(BIN_GEN_OBJ) $(BIN_GEN_COBJ) $(BIN_LD_FLAGS) -L. -lpsana_legion -lnative_kernels_core $(BIN_LIBS)
+
+.PHONY: pyext
+pyext: $(CORE_OUTFILE)
+	python setup.py install
 
 ###########################################################################
 #
@@ -89,4 +108,4 @@ $(REAL_OUTFILE) : $(REAL_GEN_OBJ) $(OUTFILE)
 include $(LG_RT_DIR)/runtime.mk
 
 clean::
-	$(RM) -f $(OUTFILE) $(SLIB_LEGION) $(SLIB_REALM) $(GEN_OBJS) $(GEN_GPU_OBJS) $(LOW_RUNTIME_OBJS) $(HIGH_RUNTIME_OBJS) $(GPU_RUNTIME_OBJS) $(MAPPER_OBJS) $(ASM_OBJS) $(REAL_OUTFILE) $(REAL_GEN_OBJ)
+	$(RM) -f $(OUTFILE) $(SLIB_LEGION) $(SLIB_REALM) $(GEN_OBJS) $(GEN_GPU_OBJS) $(LOW_RUNTIME_OBJS) $(HIGH_RUNTIME_OBJS) $(GPU_RUNTIME_OBJS) $(MAPPER_OBJS) $(ASM_OBJS) $(CORE_OUTFILE) $(CORE_GEN_OBJ) $(BIN_OUTFILE) $(BIN_GEN_OBJ)

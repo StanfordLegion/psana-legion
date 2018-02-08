@@ -7,15 +7,29 @@
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS"BASIS,
+ * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
 
-#ifndef random_mapper_hpp
-#define random_mapper_hpp
+#include "native_kernels.h"
 
-#include <stdio.h>
+#include <Python.h>
 
-#endif /* random_mapper_hpp */
+static PyObject *pyext_memory_bound_kernel(PyObject *self, PyObject *args)
+{
+  memory_bound_kernel_default();
+  Py_RETURN_NONE;
+}
+
+static PyMethodDef PyextMethods[] = {
+  {"memory_bound_kernel", pyext_memory_bound_kernel, METH_NOARGS,
+   "Execute memory-bound kernel."},
+  {NULL, NULL, 0, NULL}
+};
+
+PyMODINIT_FUNC initnative_kernels(void)
+{
+  (void) Py_InitModule("native_kernels", PyextMethods);
+}

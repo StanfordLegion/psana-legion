@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright 2017 Stanford University
+# Copyright 2018 Stanford University
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,12 +21,15 @@ import os
 
 import psana
 import psana_legion
+import legion
 
 # Get the analysis kernel to perform on each event
-import kernels
 kernel_kind = os.environ.get('KERNEL_KIND')
 if kernel_kind == 'memory_bound':
+    import kernels
     kernel = kernels.make_memory_bound_kernel(int(os.environ.get('KERNEL_ROUNDS', 100)))
+elif kernel_kind == 'memory_bound_native':
+    kernel = legion.extern_task(task_id=3)
 elif kernel_kind is None:
     kernel = None
 else:
