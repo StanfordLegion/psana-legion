@@ -1180,7 +1180,7 @@ void LifelineMapper::map_task_array(const MapperContext ctx,
   PhysicalInstance result;
   bool created;
   if (!runtime->find_or_create_physical_instance(ctx, target, layout_constraints,
-                                                 regions, result, created, true/*acquire*/, GC_NEVER_PRIORITY)) {
+                                                 regions, result, created, true/*acquire*/, GC_FIRST_PRIORITY)) {
     log_lifeline_mapper.error("Lifeline mapper failed to allocate instance");
     assert(false);
   }
