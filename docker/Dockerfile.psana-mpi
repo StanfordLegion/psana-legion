@@ -1,19 +1,34 @@
-FROM centos:centos7
+FROM ubuntu:16.04
 MAINTAINER Elliott Slaughter <slaughter@cs.stanford.edu>
 
-RUN yum clean all && \
-    yum -y install bzip2 gcc-c++ git shasum
+ENV DEBIAN_FRONTEND noninteractive
+
+RUN apt-get update -qq && \
+    apt-get install -qq build-essential bzip2 curl libdigest-sha-perl git zlib1g-dev && \
+    apt-get clean
 
 ENV CONDA_PREFIX /conda
 ENV PATH $CONDA_PREFIX/bin:$PATH
 ENV LD_LIBRARY_PATH $CONDA_PREFIX/lib:$LD_LIBRARY_PATH
+
+ENV LG_RT_DIR /legion/runtime
+ENV PSANA_LEGION_DIR /psana-legion/psana_legion
 
 # https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh
 RUN curl -O https://repo.continuum.io/miniconda/Miniconda2-4.3.21-Linux-x86_64.sh && \
     echo "b87adda9eb41f3ae6c2999fda739ab61ebb3892e  Miniconda2-4.3.21-Linux-x86_64.sh" | sha1sum --check && \
     /bin/bash Miniconda2-4.3.21-Linux-x86_64.sh -b -p "$CONDA_PREFIX" && \
     conda update -y conda && \
-    conda install -y --channel lcls-rhel7 psana-conda && \
-    conda install -y --channel conda-forge "mpich>=3" mpi4py libtiff=4.0.6 && \
-    conda uninstall --force mpich && \
+    conda install -y scons cython libtiff=4.0.6 icu=54 && \
+    conda install -y --channel lcls-rhel7 psana-conda ndarray && \
+    git clone -b python https://github.com/StanfordLegion/legion.git /legion && \
+    git clone https://github.com/StanfordLegion/psana-legion.git /psana-legion && \
+    ORIGINAL_DIR=$PWD && \
+    cd "$PSANA_LEGION_DIR" && \
+      DEBUG=0 make -j 8 && \
+      DEBUG=0 make pyext && \
+    cd "$ORIGINAL_DIR" && \
+    rm -rf /legion && \
+    rm -rf /psana-legion && \
+    conda uninstall --force mpich2 && \
     rm Miniconda2-4.3.21-Linux-x86_64.sh
