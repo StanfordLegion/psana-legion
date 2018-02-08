@@ -68,7 +68,7 @@ static const char* ANALYSIS_TASK_NAMES[] = {
 
 static const int TASKS_PER_STEALABLE_SLICE = 1;
 static const int MIN_RUNNING_TASKS = 2;
-static const int MAX_FAILED_STEALS = 1;
+static const int MAX_FAILED_STEALS = 10;
 
 typedef enum {
   STEAL_REQUEST = 1,
