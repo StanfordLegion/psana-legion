@@ -136,6 +136,7 @@ private:
   int selfGeneratedTaskCount; // tasks for processor of our kind() seen here in select_task_options
   int mappedRelocatedTaskCount; // tasks that were sent here from another processor and mapped
   int mappedSelfGeneratedTaskCount; // tasks that were generated here and mapped
+  unsigned taskSerialId;
   
   MapperRuntime *runtime;
   MapperEvent defer_select_tasks_to_map;
@@ -205,7 +206,8 @@ private:
   bool send_stolen_tasks(MapperContext ctx,
                          const SelectMappingInput&    input,
                          SelectMappingOutput&   output);
-  
+  void assignTaskId(const MapperContext    ctx,
+                    const Task& task);
   void select_task_options(const MapperContext    ctx,
                            const Task&            task,
                            TaskOptions&     output);
@@ -292,6 +294,7 @@ proc_sysmems(*_proc_sysmems)
   mappedRelocatedTaskCount = 0;
   mappedSelfGeneratedTaskCount = 0;
   numFailedSteals = 0;
+  taskSerialId = 0;
   quiesced = false;
   
 }
@@ -512,7 +515,7 @@ void LifelineMapper::handleOneStealRequest(const MapperContext ctx,
       r.numTasks--;
       numStolen++;
       stolenAwayTaskCount++;
-
+      
       it = worker_ready_queue.erase(it);
       log_lifeline_mapper.debug("%s relocate task %s to %s %s",
                                 prolog(__FUNCTION__, __LINE__).c_str(),
@@ -817,8 +820,8 @@ void LifelineMapper::identifyRelatedProcs()
         lifeline_neighbor_procs.push_back(steal_target_procs[targetProcIndex]);
         
         log_lifeline_mapper.info("%s lifeline to %s",
-                                  prolog(__FUNCTION__, __LINE__).c_str(),
-                                  describeProcId(steal_target_procs[targetProcIndex].id).c_str());
+                                 prolog(__FUNCTION__, __LINE__).c_str(),
+                                 describeProcId(steal_target_procs[targetProcIndex].id).c_str());
       }
     }
   }
@@ -829,7 +832,8 @@ std::string LifelineMapper::taskDescription(const Legion::Task& task)
 //--------------------------------------------------------------------------
 {
   char buffer[512];
-  sprintf(buffer, "<%s:%llx>", task.get_task_name(), task.get_unique_id());
+  unsigned long long* serialId = (unsigned long long*)task.mapper_data;
+  sprintf(buffer, "<%s:%llx>", task.get_task_name(), *serialId);
   return std::string(buffer);
 }
 
@@ -1198,11 +1202,11 @@ void LifelineMapper::report_profiling(const MapperContext      ctx,
   if(isAnalysisTask(task)) {
     locallyEndedTaskCount++;
   }
-
+  
   Realm::ProfilingMeasurements::OperationTimeline timeline;
   input.profiling_responses.get_measurement<Realm::ProfilingMeasurements::OperationTimeline>(timeline);
   Realm::ProfilingMeasurements::OperationTimeline::timestamp_t elapsedNS = timeline.end_time - timeline.start_time;
-
+  
   log_lifeline_mapper.info("%s # %s %lld",
                            prolog(__FUNCTION__, __LINE__).c_str(),
                            taskDescription(task).c_str(),
@@ -1244,8 +1248,6 @@ void LifelineMapper::map_task(const MapperContext      ctx,
                               workloadState().c_str());
   }
   
-  int pending = totalPendingWorkload();//debug remove this statement
-  
   ProfilingRequest completionRequest;
   completionRequest.add_measurement<Realm::ProfilingMeasurements::OperationStatus>();
   completionRequest.add_measurement<Realm::ProfilingMeasurements::OperationTimeline>();
@@ -1284,11 +1286,22 @@ Legion::Processor LifelineMapper::nearestProcessor(unsigned kind)
 
 
 //--------------------------------------------------------------------------
+void LifelineMapper::assignTaskId(const MapperContext    ctx,
+                                  const Task& task)
+//--------------------------------------------------------------------------
+{
+  size_t shiftBits = sizeof(taskSerialId) * sizeof(char);
+  unsigned long long taskId = (local_proc.id << shiftBits) + taskSerialId++;
+  runtime->update_mappable_data(ctx, task, &taskId, sizeof(taskId));
+}
+
+//--------------------------------------------------------------------------
 void LifelineMapper::select_task_options(const MapperContext    ctx,
                                          const Task&            task,
                                          TaskOptions&     output)
 //--------------------------------------------------------------------------
 {
+  assignTaskId(ctx, task);
   DefaultMapper::VariantInfo variantInfo =
   DefaultMapper::default_find_preferred_variant(task, ctx,
                                                 /*needs tight bound*/false,
