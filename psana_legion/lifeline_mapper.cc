@@ -276,6 +276,9 @@ proc_sysmems(*_proc_sysmems)
 // proc_regmems(*_proc_regmems)
 //--------------------------------------------------------------------------
 {
+  log_lifeline_mapper.info("%s constructor local_proc %s",
+                           prolog(__FUNCTION__, __LINE__).c_str(),
+                           describeProcId(local_proc.id).c_str());
   identifyRelatedProcs();
   
   rng = std::mt19937(rd());    // random-number engine used (Mersenne-Twister in this case)
@@ -296,7 +299,6 @@ proc_sysmems(*_proc_sysmems)
   numFailedSteals = 0;
   taskSerialId = 0;
   quiesced = false;
-  
 }
 
 //--------------------------------------------------------------------------
@@ -418,38 +420,19 @@ void LifelineMapper::stealTasks(MapperContext ctx, Processor target)
 //--------------------------------------------------------------------------
 {
   if(local_proc.kind() == Processor::PY_PROC) {
-    int notRunning = MIN_RUNNING_TASKS - locallyRunningTaskCount();
-    bool wantMoreTasks = notRunning > 0;
-    bool havePendingTasks = totalPendingWorkload() >= notRunning;
-    log_lifeline_mapper.debug("%s wantMore %d havePending %d stealOutstanding %d %s",
-                              prolog(__FUNCTION__, __LINE__).c_str(),
-                              wantMoreTasks, havePendingTasks, stealRequestOutstanding,
-                              workloadState().c_str());
-    
-    if(wantMoreTasks) {
-      if (!havePendingTasks) {
-        if (!stealRequestOutstanding) {
-          if(target == Processor::NO_PROC) {
-            target = steal_target_procs[uni(rng)];
-            while(target.id == local_proc.id) {
-              target = steal_target_procs[uni(rng)];
-            }
-          }
-          sendStealRequest(ctx, target);
-        } else {
-          log_lifeline_mapper.debug("%s not stealing because request outstanding",
-                                    prolog(__FUNCTION__, __LINE__).c_str());
+    if (!stealRequestOutstanding) {
+      if(target == Processor::NO_PROC) {
+        target = steal_target_procs[uni(rng)];
+        while(target.id == local_proc.id) {
+          target = steal_target_procs[uni(rng)];
         }
-      } else {
-        log_lifeline_mapper.debug("%s not stealing because we have pending tasks",
-                                  prolog(__FUNCTION__, __LINE__).c_str());
       }
+      sendStealRequest(ctx, target);
     } else {
-      log_lifeline_mapper.debug("%s not stealing because enough tasks are running",
+      log_lifeline_mapper.debug("%s not stealing because request outstanding",
                                 prolog(__FUNCTION__, __LINE__).c_str());
     }
   }
-}
 
 
 //--------------------------------------------------------------------------
@@ -460,6 +443,11 @@ void LifelineMapper::maybeGetMoreTasks(MapperContext ctx, Processor target)
     if(!quiesced) {
       int notRunning = MIN_RUNNING_TASKS - locallyRunningTaskCount();
       bool wantMoreTasks = notRunning > 0;
+      bool havePendingTasks = totalPendingWorkload() >= notRunning;
+      log_lifeline_mapper.debug("%s wantMore %d havePending %d stealOutstanding %d %s",
+                                prolog(__FUNCTION__, __LINE__).c_str(),
+                                wantMoreTasks, havePendingTasks, stealRequestOutstanding,
+                                workloadState().c_str());
       if(wantMoreTasks) {
         if(!maybeGetLocalTasks(ctx)) {
           stealTasks(ctx, target);
@@ -1133,6 +1121,7 @@ void LifelineMapper::select_steal_targets(const MapperContext         ctx,
                                           SelectStealingOutput& output)
 //--------------------------------------------------------------------------
 {
+  log_lifeline_mapper.debug(prolog(__FUNCTION__, __LINE__));
   maybeGetMoreTasks(ctx);
 }
 
@@ -1385,6 +1374,13 @@ void LifelineMapper::premap_task(const MapperContext      ctx,
 
 static void create_mappers(Machine machine, HighLevelRuntime *runtime, const std::set<Processor> &local_procs)
 {
+  std::cout << __FUNCTION__ << " pid " << getpid() << " local_procs.size " << local_procs.size() << std::endl;
+  for (std::set<Processor>::const_iterator it = local_procs.begin();
+       it != local_procs.end(); it++)
+  {
+    std::cout << __FUNCTION__ << " pid " << getpid() << " " << describeProcId(it->id) << stdL::endl;
+  }
+  
   std::vector<Processor>* procs_list = new std::vector<Processor>();
   std::vector<Memory>* sysmems_list = new std::vector<Memory>();
   std::map<Memory, std::vector<Processor> >* sysmem_local_procs =
