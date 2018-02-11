@@ -69,7 +69,7 @@ static const char* ANALYSIS_TASK_NAMES[] = {
 
 static const int TASKS_PER_STEALABLE_SLICE = 1;
 static const int MIN_RUNNING_TASKS = 2;
-static const int MAX_FAILED_STEALS = 10;
+static const int MAX_FAILED_STEALS = 5;
 
 typedef enum {
   STEAL_REQUEST = 1,
@@ -639,6 +639,8 @@ void LifelineMapper::handleStealNack(const MapperContext ctx,
                             numFailedSteals);
   if(numFailedSteals >= MAX_FAILED_STEALS && locallyRunningTaskCount() < MIN_RUNNING_TASKS) {
     quiesce(ctx);
+  } else {
+    maybeGetMoreTasks(ctx);
   }
 }
 
