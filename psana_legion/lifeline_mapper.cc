@@ -21,6 +21,7 @@
 #include <vector>
 #include <deque>
 #include <sysexits.h>
+#include <unistd.h>
 //#include <assert.h>
 
 
@@ -433,6 +434,7 @@ void LifelineMapper::stealTasks(MapperContext ctx, Processor target)
                                 prolog(__FUNCTION__, __LINE__).c_str());
     }
   }
+}
 
 
 //--------------------------------------------------------------------------
@@ -1121,7 +1123,7 @@ void LifelineMapper::select_steal_targets(const MapperContext         ctx,
                                           SelectStealingOutput& output)
 //--------------------------------------------------------------------------
 {
-  log_lifeline_mapper.debug(prolog(__FUNCTION__, __LINE__));
+  log_lifeline_mapper.debug("%s", prolog(__FUNCTION__, __LINE__).c_str());
   maybeGetMoreTasks(ctx);
 }
 
@@ -1378,7 +1380,7 @@ static void create_mappers(Machine machine, HighLevelRuntime *runtime, const std
   for (std::set<Processor>::const_iterator it = local_procs.begin();
        it != local_procs.end(); it++)
   {
-    std::cout << __FUNCTION__ << " pid " << getpid() << " " << describeProcId(it->id) << stdL::endl;
+    std::cout << __FUNCTION__ << " pid " << getpid() << " " << describeProcId(it->id) << std::endl;
   }
   
   std::vector<Processor>* procs_list = new std::vector<Processor>();
@@ -1416,9 +1418,11 @@ static void create_mappers(Machine machine, HighLevelRuntime *runtime, const std
        sysmem_local_procs->begin(); it != sysmem_local_procs->end(); ++it)
     sysmems_list->push_back(it->first);
   
+  std::cout << __FUNCTION__ << " pid " << getpid() << " about to construct, local_procs.size " << local_procs.size() << std::endl;
   for (std::set<Processor>::const_iterator it = local_procs.begin();
        it != local_procs.end(); it++)
   {
+    std::cout << __FUNCTION__ << " pid " << getpid() << " calling lifeline mapper constructor for " << describeProcId(it->id) << std::endl;
     LifelineMapper* mapper = new LifelineMapper(runtime->get_mapper_runtime(),
                                                 machine, *it, "lifeline_mapper",
                                                 procs_list,
