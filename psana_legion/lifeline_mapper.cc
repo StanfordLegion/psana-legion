@@ -277,9 +277,6 @@ proc_sysmems(*_proc_sysmems)
 // proc_regmems(*_proc_regmems)
 //--------------------------------------------------------------------------
 {
-  log_lifeline_mapper.info("%s constructor local_proc %s",
-                           prolog(__FUNCTION__, __LINE__).c_str(),
-                           describeProcId(local_proc.id).c_str());
   identifyRelatedProcs();
   
   rng = std::mt19937(rd());    // random-number engine used (Mersenne-Twister in this case)
@@ -1376,13 +1373,6 @@ void LifelineMapper::premap_task(const MapperContext      ctx,
 
 static void create_mappers(Machine machine, HighLevelRuntime *runtime, const std::set<Processor> &local_procs)
 {
-  std::cout << __FUNCTION__ << " pid " << getpid() << " local_procs.size " << local_procs.size() << std::endl;
-  for (std::set<Processor>::const_iterator it = local_procs.begin();
-       it != local_procs.end(); it++)
-  {
-    std::cout << __FUNCTION__ << " pid " << getpid() << " " << describeProcId(it->id) << std::endl;
-  }
-  
   std::vector<Processor>* procs_list = new std::vector<Processor>();
   std::vector<Memory>* sysmems_list = new std::vector<Memory>();
   std::map<Memory, std::vector<Processor> >* sysmem_local_procs =
@@ -1418,11 +1408,9 @@ static void create_mappers(Machine machine, HighLevelRuntime *runtime, const std
        sysmem_local_procs->begin(); it != sysmem_local_procs->end(); ++it)
     sysmems_list->push_back(it->first);
   
-  std::cout << __FUNCTION__ << " pid " << getpid() << " about to construct, local_procs.size " << local_procs.size() << std::endl;
   for (std::set<Processor>::const_iterator it = local_procs.begin();
        it != local_procs.end(); it++)
   {
-    std::cout << __FUNCTION__ << " pid " << getpid() << " calling lifeline mapper constructor for " << describeProcId(it->id) << std::endl;
     LifelineMapper* mapper = new LifelineMapper(runtime->get_mapper_runtime(),
                                                 machine, *it, "lifeline_mapper",
                                                 procs_list,
@@ -1430,10 +1418,8 @@ static void create_mappers(Machine machine, HighLevelRuntime *runtime, const std
                                                 sysmem_local_procs,
                                                 proc_sysmems,
                                                 proc_regmems);
-    std::cout << "back from lifeline mapper constructor, call replace_default_mapper" << std::endl;
     runtime->replace_default_mapper(mapper, *it);
   }
-  std::cout << "exiting " << __FUNCTION__ << std::endl;
 }
 
 void register_lifeline_mapper()
