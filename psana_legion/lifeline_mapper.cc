@@ -1430,8 +1430,10 @@ static void create_mappers(Machine machine, HighLevelRuntime *runtime, const std
                                                 sysmem_local_procs,
                                                 proc_sysmems,
                                                 proc_regmems);
+    std::cout << "back from lifeline mapper constructor, call replace_default_mapper" << std::endl;
     runtime->replace_default_mapper(mapper, *it);
   }
+  std::cout << "exiting " << __FUNCTION__ << std::endl;
 }
 
 void register_lifeline_mapper()
