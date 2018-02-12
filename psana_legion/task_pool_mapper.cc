@@ -148,7 +148,7 @@ static const char* ANALYSIS_TASK_NAMES[] = {
   "jump"
 };
 
-static const int NUM_RANKS_PER_TASK_POOL = 4;
+static const int NUM_RANKS_PER_TASK_POOL = 8;
 static const int TASKS_PER_STEALABLE_SLICE = 1;
 static const int MIN_TASKS_PER_PROCESSOR = 2;
 
@@ -598,7 +598,7 @@ void TaskPoolMapper::categorizeMappers()
       case OMP_PROC:
         break;
       case PY_PROC:
-        if(count++ % NUM_RANKS_PER_TASK_POOL == 0) {
+        if(count++ % NUM_RANKS_PER_TASK_POOL == 1) {
           task_pool_procs.push_back(processor);
           if(processor == local_proc) {
             mapperCategory = TASK_POOL;

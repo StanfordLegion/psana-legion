@@ -20,17 +20,17 @@ for i in range(10):
   m = 1024
   line = []
   if first:
-    print "    "
-    header = []
+    header = "  0,  "
+  line = str(n) + ", "
   for j in range(10):
     if first:
-      header.append(m)
+      header = header + str(m) + ", "
     pr = 0.5 + 0.5 * math.erf(epsilon * mu * m / (n * sigma * math.sqrt(2 * m / n)))
     prp = math.pow(pr, n)
-    line.append(prp)
+    line = line + str(prp) + ", "
     m = m * 2
   n = n * 2
   if first:
     print header
-  print "n=", n, line
+  print line
   first = False
