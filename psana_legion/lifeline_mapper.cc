@@ -851,7 +851,7 @@ void LifelineMapper::decompose_points(const Rect<1, coord_t> &point_rect,
   Rect<1, coord_t> blocks(Point<1, coord_t>(0), num_blocks - Point<1, coord_t>(1));
   slices.reserve(blocks.volume());
   
-  for (PointInRectIterator<1, coord_t> pir(blocks); pir(); pir += TASKS_PER_STEALABLE_SLICE) {
+  for (PointInRectIterator<1, coord_t> pir(blocks); pir(); pir++) {
     Point<1, coord_t> block_lo = *pir;
     Point<1, coord_t> block_hi = *pir + Point<1, coord_t>(TASKS_PER_STEALABLE_SLICE);
     
@@ -872,14 +872,8 @@ void LifelineMapper::decompose_points(const Rect<1, coord_t> &point_rect,
       slice.stealable = true;
       slices.push_back(slice);
     }
+    for(unsigned k = 1; k < TASKS_PER_STEALABLE_SLICE; ++k) pir++;
   }
-  
-}
-
-//--------------------------------------------------------------------------
-Legion::Processor LifelineMapper::randomProcessor()
-//--------------------------------------------------------------------------
-{
   
 }
 
