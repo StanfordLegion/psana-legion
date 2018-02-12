@@ -166,6 +166,7 @@ typedef enum {
   POOL_POOL_FORWARD_STEAL_SUCCESS,
   POOL_WORKER_STEAL_NACK,
   POOL_WORKER_WAKEUP,
+  RELOCATE_TASK_INFO
 } MessageType;
 
 typedef struct {
@@ -228,6 +229,7 @@ private:
   int locallyEndedTaskCount; // tasks that report completion here
   int stolenAwayTaskCount; // tasks that are stolen away due to receiving a steal request from another processor
   int promisedFromStealsTaskCount; // tasks that are promised here by another processor because we sent a steal request
+  int promisedRelocatedTaskCount; // relocated from another processor
   int sliceTaskCount; // slice tasks seen here in slice_task
   int slicedPointTaskCount; // point tasks generated here from slice tasks
   int selfGeneratedTaskCount; // tasks for processor of our kind() seen here in select_task_options
@@ -238,6 +240,7 @@ private:
 
   bool stealRequestOutstanding;
   
+  int locallyRunningTaskCount() const;
   int totalPendingWorkload() const;
   Timestamp timeNow() const;
   unsigned uniqueId();
@@ -308,6 +311,8 @@ private:
                                       const MapperMessage& message);
   void handle_POOL_POOL_FORWARD_STEAL_SUCCESS(const MapperContext ctx,
                                               const MapperMessage& message);
+  void handle_RELOCATE_TASK_INFO(const MapperContext ctx,
+                                              const MapperMessage& message);
   virtual void handle_message(const MapperContext           ctx,
                               const MapperMessage&          message);
   
@@ -359,6 +364,7 @@ proc_sysmems(*_proc_sysmems)
   locallyEndedTaskCount = 0;
   stolenAwayTaskCount = 0;
   promisedFromStealsTaskCount = 0;
+  promisedRelocatedTaskCount = 0;
   slicedPointTaskCount = 0;
   selfGeneratedTaskCount = 0;
   mappedRelocatedTaskCount = 0;
@@ -387,16 +393,27 @@ std::string TaskPoolMapper::prolog(const char* function) const
   return std::string(buffer);
 }
 
+
+//--------------------------------------------------------------------------
+int TaskPoolMapper::locallyRunningTaskCount() const
+//--------------------------------------------------------------------------
+{
+  int result = locallyStartedTaskCount - locallyEndedTaskCount;
+  return result;
+}
+
+
 //--------------------------------------------------------------------------
 int TaskPoolMapper::totalPendingWorkload() const
 //--------------------------------------------------------------------------
 {
-  int result = promisedFromStealsTaskCount + slicedPointTaskCount
+  int result = promisedFromStealsTaskCount + promisedRelocatedTaskCount + slicedPointTaskCount
   + selfGeneratedTaskCount - sliceTaskCount - stolenAwayTaskCount - locallyEndedTaskCount;
-  log_lifeline_mapper.debug("%s = %d, promisedSteal %d slicedPoint %d selfGenerated %d - slice %d stolen %d locallyEnded %d",
+  log_task_pool_mapper.debug("%s = %d, promisedSteal %d promisedRelocated %d slicedPoint %d selfGenerated %d - slice %d stolen %d locallyEnded %d",
                             prolog(__FUNCTION__).c_str(),
                             result,
                             promisedFromStealsTaskCount,
+                            promisedRelocatedTaskCount,
                             slicedPointTaskCount,
                             selfGeneratedTaskCount,
                             sliceTaskCount,
@@ -411,8 +428,8 @@ void TaskPoolMapper::maybeSendStealRequest(MapperContext ctx, Processor target)
 //--------------------------------------------------------------------------
 {
   assert(mapperCategory == WORKER);
-  if(totalPendingWorkload() < MIN_TASKS_PER_PROCESSOR && !stealRequestOutstanding) {
-    unsigned numTasks = MIN_TASKS_PER_PROCESSOR - totalPendingWorkload();
+  if(locallyRunningTaskCount() < MIN_TASKS_PER_PROCESSOR && !stealRequestOutstanding) {
+    unsigned numTasks = MIN_TASKS_PER_PROCESSOR - locallyRunningTaskCount();
     Request r = { uniqueId(), local_proc, target, local_proc, numTasks, 0 };
     log_task_pool_mapper.debug("%s "
                                "send WORKER_POOL_STEAL_REQUEST "
@@ -422,7 +439,7 @@ void TaskPoolMapper::maybeSendStealRequest(MapperContext ctx, Processor target)
     stealRequestOutstanding = true;
     runtime->send_message(ctx, target, &r, sizeof(r), WORKER_POOL_STEAL_REQUEST);
   } else {
-    if(totalPendingWorkload() < MIN_TASKS_PER_PROCESSOR && stealRequestOutstanding) {
+    if(locallyRunningTaskCount() < MIN_TASKS_PER_PROCESSOR && stealRequestOutstanding) {
       log_task_pool_mapper.debug("%s "
                                  "cannot send because stealRequestOutstanding",
                                  prolog(__FUNCTION__).c_str());
@@ -565,11 +582,25 @@ void TaskPoolMapper::handle_POOL_POOL_FORWARD_STEAL_SUCCESS(const MapperContext 
 }
 
 //--------------------------------------------------------------------------
+void TaskPoolMapper::handle_RELOCATE_TASK_INFO(const MapperContext ctx,
+                                            const MapperMessage& message)
+//--------------------------------------------------------------------------
+{
+  Request r = *(Request*)message.message;
+  promisedRelocatedTaskCount += r.numTasks;
+  
+  log_task_pool_mapper.debug("%s from %s numTasks %u",
+                            prolog(__FUNCTION__).c_str(),
+                            describeProcId(message.sender.id).c_str(),
+                            r.numTasks);
+}
+
+
+//--------------------------------------------------------------------------
 void TaskPoolMapper::handle_message(const MapperContext ctx,
                                     const MapperMessage& message)
 //--------------------------------------------------------------------------
 {
-  assert(mapperCategory == TASK_POOL || mapperCategory == WORKER);
   switch(message.kind) {
     case WORKER_POOL_STEAL_REQUEST:
       handle_WORKER_POOL_STEAL_REQUEST(ctx, message);
@@ -588,6 +619,9 @@ void TaskPoolMapper::handle_message(const MapperContext ctx,
       break;
     case POOL_POOL_FORWARD_STEAL_SUCCESS:
       handle_POOL_POOL_FORWARD_STEAL_SUCCESS(ctx, message);
+      break;
+    case RELOCATE_TASK_INFO:
+      handle_RELOCATE_TASK_INFO(ctx, message);
       break;
     default: assert(false);
   }
@@ -912,7 +946,7 @@ bool TaskPoolMapper::filterInputReadyTasks(const SelectMappingInput&    input,
        it != input.ready_tasks.end(); it++)
   {
     const Task* task = *it;
-    bool mapLocally = totalPendingWorkload() < MIN_TASKS_PER_PROCESSOR || !isAnalysisTask(*task);
+    bool mapLocally = locallyRunningTaskCount() < MIN_TASKS_PER_PROCESSOR || !isAnalysisTask(*task);
     if(mapLocally) {
       if (isAnalysisTask(*task))
       {
@@ -1306,15 +1340,17 @@ void TaskPoolMapper::select_task_options(const MapperContext    ctx,
                                                   /*cache result*/true,
                                                   Processor::NO_KIND); 
 
+  bool sendRelocateTaskInfo = false;
   bool selectThisTask = true;
   Processor initial_proc = local_proc;
   
   if(variantInfo.proc_kind == local_proc.kind()) {
     if(mapperCategory == TASK_POOL) {
-      selectThisTask = totalPendingWorkload() < MIN_TASKS_PER_PROCESSOR
+      selectThisTask = locallyRunningTaskCount() < MIN_TASKS_PER_PROCESSOR
       || !isAnalysisTask(task);
     }
   } else {
+    sendRelocateTaskInfo = true;
     switch(variantInfo.proc_kind) {
       case LOC_PROC:
         initial_proc = nearestLegionCPUProc;
@@ -1345,6 +1381,14 @@ void TaskPoolMapper::select_task_options(const MapperContext    ctx,
     log_task_pool_mapper.debug("%s skip task %s",
                                prolog(__FUNCTION__).c_str(),
                                taskDescription(task).c_str());
+  }
+
+  if(sendRelocateTaskInfo) {
+    Request r = { 0, initial_proc, local_proc, local_proc, 1, 0 };
+    log_task_pool_mapper.debug("%s send RELOCATE_TASK_INFO to %s",
+                              prolog(__FUNCTION__).c_str(),
+                              describeProcId(initial_proc.id).c_str());
+    runtime->send_message(ctx, initial_proc, &r, sizeof(r), RELOCATE_TASK_INFO);
   }
   
 }

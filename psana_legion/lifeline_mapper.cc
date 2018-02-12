@@ -131,6 +131,7 @@ private:
   int locallyEndedTaskCount; // tasks that report completion here
   int stolenAwayTaskCount; // tasks that are stolen away due to receiving a steal request from another processor
   int promisedFromStealsTaskCount; // tasks that are promised here by another processor because we sent a steal request
+  int promisedRelocatedTaskCount; // tasks that are relocated here from another processor
   int sliceTaskCount; // slice tasks seen here in slice_task
   int slicedPointTaskCount; // point tasks generated here from slice tasks
   int selfGeneratedTaskCount; // tasks for processor of our kind() seen here in select_task_options
@@ -288,6 +289,7 @@ proc_sysmems(*_proc_sysmems)
   locallyEndedTaskCount = 0;
   stolenAwayTaskCount = 0;
   promisedFromStealsTaskCount = 0;
+  promisedRelocatedTaskCount = 0;
   slicedPointTaskCount = 0;
   selfGeneratedTaskCount = 0;
   mappedRelocatedTaskCount = 0;
