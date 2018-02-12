@@ -6,7 +6,7 @@
 #SBATCH --partition=regular
 #SBATCH --constraint=knl,quad,cache
 #SBATCH --core-spec=4
-#SBATCH --image=docker:stanfordlegion/psana-legion:latest
+#SBATCH --image=docker:stanfordlegion/psana-legion:elliott
 #SBATCH --exclusive # causes shifter to preload image before run
 #SBATCH --mail-type=ALL
 #SBATCH --account=lcls
