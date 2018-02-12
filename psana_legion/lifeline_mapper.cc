@@ -21,6 +21,7 @@
 #include <vector>
 #include <deque>
 #include <sysexits.h>
+#include <unistd.h>
 //#include <assert.h>
 
 
@@ -68,7 +69,7 @@ static const char* ANALYSIS_TASK_NAMES[] = {
 
 static const int TASKS_PER_STEALABLE_SLICE = 1;
 static const int MIN_RUNNING_TASKS = 2;
-static const int MAX_FAILED_STEALS = 10;
+static const int MAX_FAILED_STEALS = 5;
 
 typedef enum {
   STEAL_REQUEST = 1,
@@ -130,12 +131,13 @@ private:
   int locallyEndedTaskCount; // tasks that report completion here
   int stolenAwayTaskCount; // tasks that are stolen away due to receiving a steal request from another processor
   int promisedFromStealsTaskCount; // tasks that are promised here by another processor because we sent a steal request
-  int promisedRelocatedTaskCount; // tasks that are promised here by a processor of a different kind() executing select_task_options, we are a nearest neighbor (of the right kind()) of this processor
+  int promisedRelocatedTaskCount; // tasks that are relocated here from another processor
   int sliceTaskCount; // slice tasks seen here in slice_task
   int slicedPointTaskCount; // point tasks generated here from slice tasks
   int selfGeneratedTaskCount; // tasks for processor of our kind() seen here in select_task_options
   int mappedRelocatedTaskCount; // tasks that were sent here from another processor and mapped
   int mappedSelfGeneratedTaskCount; // tasks that were generated here and mapped
+  unsigned taskSerialId;
   
   MapperRuntime *runtime;
   MapperEvent defer_select_tasks_to_map;
@@ -205,7 +207,8 @@ private:
   bool send_stolen_tasks(MapperContext ctx,
                          const SelectMappingInput&    input,
                          SelectMappingOutput&   output);
-  
+  void assignTaskId(const MapperContext    ctx,
+                    const Task& task);
   void select_task_options(const MapperContext    ctx,
                            const Task&            task,
                            TaskOptions&     output);
@@ -292,8 +295,8 @@ proc_sysmems(*_proc_sysmems)
   mappedRelocatedTaskCount = 0;
   mappedSelfGeneratedTaskCount = 0;
   numFailedSteals = 0;
+  taskSerialId = 0;
   quiesced = false;
-  
 }
 
 //--------------------------------------------------------------------------
@@ -415,34 +418,16 @@ void LifelineMapper::stealTasks(MapperContext ctx, Processor target)
 //--------------------------------------------------------------------------
 {
   if(local_proc.kind() == Processor::PY_PROC) {
-    int notRunning = MIN_RUNNING_TASKS - locallyRunningTaskCount();
-    bool wantMoreTasks = notRunning > 0;
-    bool havePendingTasks = totalPendingWorkload() >= notRunning;
-    log_lifeline_mapper.debug("%s wantMore %d havePending %d stealOutstanding %d %s",
-                              prolog(__FUNCTION__, __LINE__).c_str(),
-                              wantMoreTasks, havePendingTasks, stealRequestOutstanding,
-                              workloadState().c_str());
-    
-    if(wantMoreTasks) {
-      if (!havePendingTasks) {
-        if (!stealRequestOutstanding) {
-          if(target == Processor::NO_PROC) {
-            target = steal_target_procs[uni(rng)];
-            while(target.id == local_proc.id) {
-              target = steal_target_procs[uni(rng)];
-            }
-          }
-          sendStealRequest(ctx, target);
-        } else {
-          log_lifeline_mapper.debug("%s not stealing because request outstanding",
-                                    prolog(__FUNCTION__, __LINE__).c_str());
+    if (!stealRequestOutstanding) {
+      if(target == Processor::NO_PROC) {
+        target = steal_target_procs[uni(rng)];
+        while(target.id == local_proc.id) {
+          target = steal_target_procs[uni(rng)];
         }
-      } else {
-        log_lifeline_mapper.debug("%s not stealing because we have pending tasks",
-                                  prolog(__FUNCTION__, __LINE__).c_str());
       }
+      sendStealRequest(ctx, target);
     } else {
-      log_lifeline_mapper.debug("%s not stealing because enough tasks are running",
+      log_lifeline_mapper.debug("%s not stealing because request outstanding",
                                 prolog(__FUNCTION__, __LINE__).c_str());
     }
   }
@@ -457,6 +442,11 @@ void LifelineMapper::maybeGetMoreTasks(MapperContext ctx, Processor target)
     if(!quiesced) {
       int notRunning = MIN_RUNNING_TASKS - locallyRunningTaskCount();
       bool wantMoreTasks = notRunning > 0;
+      bool havePendingTasks = totalPendingWorkload() >= notRunning;
+      log_lifeline_mapper.debug("%s wantMore %d havePending %d stealOutstanding %d %s",
+                                prolog(__FUNCTION__, __LINE__).c_str(),
+                                wantMoreTasks, havePendingTasks, stealRequestOutstanding,
+                                workloadState().c_str());
       if(wantMoreTasks) {
         if(!maybeGetLocalTasks(ctx)) {
           stealTasks(ctx, target);
@@ -512,7 +502,7 @@ void LifelineMapper::handleOneStealRequest(const MapperContext ctx,
       r.numTasks--;
       numStolen++;
       stolenAwayTaskCount++;
-
+      
       it = worker_ready_queue.erase(it);
       log_lifeline_mapper.debug("%s relocate task %s to %s %s",
                                 prolog(__FUNCTION__, __LINE__).c_str(),
@@ -649,6 +639,8 @@ void LifelineMapper::handleStealNack(const MapperContext ctx,
                             numFailedSteals);
   if(numFailedSteals >= MAX_FAILED_STEALS && locallyRunningTaskCount() < MIN_RUNNING_TASKS) {
     quiesce(ctx);
+  } else {
+    maybeGetMoreTasks(ctx);
   }
 }
 
@@ -817,8 +809,8 @@ void LifelineMapper::identifyRelatedProcs()
         lifeline_neighbor_procs.push_back(steal_target_procs[targetProcIndex]);
         
         log_lifeline_mapper.info("%s lifeline to %s",
-                                  prolog(__FUNCTION__, __LINE__).c_str(),
-                                  describeProcId(steal_target_procs[targetProcIndex].id).c_str());
+                                 prolog(__FUNCTION__, __LINE__).c_str(),
+                                 describeProcId(steal_target_procs[targetProcIndex].id).c_str());
       }
     }
   }
@@ -829,7 +821,8 @@ std::string LifelineMapper::taskDescription(const Legion::Task& task)
 //--------------------------------------------------------------------------
 {
   char buffer[512];
-  sprintf(buffer, "<%s:%llx>", task.get_task_name(), task.get_unique_id());
+  unsigned long long* serialId = (unsigned long long*)task.mapper_data;
+  sprintf(buffer, "<%s:%llx>", task.get_task_name(), *serialId);
   return std::string(buffer);
 }
 
@@ -870,11 +863,16 @@ void LifelineMapper::decompose_points(const Rect<1, coord_t> &point_rect,
     if (slice_rect.volume() > 0) {
       TaskSlice slice;
       slice.domain = slice_rect;
-      slice.proc = local_proc;
+      Processor target = steal_target_procs[uni(rng)];
+      while(target.id == local_proc.id) {
+        target = steal_target_procs[uni(rng)];
+      }
+      slice.proc = target;
       slice.recurse = false;
       slice.stealable = true;
       slices.push_back(slice);
     }
+    for(unsigned k = 1; k < TASKS_PER_STEALABLE_SLICE; ++k) pir++;
   }
   
 }
@@ -1129,6 +1127,7 @@ void LifelineMapper::select_steal_targets(const MapperContext         ctx,
                                           SelectStealingOutput& output)
 //--------------------------------------------------------------------------
 {
+  log_lifeline_mapper.debug("%s", prolog(__FUNCTION__, __LINE__).c_str());
   maybeGetMoreTasks(ctx);
 }
 
@@ -1198,11 +1197,11 @@ void LifelineMapper::report_profiling(const MapperContext      ctx,
   if(isAnalysisTask(task)) {
     locallyEndedTaskCount++;
   }
-
+  
   Realm::ProfilingMeasurements::OperationTimeline timeline;
   input.profiling_responses.get_measurement<Realm::ProfilingMeasurements::OperationTimeline>(timeline);
   Realm::ProfilingMeasurements::OperationTimeline::timestamp_t elapsedNS = timeline.end_time - timeline.start_time;
-
+  
   log_lifeline_mapper.info("%s # %s %lld",
                            prolog(__FUNCTION__, __LINE__).c_str(),
                            taskDescription(task).c_str(),
@@ -1244,8 +1243,6 @@ void LifelineMapper::map_task(const MapperContext      ctx,
                               workloadState().c_str());
   }
   
-  int pending = totalPendingWorkload();//debug remove this statement
-  
   ProfilingRequest completionRequest;
   completionRequest.add_measurement<Realm::ProfilingMeasurements::OperationStatus>();
   completionRequest.add_measurement<Realm::ProfilingMeasurements::OperationTimeline>();
@@ -1284,11 +1281,22 @@ Legion::Processor LifelineMapper::nearestProcessor(unsigned kind)
 
 
 //--------------------------------------------------------------------------
+void LifelineMapper::assignTaskId(const MapperContext    ctx,
+                                  const Task& task)
+//--------------------------------------------------------------------------
+{
+  size_t shiftBits = sizeof(taskSerialId) * sizeof(char);
+  unsigned long long taskId = (local_proc.id << shiftBits) + taskSerialId++;
+  runtime->update_mappable_data(ctx, task, &taskId, sizeof(taskId));
+}
+
+//--------------------------------------------------------------------------
 void LifelineMapper::select_task_options(const MapperContext    ctx,
                                          const Task&            task,
                                          TaskOptions&     output)
 //--------------------------------------------------------------------------
 {
+  assignTaskId(ctx, task);
   DefaultMapper::VariantInfo variantInfo =
   DefaultMapper::default_find_preferred_variant(task, ctx,
                                                 /*needs tight bound*/false,
