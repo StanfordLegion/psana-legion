@@ -48,7 +48,7 @@ for rounds in 20 40 80; do
                   shifter \
                     $HOST_PSANA_DIR/psana_legion/scripts/psana_legion.sh \
                       -ll:cpu $p -ll:py 1 -ll:io 1 -ll:concurrent_io $i -ll:csize $(( 48000 / c )) -ll:rsize 0 -ll:gsize 0 -lg:window 100
-                      # -lg:prof $(( n * c + 1 )) -lg:prof_logfile prof_n"$n"_c"$c"_p"$p"_i"$i"_%.gz
+                      # -lg:prof $(( n * c + 1 )) -lg:prof_logfile prof_rounds"$rounds"_n"$n"_c"$c"_p"$p"_i"$i"_%.gz
             fi
           done
         fi
