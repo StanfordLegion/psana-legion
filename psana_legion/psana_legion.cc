@@ -50,14 +50,6 @@ VariantID preregister_python_task_variant(
     registrar.task_variant_name);
 }
 
-void top_level_task(const Task *task,
-                    const std::vector<PhysicalRegion> &regions,
-                    Context ctx, Runtime *runtime)
-{
-  TaskLauncher launcher(MAIN_TASK_ID, TaskArgument());
-  runtime->execute_task(ctx, launcher);
-}
-
 int main(int argc, char **argv)
 {
   // do this before any threads are spawned
@@ -89,18 +81,12 @@ int main(int argc, char **argv)
   Realm::Python::PythonModule::import_python_module(module);
 
   {
-    TaskVariantRegistrar registrar(TOP_LEVEL_TASK_ID, "top_level_task");
-    registrar.add_constraint(ProcessorConstraint(Processor::LOC_PROC));
-    Runtime::preregister_task_variant<top_level_task>(registrar, "top_level_task");
-  }
-
-  {
     TaskVariantRegistrar registrar(MAIN_TASK_ID, "main_task");
     registrar.add_constraint(ProcessorConstraint(Processor::PY_PROC));
     preregister_python_task_variant(registrar, "psana_legion", "main_task");
   }
 
-  Runtime::set_top_level_task_id(TOP_LEVEL_TASK_ID);
+  Runtime::set_top_level_task_id(MAIN_TASK_ID);
 
   register_native_kernels_tasks(MEMORY_BOUND_TASK_ID);
 
