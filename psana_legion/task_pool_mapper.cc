@@ -137,7 +137,7 @@
 #include "default_mapper.h"
 
 
-#define VERBOSE_DEBUG 1
+#define VERBOSE_DEBUG 0
 
 using namespace Legion;
 using namespace Legion::Mapping;
@@ -271,6 +271,8 @@ private:
                 const Task&              task,
                 const MapTaskInput&      input,
                 MapTaskOutput&     output);
+  void assignTaskId(const MapperContext    ctx,
+                    const Task& task);
   void select_task_options(const MapperContext    ctx,
                            const Task&            task,
                            TaskOptions&     output);
@@ -637,7 +639,8 @@ std::string TaskPoolMapper::taskDescription(const Legion::Task& task)
 //--------------------------------------------------------------------------
 {
   char buffer[512];
-  sprintf(buffer, "<%s:%llx>", task.get_task_name(), task.get_unique_id());
+  unsigned long long* serialId = (unsigned long long*)task.mapper_data;
+  sprintf(buffer, "<%s:%llx>", task.get_task_name(), *serialId);
   return std::string(buffer);
 }
 
@@ -1235,6 +1238,15 @@ void TaskPoolMapper::map_task(const MapperContext      ctx,
   
 }
 
+//--------------------------------------------------------------------------
+void TaskPoolMapper::assignTaskId(const MapperContext    ctx,
+                                  const Task& task)
+//--------------------------------------------------------------------------
+{
+  size_t shiftBits = sizeof(taskSerialId) * sizeof(char);
+  unsigned long long taskId = (local_proc.id << shiftBits) + taskSerialId++;
+  runtime->update_mappable_data(ctx, task, &taskId, sizeof(taskId));
+}
 
 //--------------------------------------------------------------------------
 void TaskPoolMapper::select_task_options(const MapperContext    ctx,
@@ -1242,6 +1254,7 @@ void TaskPoolMapper::select_task_options(const MapperContext    ctx,
                                          TaskOptions&     output)
 //--------------------------------------------------------------------------
 {
+  assignTaskId(ctx, task);
   DefaultMapper::VariantInfo variantInfo =
     DefaultMapper::default_find_preferred_variant(task, ctx,
                                                   /*needs tight bound*/false,
