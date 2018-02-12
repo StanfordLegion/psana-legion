@@ -223,6 +223,8 @@ private:
   SendQueue send_queue;
   std::deque<Request> failed_requests;
   unsigned numUniqueIds;
+  unsigned taskSerialId;
+
   bool stealRequestOutstanding;
   
   Timestamp timeNow() const;
@@ -1135,6 +1137,7 @@ void TaskPoolMapper::map_task_array(const MapperContext ctx,
                                     std::vector<PhysicalInstance> &instances)
 //--------------------------------------------------------------------------
 {
+  log_task_pool_mapper.debug("%s instances.size %ld", prolog(__FUNCTION__).c_str(), instances.size());
   const std::pair<LogicalRegion,Memory> key(region, target);
   std::map<std::pair<LogicalRegion,Memory>,PhysicalInstance>::const_iterator
   finder = local_instances.find(key);
