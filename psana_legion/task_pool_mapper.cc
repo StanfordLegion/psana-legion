@@ -429,6 +429,11 @@ int TaskPoolMapper::totalPendingWorkload() const
 bool TaskPoolMapper::maybeGetLocalTasks(MapperContext ctx)
 //--------------------------------------------------------------------------
 {
+  log_task_pool_mapper.debug("%s locallyRunning %d worker_Ready_queue.size %ld",
+                             prolog(__FUNCTION__, __LINE__).c_str(),
+                             locallyRunningTaskCount(),
+                             worker_ready_queue.size());
+  
   if(locallyRunningTaskCount() < MIN_RUNNING_TASKS && worker_ready_queue.size() > 0) {
     int numTasks = MIN_RUNNING_TASKS - locallyRunningTaskCount();
     
@@ -1036,11 +1041,6 @@ bool TaskPoolMapper::sendSatisfiedTasks(const MapperContext          ctx,
         const Task* task = *taskIt;
         output.relocate_tasks[task] = processor;
         mapped = true;
-        log_task_pool_mapper.info("# %lld p %s remapping %s to %llx",
-                                  timeNow(),
-                                  describeProcId(local_proc.id).c_str(),
-                                  taskDescription(*task).c_str(),
-                                  processor.id);
         log_task_pool_mapper.debug("%s relocating "
                                    "%s to %s",
                                    prolog(__FUNCTION__, __LINE__).c_str(),
@@ -1412,22 +1412,17 @@ void TaskPoolMapper::select_task_options(const MapperContext    ctx,
 {
   assignTaskId(ctx, task);
   DefaultMapper::VariantInfo variantInfo =
-    DefaultMapper::default_find_preferred_variant(task, ctx,
-                                                  /*needs tight bound*/false,
-                                                  /*cache result*/true,
-                                                  Processor::NO_KIND); 
-
-  bool sendRelocateTaskInfo = false;
-  bool selectThisTask = true;
-  Processor initial_proc = local_proc;
+  DefaultMapper::default_find_preferred_variant(task, ctx,
+                                                /*needs tight bound*/false,
+                                                /*cache result*/true,
+                                                Processor::NO_KIND);
   
-  if(variantInfo.proc_kind == local_proc.kind()) {
-    if(mapperCategory == TASK_POOL) {
-      selectThisTask = locallyRunningTaskCount() < MIN_RUNNING_TASKS
-      || !isAnalysisTask(task);
-    }
+  Processor initial_proc;
+  bool runLocally = (variantInfo.proc_kind == local_proc.kind());
+  
+  if(runLocally) {
+    initial_proc = local_proc.
   } else {
-    sendRelocateTaskInfo = true;
     switch(variantInfo.proc_kind) {
       case LOC_PROC:
         initial_proc = nearestLegionCPUProc;
@@ -1441,30 +1436,22 @@ void TaskPoolMapper::select_task_options(const MapperContext    ctx,
       default: assert(false);
     }
   }
-
-  if(selectThisTask) {
-    log_task_pool_mapper.debug("%s %s on %s",
-                               prolog(__FUNCTION__, __LINE__).c_str(),
-                               taskDescription(task).c_str(),
-                               processorKindString(initial_proc.kind()));
-    output.initial_proc = initial_proc;
-    if(initial_proc.id == local_proc.id) {
-      selfGeneratedTaskCount++;
-    }
-    output.inline_task = false;
-    output.stealable = false;
-    output.map_locally = false;
-  } else {
-    log_task_pool_mapper.debug("%s skip task %s",
-                               prolog(__FUNCTION__, __LINE__).c_str(),
-                               taskDescription(task).c_str());
-  }
-
-  if(sendRelocateTaskInfo) {
+  
+  log_task_pool_mapper.debug("%s %s on %s",
+                             prolog(__FUNCTION__, __LINE__).c_str(),
+                             taskDescription(task).c_str(),
+                             describeProcId(init_proc.id).c_str());
+  selfGeneratedTaskCount++;
+  output.initial_proc = initial_proc;
+  output.inline_task = false;
+  output.stealable = false;
+  output.map_locally = false;
+  
+  if(!runLocally) {
     Request r = { 0, initial_proc, local_proc, local_proc, 1, 0 };
     log_task_pool_mapper.debug("%s send RELOCATE_TASK_INFO to %s",
-                              prolog(__FUNCTION__, __LINE__).c_str(),
-                              describeProcId(initial_proc.id).c_str());
+                               prolog(__FUNCTION__, __LINE__).c_str(),
+                               describeProcId(initial_proc.id).c_str());
     runtime->send_message(ctx, initial_proc, &r, sizeof(r), RELOCATE_TASK_INFO);
   }
   
