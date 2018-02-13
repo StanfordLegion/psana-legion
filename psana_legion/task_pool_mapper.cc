@@ -1187,6 +1187,9 @@ void TaskPoolMapper::select_tasks_to_map(const MapperContext          ctx,
           case Realm::Processor::LOC_PROC:
             output.relocate_tasks[task] = nearestLegionCPUProc;
             break;
+         case Realm::Processor::PY_PROC:
+           output.relocate_tasks[task] = nearestTaskPoolProc;
+           break;
           default: assert(false);
         }
       }
