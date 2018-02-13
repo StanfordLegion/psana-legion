@@ -982,6 +982,7 @@ bool TaskPoolMapper::filterInputReadyTasks(const SelectMappingInput&    input,
     if(mapLocally) {
       if (isAnalysisTask(*task))
       {
+        locallyStartedTaskCount++;
         std::set<const Task*>::iterator finder = worker_ready_queue.find(task);
         if (finder == worker_ready_queue.end())
         {
@@ -995,7 +996,6 @@ bool TaskPoolMapper::filterInputReadyTasks(const SelectMappingInput&    input,
       }
       output.map_tasks.insert(task);
       mapped = true;
-      locallyStartedTaskCount++;
       log_task_pool_mapper.debug("%s pool selects %s for local mapping",
                                  prolog(__FUNCTION__, __LINE__).c_str(),
                                  taskDescription(*task).c_str());
@@ -1257,7 +1257,10 @@ void TaskPoolMapper::map_task_array(const MapperContext ctx,
                                     std::vector<PhysicalInstance> &instances)
 //--------------------------------------------------------------------------
 {
-  log_task_pool_mapper.debug("%s instances.size %ld", prolog(__FUNCTION__, __LINE__).c_str(), instances.size());
+  log_task_pool_mapper.debug("%s instances.size %ld locallyRunning %d",
+                             prolog(__FUNCTION__, __LINE__).c_str(),
+                             instances.size(),
+                             locallyRunningTaskCount());
   const std::pair<LogicalRegion,Memory> key(region, target);
   std::map<std::pair<LogicalRegion,Memory>,PhysicalInstance>::const_iterator
   finder = local_instances.find(key);
