@@ -494,6 +494,9 @@ unsigned TaskPoolMapper::uniqueId()
 void TaskPoolMapper::triggerSelectTasksToMap(const MapperContext ctx)
 //--------------------------------------------------------------------------
 {
+  log_task_pool_mapper.debug("%s defer_select_tasks_to_map.exists %d",
+                             prolog(__FUNCTION__, __LINE__).c_str(),
+                             defer_select_tasks_to_map.exists());
   if(defer_select_tasks_to_map.exists()){
     MapperEvent temp_event = defer_select_tasks_to_map;
     defer_select_tasks_to_map = MapperEvent();
@@ -1139,6 +1142,7 @@ void TaskPoolMapper::select_tasks_to_map(const MapperContext          ctx,
         it != tasks_to_map_locally.end(); ++it) {
       const Task* task = *it;
       output.map_tasks.insert(task);
+      mapped = true;
       log_task_pool_mapper.debug("%s select local task %s for here now",
                                 prolog(__FUNCTION__, __LINE__).c_str(),
                                 taskDescription(*task).c_str());
@@ -1152,7 +1156,12 @@ void TaskPoolMapper::select_tasks_to_map(const MapperContext          ctx,
     mapped |= sendSatisfiedTasks(ctx, output);
     assert(send_queue.empty());
     
+    log_task_pool_mapper.debug("%s mapped %d input.ready_tasks.empty %d",
+                               prolog(__FUNCTION__, __LINE__).c_str(),
+                               input.ready_tasks.empty());
+    
     if (!mapped && !input.ready_tasks.empty()) {
+      
       log_task_pool_mapper.debug("%s trigger subsequent invocation",
                                  prolog(__FUNCTION__, __LINE__).c_str());
       if (!defer_select_tasks_to_map.exists()) {
@@ -1163,6 +1172,7 @@ void TaskPoolMapper::select_tasks_to_map(const MapperContext          ctx,
     
   } else {// worker, io, legion_cpu mapper
     
+    bool mapped = false;
     for (std::list<const Task*>::const_iterator it = input.ready_tasks.begin();
          it != input.ready_tasks.end(); it++) {
       const Task* task = *it;
@@ -1177,6 +1187,7 @@ void TaskPoolMapper::select_tasks_to_map(const MapperContext          ctx,
                                      taskDescription(*task).c_str());
           output.map_tasks.insert(task);
           locallyStartedTaskCount++;
+          mapped = true;
         }
       } else {
         log_task_pool_mapper.debug("%s %s relocates %s to %s",
@@ -1184,6 +1195,7 @@ void TaskPoolMapper::select_tasks_to_map(const MapperContext          ctx,
                                    processorKindString(local_proc.kind()),
                                    taskDescription(*task).c_str(),
                                    processorKindString(task->target_proc.kind()));
+        mapped = true;
        switch(chosen.proc_kind) {
           case Realm::Processor::IO_PROC:
             output.relocate_tasks[task] = nearestIOProc;
@@ -1198,6 +1210,21 @@ void TaskPoolMapper::select_tasks_to_map(const MapperContext          ctx,
         }
       }
     }
+    
+    log_task_pool_mapper.debug("%s mapped %d input.ready_tasks.empty %d",
+                               prolog(__FUNCTION__, __LINE__).c_str(),
+                               input.ready_tasks.empty());
+
+    if (!mapped && !input.ready_tasks.empty()) {
+      
+      log_task_pool_mapper.debug("%s trigger subsequent invocation",
+                                 prolog(__FUNCTION__, __LINE__).c_str());
+      if (!defer_select_tasks_to_map.exists()) {
+        defer_select_tasks_to_map = runtime->create_mapper_event(ctx);
+      }
+      output.deferral_event = defer_select_tasks_to_map;
+    }
+
   }
   
 #if VERBOSE_DEBUG
