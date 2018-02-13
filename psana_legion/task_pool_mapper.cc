@@ -1169,12 +1169,15 @@ void TaskPoolMapper::select_tasks_to_map(const MapperContext          ctx,
       VariantInfo chosen = default_find_preferred_variant(*task, ctx,
                                                           true/*needs tight bound*/, false/*cache*/, Processor::NO_KIND);
       if(chosen.proc_kind == local_proc.kind()) {
-        log_task_pool_mapper.debug("%s %s selects %s",
-                                   prolog(__FUNCTION__, __LINE__).c_str(),
-                                   processorKindString(local_proc.kind()),
-                                   taskDescription(*task).c_str());
-        output.map_tasks.insert(task);
-        locallyStartedTaskCount++;
+        
+        if(locallyRunningTaskCount() < MIN_RUNNING_TASKS) {
+          log_task_pool_mapper.debug("%s %s selects %s",
+                                     prolog(__FUNCTION__, __LINE__).c_str(),
+                                     processorKindString(local_proc.kind()),
+                                     taskDescription(*task).c_str());
+          output.map_tasks.insert(task);
+          locallyStartedTaskCount++;
+        }
       } else {
         log_task_pool_mapper.debug("%s %s relocates %s to %s",
                                    prolog(__FUNCTION__, __LINE__).c_str(),
