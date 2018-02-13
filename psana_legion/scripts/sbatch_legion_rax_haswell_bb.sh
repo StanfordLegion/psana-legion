@@ -3,7 +3,7 @@
 #SBATCH --dependency=singleton
 #SBATCH --nodes=17
 #SBATCH --time=00:30:00
-#SBATCH --partition=debug # regular
+#SBATCH --qos=debug # regular
 #SBATCH --constraint=haswell
 #SBATCH --image=docker:stanfordlegion/psana-legion:latest
 #SBATCH --exclusive # causes shifter to preload image before run

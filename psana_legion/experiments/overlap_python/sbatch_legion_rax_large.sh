@@ -3,7 +3,7 @@
 #SBATCH --dependency=singleton
 #SBATCH --nodes=17
 #SBATCH --time=03:00:00
-#SBATCH --partition=regular
+#SBATCH --qos=regular
 #SBATCH --constraint=knl,quad,cache
 #SBATCH --core-spec=4
 #SBATCH --image=docker:stanfordlegion/psana-legion:elliott

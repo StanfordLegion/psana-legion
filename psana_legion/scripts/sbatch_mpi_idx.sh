@@ -3,7 +3,7 @@
 #SBATCH --dependency=singleton
 #SBATCH --nodes=16
 #SBATCH --time=00:30:00
-#SBATCH --partition=debug # regular
+#SBATCH --qos=debug # regular
 #SBATCH --constraint=knl,quad,cache
 #SBATCH --core-spec=4
 #SBATCH --image=docker:stanfordlegion/psana-mpi:latest
