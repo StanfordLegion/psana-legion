@@ -1179,7 +1179,7 @@ bool TaskPoolMapper::filterTasksToMapLocally(const MapperContext          ctx,
     const Task* task = *it;
     
     VariantInfo chosen = default_find_preferred_variant(*task, ctx,
-                                                        true/*needs tight bound*/, 
+                                                        true/*needs tight bound*/,
                                                         false/*cache*/, Processor::NO_KIND);
     if(chosen.proc_kind == local_proc.kind()) {
       locallyStartedTaskCount++;
@@ -1419,7 +1419,9 @@ void TaskPoolMapper::map_task(const MapperContext      ctx,
 {
   
   VariantInfo chosen = default_find_preferred_variant(task, ctx,
-                                                      true/*needs tight bound*/, false/*cache*/, Processor::NO_KIND);
+                                                      true/*needs tight bound*/,
+                                                      false/*cache*/,
+                                                      Processor::NO_KIND);
   output.chosen_variant = chosen.variant;
   output.task_priority = 0;
   output.postmap_task = false;
@@ -1506,13 +1508,14 @@ void TaskPoolMapper::select_task_options(const MapperContext    ctx,
                              prolog(__FUNCTION__, __LINE__).c_str(),
                              taskDescription(task).c_str(),
                              describeProcId(target_proc.id).c_str());
-  selfGeneratedTaskCount++;
   output.initial_proc = target_proc;
   output.inline_task = false;
   output.stealable = false;
   output.map_locally = false;
   
-  if(!runLocally) {
+  if(runLocally) {
+    selfGeneratedTaskCount++;
+  } else {
     Request r = { 0, target_proc, local_proc, local_proc, 1, 0 };
     log_task_pool_mapper.debug("%s send RELOCATE_TASK_INFO to %s",
                                prolog(__FUNCTION__, __LINE__).c_str(),
