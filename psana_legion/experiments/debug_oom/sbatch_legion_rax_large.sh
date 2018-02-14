@@ -42,7 +42,7 @@ for rounds in 20; do
       ./make_nodelist.py $c > nodelist.txt
       export SLURM_HOSTFILE=$PWD/nodelist.txt
       export MAX_TASKS_IN_FLIGHT=$(( 1280 / c ))
-      for i in 1 2 4 8; do
+      for i in 1; do
         if [[ ! -e rax_rounds"$rounds"_n"$n"_c"$c"_i"$i".log ]]; then
           srun -n $(( n * c + 1 )) -N $(( n + 1 )) --cpus-per-task $(( 256 / c )) --cpu_bind cores --distribution=arbitrary --output rax_rounds"$rounds"_n"$n"_c"$c"_i"$i".log \
             shifter \
