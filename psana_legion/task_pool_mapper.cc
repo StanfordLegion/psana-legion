@@ -1183,11 +1183,13 @@ bool TaskPoolMapper::filterTasksToMapLocally(const MapperContext          ctx,
                                                         true/*needs tight bound*/, 
                                                         false/*cache*/, Processor::NO_KIND);
     if(chosen.proc_kind == local_proc.kind()) {
+      locallyStartTaskCount++;
       output.map_tasks.insert(task);
       mapped = true;
-      log_task_pool_mapper.debug("%s local task %s to run here now",
+      log_task_pool_mapper.debug("%s local task %s to run here now locallyRunning %d",
                                  prolog(__FUNCTION__, __LINE__).c_str(),
-                                 taskDescription(*task).c_str());
+                                 taskDescription(*task).c_str(),
+                                 locallyRunningTaskCount());
     } else {
       log_task_pool_mapper.debug("%s %s relocates %s to %s",
                                  prolog(__FUNCTION__, __LINE__).c_str(),
@@ -1439,7 +1441,6 @@ void TaskPoolMapper::map_task(const MapperContext      ctx,
                                totalPendingWorkload());
   } else {
     mappedRelocatedTaskCount++;
-    locallyStartedTaskCount++;
     log_task_pool_mapper.debug("%s maps relocated task %s"
                                " totalPendingWorkload %d"
                                " locallyStarted %d",
