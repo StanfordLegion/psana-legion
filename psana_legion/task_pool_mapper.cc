@@ -1426,12 +1426,6 @@ void TaskPoolMapper::map_task(const MapperContext      ctx,
   output.postmap_task = false;
   output.target_procs.push_back(local_proc);
   
-  log_task_pool_mapper.debug("%s task %s task.orig_proc %s local_proc %s",
-                             prolog(__FUNCTION__, __LINE__).c_str(),
-                             taskDescription(task).c_str(),
-                             describeProcId(task.orig_proc).c_str(),
-                             describeProcId(local_proc.id).c_str());
-  
   if(task.orig_proc == local_proc) {
     mappedSelfGeneratedTaskCount++;
     log_task_pool_mapper.debug("%s maps self task %s"
