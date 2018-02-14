@@ -1430,15 +1430,17 @@ void TaskPoolMapper::map_task(const MapperContext      ctx,
   if(task.orig_proc == local_proc) {
     mappedSelfGeneratedTaskCount++;
     log_task_pool_mapper.debug("%s maps self task %s"
-                               " totalPendingWorkload %d",
+                               " totalPendingWorkload %d"
+                               " locallyRunning %d",
                                prolog(__FUNCTION__, __LINE__).c_str(),
                                taskDescription(task).c_str(),
-                               totalPendingWorkload());
+                               totalPendingWorkload(),
+                               locallyRunningTaskCount());
   } else {
     mappedRelocatedTaskCount++;
     log_task_pool_mapper.debug("%s maps relocated task %s"
                                " totalPendingWorkload %d"
-                               " locallyStarted %d",
+                               " locallyRunning %d",
                                prolog(__FUNCTION__, __LINE__).c_str(),
                                taskDescription(task).c_str(),
                                totalPendingWorkload(),
