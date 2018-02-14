@@ -446,7 +446,6 @@ bool TaskPoolMapper::maybeGetLocalTasks(MapperContext ctx)
       tasks_to_map_locally.insert(task);
       it = worker_ready_queue.erase(it);
       numTasks--;
-      locallyStartedTaskCount++;
       log_task_pool_mapper.debug("%s task %s should map locally, tasks_to_map_locally.size %ld"
                                  " locallyRunning %d",
                                  prolog(__FUNCTION__, __LINE__).c_str(),
