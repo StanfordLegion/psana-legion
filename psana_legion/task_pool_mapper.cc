@@ -447,10 +447,12 @@ bool TaskPoolMapper::maybeGetLocalTasks(MapperContext ctx)
       it = worker_ready_queue.erase(it);
       numTasks--;
       locallyStartedTaskCount++;
-      log_task_pool_mapper.debug("%s task %s should map locally, tasks_to_map_locally.size %ld",
+      log_task_pool_mapper.debug("%s task %s should map locally, tasks_to_map_locally.size %ld"
+                                 " locallyRunning %d",
                                  prolog(__FUNCTION__, __LINE__).c_str(),
                                  taskDescription(*task).c_str(),
-                                 tasks_to_map_locally.size());
+                                 tasks_to_map_locally.size(),
+                                 locallyRunningTaskCount());
     }
     triggerSelectTasksToMap(ctx);
     return true;
@@ -1000,16 +1002,17 @@ bool TaskPoolMapper::filterInputReadyTasks(const SelectMappingInput&    input,
     const Task* task = *it;
     bool mapLocally = locallyRunningTaskCount() < MIN_RUNNING_TASKS || !isAnalysisTask(*task);
     if(mapLocally) {
-      locallyStartedTaskCount++;
       if (isAnalysisTask(*task)) {
         if (alreadyQueued(task))
           continue;
       }
+      locallyStartedTaskCount++;
       output.map_tasks.insert(task);
       mapped = true;
-      log_task_pool_mapper.debug("%s pool selects %s for local mapping",
+      log_task_pool_mapper.debug("%s pool selects %s for local mapping locallyRunning %d",
                                  prolog(__FUNCTION__, __LINE__).c_str(),
-                                 taskDescription(*task).c_str());
+                                 taskDescription(*task).c_str(),
+                                 locallyRunningTaskCount());
     } else {
       if(isAnalysisTask(*task)) {
         if(!alreadyQueued(task)) {
@@ -1435,15 +1438,15 @@ void TaskPoolMapper::map_task(const MapperContext      ctx,
                                taskDescription(task).c_str(),
                                totalPendingWorkload());
   } else {
-    if(mapperCategory != WORKER) {
-      mappedRelocatedTaskCount++;
-    }
+    mappedRelocatedTaskCount++;
     locallyStartedTaskCount++;
     log_task_pool_mapper.debug("%s maps relocated task %s"
-                               " totalPendingWorkload %d",
+                               " totalPendingWorkload %d"
+                               " locallyStarted %d",
                                prolog(__FUNCTION__, __LINE__).c_str(),
                                taskDescription(task).c_str(),
-                               totalPendingWorkload());
+                               totalPendingWorkload(),
+                               locallyStartedTaskCount());
   }
   
   ProfilingRequest completionRequest;
