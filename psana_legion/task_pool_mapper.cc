@@ -270,9 +270,9 @@ private:
   bool sendSatisfiedTasks(const MapperContext          ctx,
                           SelectMappingOutput&   output);
   char* processorKindString(unsigned kind) const;
-  void debugOutput1(const SelectMappingOutput& output);
+  void debugOutput1(const SelectMappingInput& input);
   void debugOutput2(const SelectMappingOutput& output);
-  bool filterTasksToMapLocally(SelectMappingOutput&   output);
+  bool filterTasksToMapLocally(const MapperContext          ctx, SelectMappingOutput&   output);
   void select_tasks_to_map(const MapperContext          ctx,
                            const SelectMappingInput&    input,
                            SelectMappingOutput&   output);
@@ -992,7 +992,6 @@ bool TaskPoolMapper::filterInputReadyTasks(const SelectMappingInput&    input,
                                            SelectMappingOutput&   output)
 //--------------------------------------------------------------------------
 {
-  assert(mapperCategory == TASK_POOL);
   bool mapped = false;
   // Copy over any new tasks into our worker ready queue
   for (std::list<const Task*>::const_iterator it = input.ready_tasks.begin();
@@ -1168,7 +1167,8 @@ void TaskPoolMapper::debugOutput2(const SelectMappingOutput& output)
 }
 
 //--------------------------------------------------------------------------
-bool TaskPoolMapper::filterTasksToMapLocally(SelectMappingOutput&   output)
+bool TaskPoolMapper::filterTasksToMapLocally(const MapperContext          ctx,
+                                             SelectMappingOutput&   output)
 //--------------------------------------------------------------------------
 {
   bool mapped = false;
@@ -1177,8 +1177,8 @@ bool TaskPoolMapper::filterTasksToMapLocally(SelectMappingOutput&   output)
     const Task* task = *it;
     
     VariantInfo chosen = default_find_preferred_variant(*task, ctx,
-                                                        true/*needs tight bound*/, false/
-                                                        *cache*/, Processor::NO_KIND);
+                                                        true/*needs tight bound*/, 
+                                                        false/*cache*/, Processor::NO_KIND);
     if(chosen.proc_kind == local_proc.kind()) {
       output.map_tasks.insert(task);
       mapped = true;
@@ -1217,7 +1217,7 @@ void TaskPoolMapper::select_tasks_to_map(const MapperContext          ctx,
 //--------------------------------------------------------------------------
 {
 #if VERBOSE_DEBUG
-  debugOutput1();
+  debugOutput1(input);
 #endif
   
   if(defer_select_tasks_to_map.exists()) {
@@ -1229,7 +1229,7 @@ void TaskPoolMapper::select_tasks_to_map(const MapperContext          ctx,
                              input.ready_tasks.size());
   
   bool mapped = filterInputReadyTasks(input, output);
-  mapped |= filterTasksToMapLocally(output);
+  mapped |= filterTasksToMapLocally(ctx, output);
   
   if(mapperCategory == TASK_POOL) {
     if (!worker_ready_queue.empty())
@@ -1305,7 +1305,7 @@ void TaskPoolMapper::select_tasks_to_map(const MapperContext          ctx,
   //  }
   
 #if VERBOSE_DEBUG
-  debugOutput2();
+  debugOutput2(output);
 #endif
   
 }
