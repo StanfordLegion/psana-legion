@@ -137,7 +137,7 @@
 #include "default_mapper.h"
 
 
-#define VERBOSE_DEBUG 0
+#define VERBOSE_DEBUG 1
 
 using namespace Legion;
 using namespace Legion::Mapping;
@@ -429,7 +429,7 @@ int TaskPoolMapper::totalPendingWorkload() const
 bool TaskPoolMapper::maybeGetLocalTasks(MapperContext ctx)
 //--------------------------------------------------------------------------
 {
-  log_task_pool_mapper.debug("%s locallyRunning %d worker_Ready_queue.size %ld",
+  log_task_pool_mapper.debug("%s locallyRunning %d worker_ready_queue.size %ld",
                              prolog(__FUNCTION__, __LINE__).c_str(),
                              locallyRunningTaskCount(),
                              worker_ready_queue.size());
@@ -443,9 +443,7 @@ bool TaskPoolMapper::maybeGetLocalTasks(MapperContext ctx)
       tasks_to_map_locally.insert(task);
       it = worker_ready_queue.erase(it);
       numTasks--;
-      if(isAnalysisTask(*task)) {
-        locallyStartedTaskCount++;
-      }
+      locallyStartedTaskCount++;
       log_task_pool_mapper.debug("%s task %s should map locally, tasks_to_map_locally.size %ld",
                                 prolog(__FUNCTION__, __LINE__).c_str(),
                                 taskDescription(*task).c_str(),
@@ -956,21 +954,33 @@ bool TaskPoolMapper::alreadyQueued(const Task* task)
 //--------------------------------------------------------------------------
 {
   if(worker_ready_queue.find(task) != worker_ready_queue.end()) {
+#if VERBOSE_DEBUG
+    log_task_pool_mapper.debug("%s task %s already queued in worker_ready_queue size %ld",
+                               prolog(__FUNCTION__, __LINE__).c_str(),
+                               taskDescription(*task).c_str(), worker_ready_queue.size());
+#endif
     return true;
   }
-  //TODO use a set here instead of searching over the send queue
   for(SendQueue::iterator sqIt = send_queue.begin();
       sqIt != send_queue.end(); sqIt++) {
     std::vector<const Task*> tasks = sqIt->second;
-    for(std::vector<const Task*>::iterator taskIt = tasks.begin();
-        taskIt != tasks.end(); taskIt++) {
-      if(*taskIt == task) {
-        return true;
-      }
+    if(std::find (tasks.begin(), tasks.end(), task) != tasks.end()) {
+#if VERBOSE_DEBUG
+    log_task_pool_mapper.debug("%s task %s already queued in SendQueue",
+                               prolog(__FUNCTION__, __LINE__).c_str(),
+                               taskDescription(*task).c_str());
+#endif
+      return true;
     }
   }
-  std::set<const Task*>::iterator localMapFinder = tasks_to_map_locally.find(task);
-  if (localMapFinder != tasks_to_map_locally.end()) return true;
+  if(tasks_to_map_locally.find(task) != tasks_to_map_locally.end()) {
+#if VERBOSE_DEBUG
+    log_task_pool_mapper.debug("%s task %s already queued in tasks_to_map_locally",
+                               prolog(__FUNCTION__, __LINE__).c_str(),
+                               taskDescription(*task).c_str());
+#endif
+    return true;
+  }
   return false;
 }
 
@@ -988,19 +998,10 @@ bool TaskPoolMapper::filterInputReadyTasks(const SelectMappingInput&    input,
     const Task* task = *it;
     bool mapLocally = locallyRunningTaskCount() < MIN_RUNNING_TASKS || !isAnalysisTask(*task);
     if(mapLocally) {
-      if (isAnalysisTask(*task))
-      {
-        locallyStartedTaskCount++;
-        std::set<const Task*>::iterator finder = worker_ready_queue.find(task);
-        if (finder == worker_ready_queue.end())
-        {
-          // If it's already in the send queue then we can't claim it
-          if (alreadyQueued(task))
-            continue;
-          // Else not seen before so we can claim it
-        }
-        else // Not in send queue yet so we can claim it
-          worker_ready_queue.erase(finder);
+      locallyStartedTaskCount++;
+      if (isAnalysisTask(*task)) {
+        if (alreadyQueued(task))
+          continue;
       }
       output.map_tasks.insert(task);
       mapped = true;
@@ -1008,9 +1009,15 @@ bool TaskPoolMapper::filterInputReadyTasks(const SelectMappingInput&    input,
                                  prolog(__FUNCTION__, __LINE__).c_str(),
                                  taskDescription(*task).c_str());
     } else {
-      if(isAnalysisTask(*task) && !alreadyQueued(task)) {
-        worker_ready_queue.insert(task);
-        log_task_pool_mapper.debug("%s pool %s on worker_ready_queue",
+      if(isAnalysisTask(*task)) {
+        if(!alreadyQueued(task)) {
+          worker_ready_queue.insert(task);
+          log_task_pool_mapper.debug("%s pool %s copy to worker_ready_queue",
+                                     prolog(__FUNCTION__, __LINE__).c_str(),
+                                     taskDescription(*task).c_str());
+        }
+      } else {
+        log_task_pool_mapper.debug("%s not adding %s to worker_ready_queue, already queued or not analysis task",
                                    prolog(__FUNCTION__, __LINE__).c_str(),
                                    taskDescription(*task).c_str());
       }
@@ -1117,10 +1124,24 @@ void TaskPoolMapper::select_tasks_to_map(const MapperContext          ctx,
                                          SelectMappingOutput&   output)
 //--------------------------------------------------------------------------
 {
+REFACTOR THIS IS TOO BIG TO READ
+
 #if VERBOSE_DEBUG
   for(std::list<const Task*>::const_iterator it = input.ready_tasks.begin();
-      it != input.ready_tasks.end(); it++) {
+    it != input.ready_tasks.end(); it++) {
     log_task_pool_mapper.debug("%s input.ready_tasks %s",
+                               prolog(__FUNCTION__, __LINE__).c_str(),
+                               taskDescription(**it).c_str());
+  }
+  for(std::set<const Task*>::const_iterator it = worker_ready_queue.begin();
+    it != worker_ready_queue.end(); it++) {
+    log_task_pool_mapper.debug("%s worker_ready_queue %s",
+                               prolog(__FUNCTION__, __LINE__).c_str(),
+                               taskDescription(**it).c_str());
+  }
+  for(std::set<const Task*>::iterator it = tasks_to_map_locally.begin();
+    it != tasks_to_map_locally.end(); ++it) {
+    log_task_pool_mapper.debug("%s tasks map locally %s",
                                prolog(__FUNCTION__, __LINE__).c_str(),
                                taskDescription(**it).c_str());
   }
@@ -1187,7 +1208,6 @@ void TaskPoolMapper::select_tasks_to_map(const MapperContext          ctx,
                                      processorKindString(local_proc.kind()),
                                      taskDescription(*task).c_str());
           output.map_tasks.insert(task);
-          locallyStartedTaskCount++;
           mapped = true;
         }
       } else {
@@ -1372,13 +1392,13 @@ void TaskPoolMapper::map_task(const MapperContext      ctx,
     if(mapperCategory != WORKER) {
       mappedRelocatedTaskCount++;
     }
+    locallyStartedTaskCount++;
     log_task_pool_mapper.debug("%s maps relocated task %s"
                                " totalPendingWorkload %d",
                                prolog(__FUNCTION__, __LINE__).c_str(),
                                taskDescription(task).c_str(),
                                totalPendingWorkload());
   }
-  locallyStartedTaskCount++;
   
   ProfilingRequest completionRequest;
   completionRequest.add_measurement<Realm::ProfilingMeasurements::OperationStatus>();
