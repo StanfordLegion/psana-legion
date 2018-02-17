@@ -49,9 +49,9 @@ int main(int argc, char **argv)
            iterations, num_ranks);
   }
 
-  double start_ts = MPI_Wtime();
-
   CHECK(MPI_Barrier(MPI_COMM_WORLD));
+
+  double start_ts = MPI_Wtime();
 
   for (int i = 0; i < iterations; i++) {
     memory_bound_kernel(buffer_size_bytes, rounds);
