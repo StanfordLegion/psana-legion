@@ -44,6 +44,10 @@ CORE_GEN_OBJ ?= native_kernels.o native_kernels_helper.o
 MPI_GEN_OBJ ?= test_mpi.o
 MPI_OUTFILE ?= test_mpi
 
+ifeq ($(CRAYPE_VERSION),)
+	MPI_LD_FLAGS += -lmpi
+endif
+
 .PHONY: all
 all: $(OUTFILE) $(MPI_OUTFILE)
 
@@ -54,7 +58,7 @@ $(MPI_GEN_OBJ) : %.o : %.cc
 
 $(MPI_OUTFILE) : $(CORE_GEN_OBJ) $(MPI_GEN_OBJ)
 	@echo "---> Linking objects into one binary: $(MPI_OUTFILE)"
-	$(CXX) -o $(MPI_OUTFILE) $(CORE_GEN_OBJ) $(MPI_GEN_OBJ) -lmpi
+	$(CXX) -o $(MPI_OUTFILE) $(CORE_GEN_OBJ) $(MPI_GEN_OBJ) $(MPI_LD_FLAGS)
 
 NO_BUILD_ALL=1
 
