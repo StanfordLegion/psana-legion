@@ -41,12 +41,22 @@ LD_FLAGS	?=
 
 # Create core library that both Legion and MPI can link against
 CORE_GEN_OBJ ?= native_kernels.o native_kernels_helper.o
+MPI_GEN_OBJ ?= test_mpi.o
+MPI_OUTFILE ?= test_mpi
 
 .PHONY: all
-all: $(OUTFILE) $(CORE_OUTFILE) $(BIN_OUTFILE)
+all: $(OUTFILE) $(MPI_OUTFILE)
 
 $(CORE_GEN_OBJ) : %.o : %.cc
 	$(CXX) -o $@ -c $< $(CC_FLAGS) $(INC_FLAGS) -O3
+$(MPI_GEN_OBJ) : %.o : %.cc
+	$(CXX) -o $@ -c $< $(CC_FLAGS) $(INC_FLAGS)
+
+$(MPI_OUTFILE) : $(CORE_GEN_OBJ) $(MPI_GEN_OBJ)
+	@echo "---> Linking objects into one binary: $(MPI_OUTFILE)"
+	$(CXX) -o $(MPI_OUTFILE) $(CORE_GEN_OBJ) $(MPI_GEN_OBJ) -lmpi
+
+NO_BUILD_ALL=1
 
 ###########################################################################
 #
@@ -61,4 +71,4 @@ $(OUTFILE) : $(GEN_OBJS) $(CORE_GEN_OBJ) $(SLIB_LEGION) $(SLIB_REALM)
 	$(CXX) -o $(OUTFILE) $(GEN_OBJS) $(CORE_GEN_OBJ) $(LD_FLAGS) $(LEGION_LIBS) $(LEGION_LD_FLAGS) $(GASNET_FLAGS)
 
 clean::
-	$(RM) -f $(OUTFILE) $(SLIB_LEGION) $(SLIB_REALM) $(GEN_OBJS) $(GEN_GPU_OBJS) $(LOW_RUNTIME_OBJS) $(HIGH_RUNTIME_OBJS) $(GPU_RUNTIME_OBJS) $(MAPPER_OBJS) $(ASM_OBJS) $(CORE_GEN_OBJ)
+	$(RM) -f $(OUTFILE) $(MPI_OUTFILE) $(SLIB_LEGION) $(SLIB_REALM) $(GEN_OBJS) $(GEN_GPU_OBJS) $(LOW_RUNTIME_OBJS) $(HIGH_RUNTIME_OBJS) $(GPU_RUNTIME_OBJS) $(MAPPER_OBJS) $(ASM_OBJS) $(CORE_GEN_OBJ) $(MPI_GEN_OBJ)
