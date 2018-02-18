@@ -272,7 +272,7 @@ private:
   char* processorKindString(unsigned kind) const;
   void debugOutput1(const SelectMappingInput& input);
   void debugOutput2(const SelectMappingOutput& output);
-  bool filterTasksToMapLocally(const MapperContext          ctx, SelectMappingOutput&   output);
+  bool filterTasksToMapLocally(const MapperContext ctx, SelectMappingOutput&   output);
   void select_tasks_to_map(const MapperContext          ctx,
                            const SelectMappingInput&    input,
                            SelectMappingOutput&   output);
@@ -456,6 +456,7 @@ bool TaskPoolMapper::maybeGetLocalTasks(MapperContext ctx)
     triggerSelectTasksToMap(ctx);
     return true;
   }
+  triggerSelectTasksToMap(ctx);
   return false;
 }
 
@@ -878,13 +879,13 @@ void TaskPoolMapper::handleStealRequest(const MapperContext          ctx,
     if(r.numTasks > 0) {
       failed_requests.push_back(r);
     }
-    triggerSelectTasksToMap(ctx);
   }
   else
   {
     failed_requests.push_back(r);
     forwardStealRequest(ctx, r);
   }
+  triggerSelectTasksToMap(ctx);
 }
 
 //--------------------------------------------------------------------------
@@ -1251,69 +1252,10 @@ void TaskPoolMapper::select_tasks_to_map(const MapperContext          ctx,
     output.deferral_event = defer_select_tasks_to_map;
   }
   
-  //  } else {// worker, io, legion_cpu mapper
-  //
-  //    bool mapped = false;
-  //    for (std::list<const Task*>::const_iterator it = input.ready_tasks.begin();
-  //         it != input.ready_tasks.end(); it++) {
-  //      const Task* task = *it;
-  //      VariantInfo chosen = default_find_preferred_variant(*task, ctx,
-  //                                                          true/*needs tight bound*/, false/*cache*/, Processor::NO_KIND);
-  //      if(chosen.proc_kind == local_proc.kind()) {
-  //
-  //        if(locallyRunningTaskCount() < MIN_RUNNING_TASKS) {
-  //          log_task_pool_mapper.debug("%s %s selects %s",
-  //                                     prolog(__FUNCTION__, __LINE__).c_str(),
-  //                                     processorKindString(local_proc.kind()),
-  //                                     taskDescription(*task).c_str());
-  //          output.map_tasks.insert(task);
-  //          mapped = true;
-  //        }
-  //      } else {
-  //        log_task_pool_mapper.debug("%s %s relocates %s to %s",
-  //                                   prolog(__FUNCTION__, __LINE__).c_str(),
-  //                                   processorKindString(local_proc.kind()),
-  //                                   taskDescription(*task).c_str(),
-  //                                   processorKindString(task->target_proc.kind()));
-  //        mapped = true;
-  //       switch(chosen.proc_kind) {
-  //          case Realm::Processor::IO_PROC:
-  //            output.relocate_tasks[task] = nearestIOProc;
-  //            break;
-  //          case Realm::Processor::LOC_PROC:
-  //            output.relocate_tasks[task] = nearestLegionCPUProc;
-  //            break;
-  //         case Realm::Processor::PY_PROC:
-  //           output.relocate_tasks[task] = nearestTaskPoolProc;
-  //           break;
-  //          default: assert(false);
-  //        }
-  //      }
-  //    }
-  //
-  //    log_task_pool_mapper.debug("%s mapped %d input.ready_tasks.empty %d",
-  //                               prolog(__FUNCTION__, __LINE__).c_str(),
-  //                               mapped,
-  //                               input.ready_tasks.empty());
-  //
-  //    if (!mapped && !input.ready_tasks.empty()) {
-  //
-  //      log_task_pool_mapper.debug("%s trigger subsequent invocation",
-  //                                 prolog(__FUNCTION__, __LINE__).c_str());
-  //      if (!defer_select_tasks_to_map.exists()) {
-  //        defer_select_tasks_to_map = runtime->create_mapper_event(ctx);
-  //      }
-  //      output.deferral_event = defer_select_tasks_to_map;
-  //    }
-  //
-  //  }
-  
 #if VERBOSE_DEBUG
   debugOutput2(output);
 #endif
-  
 }
-
 
 
 
@@ -1323,6 +1265,10 @@ void TaskPoolMapper::select_steal_targets(const MapperContext         ctx,
                                           SelectStealingOutput& output)
 //--------------------------------------------------------------------------
 {
+#if VERBOSE_DEBUG
+  log_task_pool_mapper.debug("%s mapperCategory %d",
+                             prolog(__FUNCTION__, __LINE__).c_str(), mapperCategory);
+#endif
   if(mapperCategory == WORKER) {
     maybeSendStealRequest(ctx, nearestTaskPoolProc);
   }
