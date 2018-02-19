@@ -380,13 +380,24 @@ proc_sysmems(*_proc_sysmems)
   mappedRelocatedTaskCount = 0;
   mappedSelfGeneratedTaskCount = 0;
   
-  log_task_pool_mapper.info("%lld # %s totalPendingWorkload %d mapper category %d %s",
+  log_task_pool_mapper.info("%lld # %s totalPendingWorkload %d mapper category %c %s",
                             timeNow(), describeProcId(local_proc.id).c_str(),
-                            totalPendingWorkload(), mapperCategory,
+                            totalPendingWorkload(), mapperCategoryString(),
                             processorKindString(local_proc.kind()));
 }
 
 
+
+//--------------------------------------------------------------------------
+static char* mapperCategoryString()
+//--------------------------------------------------------------------------
+{
+  return (mapperCategory == WORKER ? "W"
+          : (mapperCategory == TASK_POOL ? "T"
+             : (mapperCategory == IO ? "I"
+                : (mapperCategory == LEGION_CPU ? "L"
+                   : ""))))
+}
 
 //--------------------------------------------------------------------------
 std::string TaskPoolMapper::prolog(const char* function, int line) const
@@ -397,8 +408,7 @@ std::string TaskPoolMapper::prolog(const char* function, int line) const
   sprintf(buffer, "%lld %s(%s): %s %s(%d)",
           timeNow(), describeProcId(local_proc.id).c_str(),
           processorKindString(local_proc.kind()),
-          (mapperCategory == WORKER ? "W" : (mapperCategory == TASK_POOL ? "T" :
-                                             (mapperCategory == IO ? "I" : (mapperCategory == LEGION_CPU ? "L" : "")))),
+          mapperCategoryString(),
           function, line);
   return std::string(buffer);
 }
@@ -744,18 +754,17 @@ void TaskPoolMapper::categorizeMappers()
           recentTaskPoolProc = processor;
           if(processor == local_proc) {
             mapperCategory = TASK_POOL;
-            nearestTaskPoolProc = recentTaskPoolProc;
-            nearestIOProc = recentIOProc;
-            nearestLegionCPUProc = recentLegionCPUProc;
           }
         } else {
           worker_procs.push_back(processor);
           if(processor == local_proc) {
             mapperCategory = WORKER;
-            nearestTaskPoolProc = recentTaskPoolProc;
-            nearestIOProc = recentIOProc;
-            nearestLegionCPUProc = recentLegionCPUProc;
           }
+        }
+        if(processor == local_proc) {
+          nearestTaskPoolProc = recentTaskPoolProc;
+          nearestIOProc = recentIOProc;
+          nearestLegionCPUProc = recentLegionCPUProc;
         }
         break;
       default: assert(false);
