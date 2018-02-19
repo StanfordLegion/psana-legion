@@ -142,6 +142,10 @@
 using namespace Legion;
 using namespace Legion::Mapping;
 
+static const char* ANALYSIS_ROOT_TASK_NAMES[] = {
+  "psana_legion.analyze",
+};
+
 static const char* ANALYSIS_TASK_NAMES[] = {
   "psana_legion.analyze",
   "psana_legion.analyze_leaf",
@@ -150,7 +154,7 @@ static const char* ANALYSIS_TASK_NAMES[] = {
 
 static const int NUM_RANKS_PER_TASK_POOL = 8;
 static const int TASKS_PER_STEALABLE_SLICE = 1;
-static const int MIN_RUNNING_TASKS = 2;
+static const int MIN_RUNNING_TASKS = 5;
 
 typedef enum {
   TASK_POOL,
@@ -249,6 +253,7 @@ private:
   std::string taskDescription(const Legion::Task& task);
   std::string prolog(const char* function, int line) const;
   bool isAnalysisTask(const Legion::Task& task);
+  bool isAnalysisRootTask(const Legion::Task& task);
   void slice_task(const MapperContext      ctx,
                   const Task&              task,
                   const SliceTaskInput&    input,
@@ -762,6 +767,20 @@ std::string TaskPoolMapper::taskDescription(const Legion::Task& task)
 
 
 //--------------------------------------------------------------------------
+bool TaskPoolMapper::isAnalysisRootTask(const Legion::Task& task)
+//--------------------------------------------------------------------------
+{
+  int numAnalysisTasks = sizeof(ANALYSIS_ROOT_TASK_NAMES) / sizeof(ANALYSIS_ROOT_TASK_NAMES[0]);
+  for(int i = 0; i < numAnalysisTasks; ++i) {
+    if(!strcmp(task.get_task_name(), ANALYSIS_ROOT_TASK_NAMES[i])) {
+      return true;
+    }
+  }
+  return false;
+}
+
+
+//--------------------------------------------------------------------------
 bool TaskPoolMapper::isAnalysisTask(const Legion::Task& task)
 //--------------------------------------------------------------------------
 {
@@ -854,11 +873,14 @@ void TaskPoolMapper::handleStealRequest(const MapperContext          ctx,
     unsigned numStolen = 0;
     while ((r.numTasks > 0) && (to_steal != worker_ready_queue.end()))
     {
-      tasks.push_back(*to_steal);
-      to_steal = worker_ready_queue.erase(to_steal);
-      r.numTasks--;
-      numStolen++;
-      stolenAwayTaskCount++;
+      const Task* task = *to_steal;
+      if(isAnalysisRootTask(*task)) {
+        tasks.push_back(*to_steal);
+        to_steal = worker_ready_queue.erase(to_steal);
+        r.numTasks--;
+        numStolen++;
+        stolenAwayTaskCount++;
+      }
     }
     Request v = r;
     v.numTasks = numStolen;
@@ -1346,11 +1368,12 @@ void TaskPoolMapper::report_profiling(const MapperContext      ctx,
   input.profiling_responses.get_measurement<Realm::ProfilingMeasurements::OperationTimeline>(timeline);
   Realm::ProfilingMeasurements::OperationTimeline::timestamp_t elapsedNS = timeline.end_time - timeline.start_time;
   
-  log_task_pool_mapper.info("%s %s %lld totalPendingWorkload %d",
+  log_task_pool_mapper.info("%s report task complete %s %lld totalPendingWorkload %d locallyRunning %d",
                             prolog(__FUNCTION__, __LINE__).c_str(),
                             taskDescription(task).c_str(),
                             elapsedNS,
-                            totalPendingWorkload());
+                            totalPendingWorkload(), 
+                            locallyRunningTaskCount());
   if(mapperCategory == WORKER) {
     maybeSendStealRequest(ctx, nearestTaskPoolProc);
   }
