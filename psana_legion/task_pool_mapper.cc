@@ -154,7 +154,6 @@ static const char* ANALYSIS_TASK_NAMES[] = {
 
 static const int NUM_RANKS_PER_TASK_POOL = 8;
 static const int TASKS_PER_STEALABLE_SLICE = 1;
-static const int MIN_RUNNING_TASKS = 5;
 
 typedef enum {
   TASK_POOL,
@@ -245,6 +244,7 @@ private:
   
   bool stealRequestOutstanding;
   
+  int minRunningTasks() const;
   int locallyRunningTaskCount() const;
   int totalPendingWorkload() const;
   Timestamp timeNow() const;
@@ -405,6 +405,22 @@ std::string TaskPoolMapper::prolog(const char* function, int line) const
 
 
 //--------------------------------------------------------------------------
+int TaskPoolMapper::minRunningTaskCount() const
+//--------------------------------------------------------------------------
+{
+  int result;
+  switch(mapperCategory) {
+    case WORKER:
+      result = 2;
+      break;
+    default:
+      result = 10;
+      break;
+  }
+  return result;
+}
+
+//--------------------------------------------------------------------------
 int TaskPoolMapper::locallyRunningTaskCount() const
 //--------------------------------------------------------------------------
 {
@@ -442,8 +458,8 @@ bool TaskPoolMapper::maybeGetLocalTasks(MapperContext ctx)
                              locallyRunningTaskCount(),
                              worker_ready_queue.size());
   
-  if(locallyRunningTaskCount() < MIN_RUNNING_TASKS && worker_ready_queue.size() > 0) {
-    int numTasks = MIN_RUNNING_TASKS - locallyRunningTaskCount();
+  if(locallyRunningTaskCount() < minRunningTasks() && worker_ready_queue.size() > 0) {
+    int numTasks = minRunningTasks() - locallyRunningTaskCount();
     
     for(std::set<const Task*>::iterator it = worker_ready_queue.begin();
         it != worker_ready_queue.end() && numTasks > 0; ) {
@@ -471,8 +487,8 @@ void TaskPoolMapper::maybeSendStealRequest(MapperContext ctx, Processor target)
 //--------------------------------------------------------------------------
 {
   assert(mapperCategory == WORKER);
-  if(totalPendingWorkload() < MIN_RUNNING_TASKS && !stealRequestOutstanding) {
-    unsigned numTasks = MIN_RUNNING_TASKS - totalPendingWorkload();
+  if(totalPendingWorkload() < minRunningTasks() && !stealRequestOutstanding) {
+    unsigned numTasks = minRunningTasks() - totalPendingWorkload();
     Request r = { uniqueId(), local_proc, target, local_proc, numTasks, 0 };
     log_task_pool_mapper.debug("%s "
                                "send WORKER_POOL_STEAL_REQUEST "
@@ -481,7 +497,7 @@ void TaskPoolMapper::maybeSendStealRequest(MapperContext ctx, Processor target)
                                r.id, numTasks, (describeProcId(target.id).c_str()));
     stealRequestOutstanding = true;
     runtime->send_message(ctx, target, &r, sizeof(r), WORKER_POOL_STEAL_REQUEST);
-  } else if(totalPendingWorkload() < MIN_RUNNING_TASKS && stealRequestOutstanding) {
+  } else if(totalPendingWorkload() < minRunningTasks() && stealRequestOutstanding) {
     log_task_pool_mapper.debug("%s "
                                "cannot send because stealRequestOutstanding",
                                prolog(__FUNCTION__, __LINE__).c_str());
@@ -1022,7 +1038,7 @@ bool TaskPoolMapper::filterInputReadyTasks(const SelectMappingInput&    input,
        it != input.ready_tasks.end(); it++)
   {
     const Task* task = *it;
-    bool mapLocally = locallyRunningTaskCount() < MIN_RUNNING_TASKS || !isAnalysisTask(*task);
+    bool mapLocally = locallyRunningTaskCount() < minRunningTasks() || !isAnalysisTask(*task);
     if(mapLocally) {
       if (isAnalysisTask(*task)) {
         if (alreadyQueued(task))
