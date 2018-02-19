@@ -701,6 +701,8 @@ TaskPoolMapper::Timestamp TaskPoolMapper::timeNow() const
 void TaskPoolMapper::categorizeMappers()
 //--------------------------------------------------------------------------
 {
+  
+  
   unsigned count = 0;
   unsigned ioProcCount = 0;
   unsigned legionProcCount = 0;
@@ -739,21 +741,21 @@ void TaskPoolMapper::categorizeMappers()
       case PY_PROC:
         if(count++ % NUM_RANKS_PER_TASK_POOL == 1) {
           task_pool_procs.push_back(processor);
+          recentTaskPoolProc = processor;
           if(processor == local_proc) {
             mapperCategory = TASK_POOL;
+            nearestTaskPoolProc = recentTaskPoolProc;
+            nearestIOProc = recentIOProc;
+            nearestLegionCPUProc = recentLegionCPUProc;
           }
-          recentTaskPoolProc = processor;
-          nearestTaskPoolProc = recentTaskPoolProc;
-          nearestIOProc = recentIOProc;
-          nearestLegionCPUProc = recentLegionCPUProc;
         } else {
           worker_procs.push_back(processor);
           if(processor == local_proc) {
             mapperCategory = WORKER;
+            nearestTaskPoolProc = recentTaskPoolProc;
+            nearestIOProc = recentIOProc;
+            nearestLegionCPUProc = recentLegionCPUProc;
           }
-          nearestTaskPoolProc = recentTaskPoolProc;
-          nearestIOProc = recentIOProc;
-          nearestLegionCPUProc = recentLegionCPUProc;
         }
         break;
       default: assert(false);
