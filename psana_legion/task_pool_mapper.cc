@@ -1376,6 +1376,8 @@ void TaskPoolMapper::report_profiling(const MapperContext      ctx,
                             locallyRunningTaskCount());
   if(mapperCategory == WORKER) {
     maybeSendStealRequest(ctx, nearestTaskPoolProc);
+  } else {
+    maybeGetLocalTasks(ctx);
   }
 }
 
