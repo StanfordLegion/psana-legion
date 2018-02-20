@@ -85,10 +85,10 @@ for key in balance:
       index = random.randint(0, numKeys - 1)
       statsKey = statistics.items()[index][0]
       if statsKey == 'top':
-        break
+        continue
       keyWords = statsKey.split('(')
       if len(keyWords) == 1:
-        break
+        continue
       procType = keyWords[1][:-2]
       if procType == key:
         foundIt = True
