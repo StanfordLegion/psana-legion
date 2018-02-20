@@ -915,6 +915,8 @@ void TaskPoolMapper::handleStealRequest(const MapperContext          ctx,
         r.numTasks--;
         numStolen++;
         stolenAwayTaskCount++;
+      } else {
+        to_steal++;
       }
     }
     Request v = r;
