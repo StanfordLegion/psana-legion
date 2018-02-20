@@ -14,7 +14,7 @@ import math
 import random
 
 statistics = {}
-statistics["top"] = { "durations": [], "totalDuration": 0, "numTasks": 0, "mean": 0, "standardDeviation": 0 }
+statistics["top"] = { "durations": [], "totalDuration": 0, "numTasks": 0, "mean": 0, "standardDeviation": 0, "randomTotalDuration": 0 }
 balance = {}
 mapper = None
 
@@ -22,28 +22,38 @@ print "Reading logs ..."
 
 for line in fileinput.input():
   words = line.split(' ')
+  duration = None
   if len(words) == 20:
     if words[10].startswith('report_profiling'):
-      
       mapper = words[3]
       node = words[6]
       proc = words[8]
       task = words[14]
       duration = long(words[15])
-      
-      procType = proc.split('(')[1][:-2]
-      if procType not in balance:
-        balance[procType] = { "balance": 0, "randomBalance": 0, "numProcs": 0, "durations": [] }
-      balance[procType]["durations"].append(duration)
-      
-      key = node + ':' + proc
+  elif len(words) == 19:
+    if words[9].startswith('report_profiling'):
+      mapper = words[3]
+      node = words[6]
+      proc = words[8]
+      task = words[13]
+      duration = long(words[14])
 
-      for k in [ key, procType, "top" ]:
-        if k not in statistics:
-          statistics[k] = { "durations": [], "totalDuration": 0, "numTasks": 0, "mean": 0, "standardDeviation": 0, "randomTotalDuration": 0 }
-        statistics[k]["durations"].append(duration)
-        statistics[k]["totalDuration"] = statistics[k]["totalDuration"] + duration
-        statistics[k]["numTasks"] = statistics[k]["numTasks"] + 1
+  if duration == None:
+    continue
+      
+  procType = proc.split('(')[1][:-2]
+  if procType not in balance:
+    balance[procType] = { "balance": 0, "randomBalance": 0, "numProcs": 0, "durations": [] }
+  balance[procType]["durations"].append(duration)
+      
+  key = node + ':' + proc
+
+  for k in [ key, procType, "top" ]:
+    if k not in statistics:
+      statistics[k] = { "durations": [], "totalDuration": 0, "numTasks": 0, "mean": 0, "standardDeviation": 0, "randomTotalDuration": 0 }
+    statistics[k]["durations"].append(duration)
+    statistics[k]["totalDuration"] = statistics[k]["totalDuration"] + duration
+    statistics[k]["numTasks"] = statistics[k]["numTasks"] + 1
 
 print "Crunching data ..."
 
@@ -65,16 +75,28 @@ for key in statistics:
     standardDeviation = math.sqrt(sum / (statistics[key]["numTasks"] - 1))
     statistics[key]["standardDeviation"] = standardDeviation
 
+print "Computing random assignment ..."
+
 numKeys = len(statistics.items())
 for key in balance:
-  for duration in balance[procType]["durations"]:
+  for duration in balance[key]["durations"]:
+    foundIt = False
     while True:
       index = random.randint(0, numKeys - 1)
-      statsKey = statistics.items()[0][0]
-      procType = statsKey.split('(')[1][:-2]
-      if procType == key:
+      statsKey = statistics.items()[index][0]
+      if statsKey == 'top':
         break
-    statistics[statsKey]["randomTotalDuration"] = statistics[key]["randomTotalDuration"] + duration
+      keyWords = statsKey.split('(')
+      if len(keyWords) == 1:
+        break
+      procType = keyWords[1][:-2]
+      if procType == key:
+        foundIt = True
+        break
+    if foundIt == True:
+      statistics[statsKey]["randomTotalDuration"] = statistics[statsKey]["randomTotalDuration"] + duration
+
+print "Computing balance ..."
 
 for key in balance:
   for statsKey in statistics:
@@ -83,17 +105,20 @@ for key in balance:
       proc = words[1]
       statsProcType = proc.split('(')[1][:-1]
       if statsProcType == key:
-        meanTime = float(statistics[key]["totalDuration"]) / balance[key]["numProcs"]
-        runtime = float(statistics[statsKey]["totalDuration"]) / meanTime
-        balance[key]["balance"] = max(balance[key]["balance"], runtime)
-        randomRuntime = float(statistics[statsKey]["randomTotalDuration"]) / meanTime
-        balance[key]["randomBalance"] = max(balance[key]["randomBalance"], randomRuntime)
+        print "key", key, "totalDuration", statistics[key]["totalDuration"],  "numProcs", balance[key]["numProcs"]
+        idealTime = float(statistics[key]["totalDuration"]) / balance[key]["numProcs"]
+        imbalance = float(statistics[statsKey]["totalDuration"]) / idealTime
+        balance[key]["balance"] = max(balance[key]["balance"], imbalance)
+        print "idealTime", idealTime, "imbalance", imbalance, "balance", balance[key]["balance"]
+        randomImbalance = float(statistics[statsKey]["randomTotalDuration"]) / idealTime
+        balance[key]["randomBalance"] = max(balance[key]["randomBalance"], randomImbalance)
+        print "idealTime", idealTime, "randomImbalance", randomImbalance, "randomBalance", balance[key]["randomBalance"]
 
 print "mapper", mapper
 for key in sorted(statistics):
   print key, "numTasks", statistics[key]["numTasks"], "totalDuration", statistics[key]["totalDuration"], "mean", statistics[key]["mean"], "standardDeviation", statistics[key]["standardDeviation"], "randomTotalDuration", statistics[key]["randomTotalDuration"]
 
 for key in balance:
-  print key, "balance", balance[key]
+  print key, "balance", balance[key]["balance"], "randomBalance", balance[key]["randomBalance"], "numProcs", balance[key]["numProcs"]
 
 
