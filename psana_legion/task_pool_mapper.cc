@@ -716,9 +716,10 @@ void TaskPoolMapper::categorizeMappers()
   unsigned count = 0;
   unsigned ioProcCount = 0;
   unsigned legionProcCount = 0;
+  Processor firstTaskPoolProc = Legion::Processor::NO_PROC;
   Processor recentTaskPoolProc = Legion::Processor::NO_PROC;
-  Processor recentIOProc = Legion::Processor::NO_PROC;;
-  Processor recentLegionCPUProc = Legion::Processor::NO_PROC;;
+  Processor recentIOProc = Legion::Processor::NO_PROC;
+  Processor recentLegionCPUProc = Legion::Processor::NO_PROC;
   
   for(std::map<Processor, Memory>::iterator it = proc_sysmems.begin();
       it != proc_sysmems.end(); it++) {
@@ -752,6 +753,9 @@ void TaskPoolMapper::categorizeMappers()
         if(count++ % NUM_RANKS_PER_TASK_POOL == 1) {
           task_pool_procs.push_back(processor);
           recentTaskPoolProc = processor;
+          if(!firstTaskPoolProc == Legion::Processor::NO_PROC) {
+            firstTaskPoolProc = processor;
+          }
           if(processor == local_proc) {
             mapperCategory = TASK_POOL;
           }
@@ -769,6 +773,10 @@ void TaskPoolMapper::categorizeMappers()
         break;
       default: assert(false);
     }
+  }
+  
+  if(nearestTaskPoolProc == Legion::Processor::NO_PROC) {
+    nearestTaskPoolProc = firstTaskPoolProc;
   }
   
   log_task_pool_mapper.debug("%s %ld task pool, "
