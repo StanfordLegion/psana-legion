@@ -1206,10 +1206,12 @@ void LifelineMapper::report_profiling(const MapperContext      ctx,
   input.profiling_responses.get_measurement<Realm::ProfilingMeasurements::OperationTimeline>(timeline);
   Realm::ProfilingMeasurements::OperationTimeline::timestamp_t elapsedNS = timeline.end_time - timeline.start_time;
   
-  log_lifeline_mapper.info("%s # %s %lld",
-                           prolog(__FUNCTION__, __LINE__).c_str(),
-                           taskDescription(task).c_str(),
-                           elapsedNS);
+  log_lifeline_mapper.info("%s report task complete %s %lld totalPendingWorkload %d locallyRunning %d",
+                            prolog(__FUNCTION__, __LINE__).c_str(),
+                            taskDescription(task).c_str(),
+                            elapsedNS,
+                            totalPendingWorkload(),
+                            locallyRunningTaskCount());
   
   maybeGetMoreTasks(ctx);
 }
