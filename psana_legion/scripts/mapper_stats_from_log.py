@@ -17,7 +17,6 @@ statistics = {}
 statistics["top"] = { "durations": [], "totalDuration": 0, "numTasks": 0, "mean": 0, "standardDeviation": 0 }
 balance = {}
 mapper = None
-durations = []
 
 for line in fileinput.input():
   words = line.split(' ')
@@ -32,16 +31,18 @@ for line in fileinput.input():
       
       procType = proc.split('(')[1][:-2]
       if procType not in balance:
-        balance[procType] = { "balance": 0, "randomBalance": 0, "numProcs": 0 }
+        balance[procType] = { "balance": 0, "randomBalance": 0, "numProcs": 0, "durations": [] }
+      balance[procType]["durations"].append(duration)
+      
       key = node + ':' + proc
 
       for k in [ key, procType, "top" ]:
         if k not in statistics:
           statistics[k] = { "durations": [], "totalDuration": 0, "numTasks": 0, "mean": 0, "standardDeviation": 0, "randomTotalDuration": 0 }
-        durations.append(duration)
         statistics[k]["durations"].append(duration)
         statistics[k]["totalDuration"] = statistics[k]["totalDuration"] + duration
         statistics[k]["numTasks"] = statistics[k]["numTasks"] + 1
+
 
 
 for key in statistics:
@@ -62,11 +63,19 @@ for key in statistics:
     standardDeviation = math.sqrt(sum / (statistics[key]["numTasks"] - 1))
     statistics[key]["standardDeviation"] = standardDeviation
 
-numKeys = len(statistics.items)
-for duration in durations:
-  index = random.randint(0, numKeys - 1)
-  key = statistics.items()[0][0]
-  statistics[key]["randomTotalDuration"] = statistics[key]["randomTotalDuration"] + duration
+numKeys = len(statistics.items())
+print "numKeys", numKeys
+for key in balance:
+  print "balance key", key
+  for duration in balance[procType]["durations"]:
+    while True:
+      index = random.randint(0, numKeys - 1)
+      statsKey = statistics.items()[0][0]
+      procType = statsKey.split(':')[1]
+      if procType == key:
+        print "duration add to", index, statsKey, procType
+        break
+    statistics[statsKey]["randomTotalDuration"] = statistics[key]["randomTotalDuration"] + duration
 
 for key in balance:
   for statsKey in statistics:
