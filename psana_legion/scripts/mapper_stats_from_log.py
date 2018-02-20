@@ -73,7 +73,6 @@ for key in balance:
       statsKey = statistics.items()[0][0]
       procType = statsKey.split(':')[1]
       if procType == key:
-        print "duration add to", index, statsKey, procType
         break
     statistics[statsKey]["randomTotalDuration"] = statistics[key]["randomTotalDuration"] + duration
 
@@ -92,7 +91,7 @@ for key in balance:
 
 print "mapper", mapper
 for key in sorted(statistics):
-  print key, "numTasks", statistics[key]["numTasks"], "totalDuration", statistics[key]["totalDuration"], "mean", statistics[key]["mean"], "standardDeviation", statistics[key]["standardDeviation"]
+  print key, "numTasks", statistics[key]["numTasks"], "totalDuration", statistics[key]["totalDuration"], "mean", statistics[key]["mean"], "standardDeviation", statistics[key]["standardDeviation"], "randomTotalDuration", statistics[key]["randomTotalDuration"]
 
 for key in balance:
   print key, "balance", balance[key]
