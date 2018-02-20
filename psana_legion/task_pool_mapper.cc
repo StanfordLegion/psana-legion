@@ -421,7 +421,7 @@ int TaskPoolMapper::minRunningTasks() const
   int result;
   switch(local_proc.kind()) {
     case PY_PROC:
-      result = 2;
+      result = 5;
       break;
     default:
       result = 10;
@@ -753,7 +753,7 @@ void TaskPoolMapper::categorizeMappers()
         if(count++ % NUM_RANKS_PER_TASK_POOL == 1) {
           task_pool_procs.push_back(processor);
           recentTaskPoolProc = processor;
-          if(!firstTaskPoolProc == Legion::Processor::NO_PROC) {
+          if(firstTaskPoolProc == Legion::Processor::NO_PROC) {
             firstTaskPoolProc = processor;
           }
           if(processor == local_proc) {
