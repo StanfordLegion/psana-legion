@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --nodes=3
+#SBATCH --nodes=2
 #SBATCH --time=00:30:00
 #SBATCH --qos=debug
 #SBATCH --constraint=knl,quad,cache
