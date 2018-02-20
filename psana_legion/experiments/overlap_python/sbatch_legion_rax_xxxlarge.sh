@@ -32,7 +32,7 @@ export EAGER=1
 export PSANA_MAPPER=simple
 export KERNEL_KIND=memory_bound
 
-export GASNET_NETWORKDEPTH_SPACE=1
+export GASNET_PHYSMEM_MAX=64G # per node
 
 for rounds in 20 40 80; do
   export KERNEL_ROUNDS=$rounds
