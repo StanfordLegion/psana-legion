@@ -20,7 +20,7 @@ int main(int argc, char **argv)
 
   long long buffer_size = 64; // MB
   long long rounds = 20;
-  long long iterations = 20;
+  long long iterations = 100;
   for (int i = 1; i < argc; i++) {
     // Skip any legion runtime configuration parameters
     if (!strcmp(argv[i], "-size")) {

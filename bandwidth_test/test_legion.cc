@@ -54,7 +54,7 @@ void top_level_task(const Task *task,
 {
   long long buffer_size = 64; // MB
   long long rounds = 20;
-  long long iterations = 20;
+  long long iterations = 100;
   const InputArgs &args = Runtime::get_input_args();
   for (int i = 1; i < args.argc; i++) {
     // Skip any legion runtime configuration parameters
