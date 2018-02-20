@@ -10,7 +10,7 @@
 for rounds in 20 40 80; do
   for n in 2 1; do
     for c in 128 64 32 16 8 4; do
-      for p in 1 2 4 8; do
+      for p in 1 2 4 8 16 32; do
         if (( $p * $c >= 64 && $p * $c <= 128 )); then
           if [[ ! -e legion_rounds"$rounds"_n"$n"_c"$c"_p"$p".log ]]; then
             srun -n $(( n * c )) -N $n --cpus-per-task $(( 256 / c )) --cpu_bind cores --output legion_rounds"$rounds"_n"$n"_c"$c"_p"$p".log \
