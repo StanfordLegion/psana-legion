@@ -27,14 +27,14 @@ mapper = None
 
 for line in fileinput.input():
   words = line.split(' ')
-  if len(words) == 13:
-    if words[9].startswith('report_profiling'):
+  if len(words) == 20:
+    if words[10].startswith('report_profiling'):
       
       mapper = words[3]
       node = words[6]
       proc = words[8]
-      task = words[11]
-      duration = long(words[12])
+      task = words[14]
+      duration = long(words[15])
       
       procType = proc.split('(')[1][:-2]
       if procType not in balance:
@@ -55,7 +55,10 @@ for key in statistics:
     proc = words[1]
     procType = proc.split('(')[1][:-1]
     balance[procType]["numProcs"] = balance[procType]["numProcs"] + 1
-  statistics[key]["mean"] = statistics[key]["totalDuration"] / statistics[key]["numTasks"]
+  numTasks = statistics[key]["numTasks"]
+  if numTasks == 0:
+    numTasks = 1
+  statistics[key]["mean"] = statistics[key]["totalDuration"] / numTasks
   if statistics[key]["numTasks"] > 1:
     sum = 0
     for duration in statistics[key]["durations"]:
