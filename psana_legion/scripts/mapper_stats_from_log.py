@@ -105,14 +105,11 @@ for key in balance:
       proc = words[1]
       statsProcType = proc.split('(')[1][:-1]
       if statsProcType == key:
-        print "key", key, "totalDuration", statistics[key]["totalDuration"],  "numProcs", balance[key]["numProcs"]
         idealTime = float(statistics[key]["totalDuration"]) / balance[key]["numProcs"]
         imbalance = float(statistics[statsKey]["totalDuration"]) / idealTime
         balance[key]["balance"] = max(balance[key]["balance"], imbalance)
-        print "idealTime", idealTime, "imbalance", imbalance, "balance", balance[key]["balance"]
         randomImbalance = float(statistics[statsKey]["randomTotalDuration"]) / idealTime
         balance[key]["randomBalance"] = max(balance[key]["randomBalance"], randomImbalance)
-        print "idealTime", idealTime, "randomImbalance", randomImbalance, "randomBalance", balance[key]["randomBalance"]
 
 print "mapper", mapper
 for key in sorted(statistics):
