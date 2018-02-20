@@ -711,8 +711,6 @@ TaskPoolMapper::Timestamp TaskPoolMapper::timeNow() const
 void TaskPoolMapper::categorizeMappers()
 //--------------------------------------------------------------------------
 {
-  
-  
   unsigned count = 0;
   unsigned ioProcCount = 0;
   unsigned legionProcCount = 0;
@@ -724,6 +722,11 @@ void TaskPoolMapper::categorizeMappers()
   for(std::map<Processor, Memory>::iterator it = proc_sysmems.begin();
       it != proc_sysmems.end(); it++) {
     Processor processor = it->first;
+    log_task_pool_mapper.debug("%s %s %s",
+      prolog(__FUNCTION__, __LINE__).c_str(),
+      describeProcId(processor.id).c_str(),
+      processorKindString(processor.kind()));
+
     switch(processor.kind()) {
       case TOC_PROC:
         break;
@@ -759,6 +762,9 @@ void TaskPoolMapper::categorizeMappers()
           if(processor == local_proc) {
             mapperCategory = TASK_POOL;
           }
+          log_task_pool_mapper.debug("%s task pool proc %s",
+            prolog(__FUNCTION__, __LINE__).c_str(),
+            describeProcId(processor.id).c_str());
         } else {
           worker_procs.push_back(processor);
           if(processor == local_proc) {
@@ -781,11 +787,13 @@ void TaskPoolMapper::categorizeMappers()
   
   log_task_pool_mapper.debug("%s %ld task pool, "
                              "%ld worker processors, %u io processors, "
-                             "%u legion_cpu processors",
+                             "%u legion_cpu processors"
+                             ", nearest task pool %s",
                              prolog(__FUNCTION__, __LINE__).c_str(),
                              task_pool_procs.size(),
                              worker_procs.size(),
-                             ioProcCount, legionProcCount);
+                             ioProcCount, legionProcCount,
+                             describeProcId(nearestTaskPoolProc.id).c_str());
 }
 
 
