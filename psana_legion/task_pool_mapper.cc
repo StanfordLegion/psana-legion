@@ -156,6 +156,7 @@ static const int NUM_RANKS_PER_TASK_POOL = 8;
 static const int TASKS_PER_STEALABLE_SLICE = 1;
 
 typedef enum {
+  NONE,
   TASK_POOL,
   WORKER,
   IO,
@@ -714,10 +715,14 @@ void TaskPoolMapper::categorizeMappers()
   unsigned count = 0;
   unsigned ioProcCount = 0;
   unsigned legionProcCount = 0;
-  Processor firstTaskPoolProc = Legion::Processor::NO_PROC;
-  Processor recentTaskPoolProc = Legion::Processor::NO_PROC;
-  Processor recentIOProc = Legion::Processor::NO_PROC;
-  Processor recentLegionCPUProc = Legion::Processor::NO_PROC;
+  Processor firstTaskPoolProc = Processor::NO_PROC;
+  Processor recentTaskPoolProc = Processor::NO_PROC;
+  Processor recentIOProc = ProcessorNO_PROC;
+  Processor recentLegionCPUProc = Processor::NO_PROC;
+  
+  log_task_pool_mapper.debug("%s proc_sysmems.size %ld",
+                             prolog(__FUNCTION__, __LINE__).c_str(),
+                             proc_sysmems.size());
   
   for(std::map<Processor, Memory>::iterator it = proc_sysmems.begin();
       it != proc_sysmems.end(); it++) {
@@ -756,7 +761,7 @@ void TaskPoolMapper::categorizeMappers()
         if(count++ % NUM_RANKS_PER_TASK_POOL == 1) {
           task_pool_procs.push_back(processor);
           recentTaskPoolProc = processor;
-          if(firstTaskPoolProc == Legion::Processor::NO_PROC) {
+          if(firstTaskPoolProc == Processor::NO_PROC) {
             firstTaskPoolProc = processor;
           }
           if(processor == local_proc) {
@@ -781,7 +786,7 @@ void TaskPoolMapper::categorizeMappers()
     }
   }
   
-  if(nearestTaskPoolProc == Legion::Processor::NO_PROC) {
+  if(nearestTaskPoolProc == Processor::NO_PROC) {
     nearestTaskPoolProc = firstTaskPoolProc;
   }
   
