@@ -343,6 +343,16 @@ static std::string describeProcId(long long procId)
   return std::string(buffer);
 }
 
+//--------------------------------------------------------------------------
+static const char* mapperCategoryString(MapperCategory mapperCategory)
+//--------------------------------------------------------------------------
+{
+  return (mapperCategory == WORKER ? "W"
+          : (mapperCategory == TASK_POOL ? "T"
+             : (mapperCategory == IO ? "I"
+                : (mapperCategory == LEGION_CPU ? "L"
+                   : ""))));
+}
 
 //--------------------------------------------------------------------------
 TaskPoolMapper::TaskPoolMapper(MapperRuntime *rt,
@@ -380,24 +390,14 @@ proc_sysmems(*_proc_sysmems)
   mappedRelocatedTaskCount = 0;
   mappedSelfGeneratedTaskCount = 0;
   
-  log_task_pool_mapper.info("%lld # %s totalPendingWorkload %d mapper category %c %s",
+  log_task_pool_mapper.info("%lld # %s totalPendingWorkload %d mapper category %s %s",
                             timeNow(), describeProcId(local_proc.id).c_str(),
-                            totalPendingWorkload(), mapperCategoryString(),
+                            totalPendingWorkload(), mapperCategoryString(mapperCategory),
                             processorKindString(local_proc.kind()));
 }
 
 
 
-//--------------------------------------------------------------------------
-static char* mapperCategoryString()
-//--------------------------------------------------------------------------
-{
-  return (mapperCategory == WORKER ? "W"
-          : (mapperCategory == TASK_POOL ? "T"
-             : (mapperCategory == IO ? "I"
-                : (mapperCategory == LEGION_CPU ? "L"
-                   : ""))))
-}
 
 //--------------------------------------------------------------------------
 std::string TaskPoolMapper::prolog(const char* function, int line) const
@@ -408,7 +408,7 @@ std::string TaskPoolMapper::prolog(const char* function, int line) const
   sprintf(buffer, "%lld %s(%s): %s %s(%d)",
           timeNow(), describeProcId(local_proc.id).c_str(),
           processorKindString(local_proc.kind()),
-          mapperCategoryString(),
+          mapperCategoryString(mapperCategory),
           function, line);
   return std::string(buffer);
 }
