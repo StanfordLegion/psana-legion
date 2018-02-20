@@ -86,6 +86,8 @@ for key in balance:
       statsKey = statistics.items()[index][0]
       if statsKey == 'top':
         break
+      if statsKey.startswith('1d0000:'): # no assignment to node 0
+        break
       keyWords = statsKey.split('(')
       if len(keyWords) == 1:
         break
@@ -105,7 +107,10 @@ for key in balance:
       proc = words[1]
       statsProcType = proc.split('(')[1][:-1]
       if statsProcType == key:
-        idealTime = float(statistics[key]["totalDuration"]) / balance[key]["numProcs"]
+        numProcs = balance[key]["numProcs"]
+        if key == 'PY_PROC':
+          numProcs = numProcs - 1
+        idealTime = float(statistics[key]["totalDuration"]) / numProcs
         imbalance = float(statistics[statsKey]["totalDuration"]) / idealTime
         balance[key]["balance"] = max(balance[key]["balance"], imbalance)
         randomImbalance = float(statistics[statsKey]["randomTotalDuration"]) / idealTime
