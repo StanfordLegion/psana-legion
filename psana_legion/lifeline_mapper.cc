@@ -277,6 +277,10 @@ proc_sysmems(*_proc_sysmems)
 // proc_regmems(*_proc_regmems)
 //--------------------------------------------------------------------------
 {
+  log_lifeline_mapper.debug("%s proc_sysmems.size %ld",
+                             prolog(__FUNCTION__, __LINE__).c_str(),
+                             proc_sysmems.size());
+
   identifyRelatedProcs();
   
   rng = std::mt19937(rd());    // random-number engine used (Mersenne-Twister in this case)

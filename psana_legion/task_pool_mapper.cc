@@ -717,7 +717,7 @@ void TaskPoolMapper::categorizeMappers()
   unsigned legionProcCount = 0;
   Processor firstTaskPoolProc = Processor::NO_PROC;
   Processor recentTaskPoolProc = Processor::NO_PROC;
-  Processor recentIOProc = ProcessorNO_PROC;
+  Processor recentIOProc = Processor::NO_PROC;
   Processor recentLegionCPUProc = Processor::NO_PROC;
   
   log_task_pool_mapper.debug("%s proc_sysmems.size %ld",
