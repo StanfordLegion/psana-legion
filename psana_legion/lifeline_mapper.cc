@@ -277,6 +277,10 @@ proc_sysmems(*_proc_sysmems)
 // proc_regmems(*_proc_regmems)
 //--------------------------------------------------------------------------
 {
+  log_lifeline_mapper.debug("%s proc_sysmems.size %ld",
+                             prolog(__FUNCTION__, __LINE__).c_str(),
+                             proc_sysmems.size());
+
   identifyRelatedProcs();
   
   rng = std::mt19937(rd());    // random-number engine used (Mersenne-Twister in this case)
@@ -1202,10 +1206,12 @@ void LifelineMapper::report_profiling(const MapperContext      ctx,
   input.profiling_responses.get_measurement<Realm::ProfilingMeasurements::OperationTimeline>(timeline);
   Realm::ProfilingMeasurements::OperationTimeline::timestamp_t elapsedNS = timeline.end_time - timeline.start_time;
   
-  log_lifeline_mapper.info("%s # %s %lld",
-                           prolog(__FUNCTION__, __LINE__).c_str(),
-                           taskDescription(task).c_str(),
-                           elapsedNS);
+  log_lifeline_mapper.info("%s report task complete %s %lld totalPendingWorkload %d locallyRunning %d",
+                            prolog(__FUNCTION__, __LINE__).c_str(),
+                            taskDescription(task).c_str(),
+                            elapsedNS,
+                            totalPendingWorkload(),
+                            locallyRunningTaskCount());
   
   maybeGetMoreTasks(ctx);
 }
