@@ -3,27 +3,21 @@
 # Compile statistics from the report_profiling lines of a mapper log file.
 # Keep separate statistics for each processor type.
 # Compute count, total, mean and standard deviation of task weights.
-# Compute effective load balance.
+# Compute effective load balance.  Predict random load balance.
 #
-# sample input line
-# [2 - 2aaaaab66700] {2}{lifeline_mapper}: 1814898282976 node 1d0002 proc 1(IO_PROC): report_profiling(1207) # <jump:fbefd> 132802750
-#
-# sample output
-# mapper lifeline_mapper
-# totalDuration xxxxx numTasks xxxxx mean xxxxx standard deviation xxxx
-# proc IO_PROC numTasks xxxxx mean xxxxx standard deviation xxxx load balance xxxx
-# proc PY_PROC numTasks xxxxx mean xxxxx standard deviation xxxxx load balance xxxx
 #
 
 
 
 import fileinput
 import math
+import random
 
 statistics = {}
 statistics["top"] = { "durations": [], "totalDuration": 0, "numTasks": 0, "mean": 0, "standardDeviation": 0 }
 balance = {}
 mapper = None
+durations = []
 
 for line in fileinput.input():
   words = line.split(' ')
@@ -38,12 +32,13 @@ for line in fileinput.input():
       
       procType = proc.split('(')[1][:-2]
       if procType not in balance:
-        balance[procType] = { "balance": 0, "numProcs": 0 }
+        balance[procType] = { "balance": 0, "randomBalance": 0, "numProcs": 0 }
       key = node + ':' + proc
 
       for k in [ key, procType, "top" ]:
         if k not in statistics:
-          statistics[k] = { "durations": [], "totalDuration": 0, "numTasks": 0, "mean": 0, "standardDeviation": 0 }
+          statistics[k] = { "durations": [], "totalDuration": 0, "numTasks": 0, "mean": 0, "standardDeviation": 0, "randomTotalDuration": 0 }
+        durations.append(duration)
         statistics[k]["durations"].append(duration)
         statistics[k]["totalDuration"] = statistics[k]["totalDuration"] + duration
         statistics[k]["numTasks"] = statistics[k]["numTasks"] + 1
@@ -67,6 +62,12 @@ for key in statistics:
     standardDeviation = math.sqrt(sum / (statistics[key]["numTasks"] - 1))
     statistics[key]["standardDeviation"] = standardDeviation
 
+numKeys = len(statistics.items)
+for duration in durations:
+  index = random.randint(0, numKeys - 1)
+  key = statistics.items()[0][0]
+  statistics[key]["randomTotalDuration"] = statistics[key]["randomTotalDuration"] + duration
+
 for key in balance:
   for statsKey in statistics:
     words = statsKey.split(':')
@@ -77,6 +78,8 @@ for key in balance:
         meanTime = float(statistics[key]["totalDuration"]) / balance[key]["numProcs"]
         runtime = float(statistics[statsKey]["totalDuration"]) / meanTime
         balance[key]["balance"] = max(balance[key]["balance"], runtime)
+        randomRuntime = float(statistics[statsKey]["randomTotalDuration"]) / meanTime
+        balance[key]["randomBalance"] = max(balance[key]["randomBalance"], randomRuntime)
 
 print "mapper", mapper
 for key in sorted(statistics):
