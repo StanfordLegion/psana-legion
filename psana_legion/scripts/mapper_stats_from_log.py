@@ -18,6 +18,8 @@ statistics["top"] = { "durations": [], "totalDuration": 0, "numTasks": 0, "mean"
 balance = {}
 mapper = None
 
+print "Reading logs ..."
+
 for line in fileinput.input():
   words = line.split(' ')
   if len(words) == 20:
@@ -43,7 +45,7 @@ for line in fileinput.input():
         statistics[k]["totalDuration"] = statistics[k]["totalDuration"] + duration
         statistics[k]["numTasks"] = statistics[k]["numTasks"] + 1
 
-
+print "Crunching data ..."
 
 for key in statistics:
   words = key.split(':')
@@ -64,14 +66,12 @@ for key in statistics:
     statistics[key]["standardDeviation"] = standardDeviation
 
 numKeys = len(statistics.items())
-print "numKeys", numKeys
 for key in balance:
-  print "balance key", key
   for duration in balance[procType]["durations"]:
     while True:
       index = random.randint(0, numKeys - 1)
       statsKey = statistics.items()[0][0]
-      procType = statsKey.split(':')[1]
+      procType = statsKey.split('(')[1][:-2]
       if procType == key:
         print "duration add to", index, statsKey, procType
         break
