@@ -204,7 +204,7 @@ public:
                  std::map<Processor, Memory>* proc_sysmems,
                  std::map<Processor, Memory>* proc_regmems);
 private:
-  // std::vector<Processor>& procs_list;
+  std::vector<Processor>& procs_list;
   std::vector<Memory>& sysmems_list;
   //std::map<Memory, std::vector<Processor> >& sysmem_local_procs;
   std::map<Processor, Memory>& proc_sysmems;
@@ -365,7 +365,7 @@ TaskPoolMapper::TaskPoolMapper(MapperRuntime *rt,
                                std::map<Processor, Memory>* _proc_sysmems,
                                std::map<Processor, Memory>* _proc_regmems)
 : DefaultMapper(rt, machine, local, mapper_name),
-// procs_list(*_procs_list),
+procs_list(*_procs_list),
 sysmems_list(*_sysmems_list),
 //sysmem_local_procs(*_sysmem_local_procs),
 proc_sysmems(*_proc_sysmems)
@@ -720,13 +720,13 @@ void TaskPoolMapper::categorizeMappers()
   Processor recentIOProc = Processor::NO_PROC;
   Processor recentLegionCPUProc = Processor::NO_PROC;
   
-  log_task_pool_mapper.debug("%s proc_sysmems.size %ld",
+  log_task_pool_mapper.debug("%s procs_list %ld",
                              prolog(__FUNCTION__, __LINE__).c_str(),
-                             proc_sysmems.size());
+                             procs_list.size());
   
-  for(std::map<Processor, Memory>::iterator it = proc_sysmems.begin();
-      it != proc_sysmems.end(); it++) {
-    Processor processor = it->first;
+  for(std::vector<Processor>::iterator it = procs_list.begin();
+      it != procs_list.end(); it++) {
+    Processor processor = *it;
     log_task_pool_mapper.debug("%s %s %s",
       prolog(__FUNCTION__, __LINE__).c_str(),
       describeProcId(processor.id).c_str(),
