@@ -46,8 +46,12 @@ for line in fileinput.input():
 
   procType = proc.split('(')[1][:-2]
   if procType not in balance:
-    balance[procType] = { "imbalance": 0, "randomImbalance": 0, "numProcs": 0, "durations": [] }
+    balance[procType] = { "imbalance": 0, "randomImbalance": 0, "numProcs": 0, "durations": [], "minDuration": 999999999999999999, "maxDuration": 0 }
   balance[procType]["durations"].append(duration)
+  if balance[procType]["minDuration"] > duration:
+    balance[procType]["minDuration"] = duration
+  if balance[procType]["maxDuration"] < duration:
+    balance[procType]["maxDuration"] = duration
       
   key = node + ':' + proc
 
@@ -121,8 +125,10 @@ print "mapper", mapper
 for key in sorted(statistics):
   print key, "numTasks", statistics[key]["numTasks"], "totalDuration", statistics[key]["totalDuration"], "mean", statistics[key]["mean"], "standardDeviation", statistics[key]["standardDeviation"], "randomTotalDuration", statistics[key]["randomTotalDuration"]
 
+
 print "key", "numProcs", "imbalance", "randomImbalance"
 for key in balance:
   print "balance", key, balance[key]["numProcs"], balance[key]["imbalance"]
   print "random", key, balance[key]["numProcs"], balance[key]["randomImbalance"]
+  print "duration", key, balance[key]["minDuration"], balance[key]["maxDuration"]
 
