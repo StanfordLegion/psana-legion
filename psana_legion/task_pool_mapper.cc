@@ -507,7 +507,7 @@ void TaskPoolMapper::getMoreWork(MapperContext ctx, Processor target)
                                prolog(__FUNCTION__, __LINE__).c_str());
     } else {
       const unsigned oversubscription = 2;
-      unsigned numTasks = (minRunningTasks() - totalPendingWorkload()) * oversubscription;
+      unsigned numTasks = (minRunningTasks() - locallyRunningTaskCount()) * oversubscription;
       Request r = { uniqueId(), local_proc, target, local_proc, numTasks, 0 };
       log_task_pool_mapper.debug("%s "
                                "send WORKER_POOL_STEAL_REQUEST "
@@ -601,6 +601,7 @@ void TaskPoolMapper::handle_POOL_WORKER_WAKEUP(const MapperContext ctx,
 //--------------------------------------------------------------------------
 {
   assert(mapperCategory == WORKER);
+  stealRequestOutstanding = false;
   Request r = *(Request*)message.message;
   log_task_pool_mapper.debug("%s handle_POOL_WORKER_WAKEUP id %d from %s",
                              prolog(__FUNCTION__, __LINE__).c_str(), r.id,
