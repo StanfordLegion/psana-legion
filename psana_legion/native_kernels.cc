@@ -67,3 +67,35 @@ void memory_bound_kernel_default()
 
   memory_bound_kernel(buffer_size, rounds);
 }
+
+void cache_bound_kernel_default()
+{
+  static size_t buffer_size = 0;
+  static size_t rounds = 0;
+
+  if (buffer_size == 0) {
+    const char *str = getenv("KERNEL_MEMORY_SIZE");
+    if (!str) {
+      str = "64";
+    }
+    long long value = atoll(str); // bytes
+    if (value/sizeof(float) <= 0 || value%sizeof(float) != 0) {
+      abort();
+    }
+    buffer_size = value;
+  }
+
+  if (rounds == 0) {
+    const char *str = getenv("KERNEL_ROUNDS");
+    if (!str) {
+      str = "100";
+    }
+    long long value = atoll(str);
+    if (value <= 0) {
+      abort();
+    }
+    rounds = value;
+  }
+
+  memory_bound_kernel(buffer_size, rounds);
+}
