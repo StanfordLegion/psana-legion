@@ -10,27 +10,26 @@
 import math
 
 # change this
-mu = 196385139
-sigma = 4592620946
-epsilon = 0.5
+mu = 174377619
+sigma = 171976504
+epsilon = 0.2
+m = 85430
 
 first = True
-n = 1
-for i in range(10):
-  m = 1024
-  line = []
-  if first:
-    header = "  0,  "
-  line = str(n) + ", "
-  for j in range(10):
-    if first:
-      header = header + str(m) + ", "
-    pr = 0.5 + 0.5 * math.erf(epsilon * mu * m / (n * sigma * math.sqrt(2 * m / n)))
-    prp = math.pow(pr, n)
-    line = line + str(prp) + ", "
-    m = m * 2
-  n = n * 2
-  if first:
-    print header
-  print line
-  first = False
+n = 32
+for i in range(64):
+  pr = 0.5 + 0.5 * math.erf(epsilon * mu * m / (n * sigma * math.sqrt(2 * m / n)))
+  prp = math.pow(pr, n)
+  print n, prp
+  n = n + 32
+
+print ""
+print ""
+
+n = 32
+for i in range(64):
+  pr = 0.5 + 0.5 * math.erf(epsilon * mu * m / (n * sigma * math.sqrt(2 * m / n)))
+  prp = math.pow(pr, n)
+  print n, pr
+  n = n + 32
+
