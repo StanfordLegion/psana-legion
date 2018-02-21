@@ -20,6 +20,7 @@ mapper = None
 
 print "Reading logs ..."
 
+nodesToSkip = [ '1d0000' ]
 for line in fileinput.input():
   words = line.split(' ')
   duration = None
@@ -40,10 +41,12 @@ for line in fileinput.input():
 
   if duration == None:
     continue
-      
+  if node in nodesToSkip:
+    continue
+
   procType = proc.split('(')[1][:-2]
   if procType not in balance:
-    balance[procType] = { "balance": 0, "randomBalance": 0, "numProcs": 0, "durations": [] }
+    balance[procType] = { "imbalance": 0, "randomImbalance": 0, "numProcs": 0, "durations": [] }
   balance[procType]["durations"].append(duration)
       
   key = node + ':' + proc
@@ -86,7 +89,7 @@ for key in balance:
       statsKey = statistics.items()[index][0]
       if statsKey == 'top':
         continue
-      if statsKey.startswith('1d0000:'): # no assignment to node 0
+      if statsKey.split(':')[0] in nodesToSkip:
         continue
       keyWords = statsKey.split('(')
       if len(keyWords) == 1:
@@ -109,18 +112,19 @@ for key in balance:
       if statsProcType == key:
         numProcs = balance[key]["numProcs"]
         if key == 'PY_PROC':
-          numProcs = numProcs - 1
+          numProcs = numProcs - len(nodesToSkip)
         idealTime = float(statistics[key]["totalDuration"]) / numProcs
         imbalance = float(statistics[statsKey]["totalDuration"]) / idealTime
-        balance[key]["balance"] = max(balance[key]["balance"], imbalance)
+        balance[key]["imbalance"] = max(balance[key]["imbalance"], imbalance)
         randomImbalance = float(statistics[statsKey]["randomTotalDuration"]) / idealTime
-        balance[key]["randomBalance"] = max(balance[key]["randomBalance"], randomImbalance)
+        balance[key]["randomImbalance"] = max(balance[key]["randomImbalance"], randomImbalance)
 
 print "mapper", mapper
 for key in sorted(statistics):
   print key, "numTasks", statistics[key]["numTasks"], "totalDuration", statistics[key]["totalDuration"], "mean", statistics[key]["mean"], "standardDeviation", statistics[key]["standardDeviation"], "randomTotalDuration", statistics[key]["randomTotalDuration"]
 
+print "key", "numProcs", "imbalance", "randomImbalance"
 for key in balance:
-  print key, "balance", balance[key]["balance"], "randomBalance", balance[key]["randomBalance"], "numProcs", balance[key]["numProcs"]
+  print key, balance[key]["numProcs"], balance[key]["imbalance"], balance[key]["randomImbalance"]
 
 
