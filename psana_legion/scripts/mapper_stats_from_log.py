@@ -111,8 +111,6 @@ for key in balance:
       statsProcType = proc.split('(')[1][:-1]
       if statsProcType == key:
         numProcs = balance[key]["numProcs"]
-        if key == 'PY_PROC':
-          numProcs = numProcs - len(nodesToSkip)
         idealTime = float(statistics[key]["totalDuration"]) / numProcs
         imbalance = float(statistics[statsKey]["totalDuration"]) / idealTime
         balance[key]["imbalance"] = max(balance[key]["imbalance"], imbalance)
@@ -125,6 +123,6 @@ for key in sorted(statistics):
 
 print "key", "numProcs", "imbalance", "randomImbalance"
 for key in balance:
-  print key, balance[key]["numProcs"], balance[key]["imbalance"], balance[key]["randomImbalance"]
-
+  print "balance", key, balance[key]["numProcs"], balance[key]["imbalance"]
+  print "random", key, balance[key]["numProcs"], balance[key]["randomImbalance"]
 
