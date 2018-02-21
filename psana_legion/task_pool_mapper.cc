@@ -935,9 +935,16 @@ void TaskPoolMapper::handleStealRequest(const MapperContext          ctx,
         to_steal++;
       }
     }
-    Request v = r;
-    v.numTasks = numStolen;
-    send_queue.push_back(std::make_pair(v, tasks));
+    
+    if(numStolen > 0) {
+      Request v = r;
+      v.numTasks = numStolen;
+      send_queue.push_back(std::make_pair(v, tasks));
+    }
+    
+    if(r.numTasks > 0){
+      failed_requests.push_back(r);
+    }
     
     if(messageType == POOL_POOL_FORWARD_STEAL) {
       Request v = r;
@@ -950,9 +957,6 @@ void TaskPoolMapper::handleStealRequest(const MapperContext          ctx,
                                  v.id, v.hops, v.numTasks,
                                  (describeProcId(v.destinationProc.id).c_str()));
       runtime->send_message(ctx, v.destinationProc, &v, sizeof(v), POOL_POOL_FORWARD_STEAL_SUCCESS);
-    }
-    if(r.numTasks > 0) {
-      failed_requests.push_back(r);
     }
   }
   else
