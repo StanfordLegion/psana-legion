@@ -111,8 +111,6 @@ for key in balance:
       statsProcType = proc.split('(')[1][:-1]
       if statsProcType == key:
         numProcs = balance[key]["numProcs"]
-        if key == 'PY_PROC':
-          numProcs = numProcs - len(nodesToSkip)
         idealTime = float(statistics[key]["totalDuration"]) / numProcs
         imbalance = float(statistics[statsKey]["totalDuration"]) / idealTime
         balance[key]["imbalance"] = max(balance[key]["imbalance"], imbalance)
