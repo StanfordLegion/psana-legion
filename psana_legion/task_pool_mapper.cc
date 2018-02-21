@@ -307,7 +307,7 @@ private:
                    const Task&              task,
                    const PremapTaskInput&   input,
                    PremapTaskOutput&        output);
-  void maybeSendStealRequest(MapperContext ctx, Processor target);
+  void getMoreWork(MapperContext ctx, Processor target);
   bool maybeGetLocalTasks(MapperContext ctx);
   void triggerSelectTasksToMap(const MapperContext ctx);
   void handle_WORKER_POOL_STEAL_REQUEST(const MapperContext ctx,
@@ -486,7 +486,7 @@ bool TaskPoolMapper::maybeGetLocalTasks(MapperContext ctx)
                                  locallyRunningTaskCount());
     }
     triggerSelectTasksToMap(ctx);
-    return true;
+    return (numTasks == 0);
   }
   triggerSelectTasksToMap(ctx);
   return false;
@@ -494,26 +494,29 @@ bool TaskPoolMapper::maybeGetLocalTasks(MapperContext ctx)
 
 
 //--------------------------------------------------------------------------
-void TaskPoolMapper::maybeSendStealRequest(MapperContext ctx, Processor target)
+void TaskPoolMapper::getMoreWork(MapperContext ctx, Processor target)
 //--------------------------------------------------------------------------
 {
   assert(mapperCategory == WORKER);
-  if(totalPendingWorkload() < minRunningTasks() && !stealRequestOutstanding) {
-    unsigned numTasks = minRunningTasks() - totalPendingWorkload();
-    Request r = { uniqueId(), local_proc, target, local_proc, numTasks, 0 };
-    log_task_pool_mapper.debug("%s "
+  if(maybeGetLocalTasks(ctx)) {
+    log_task_pool_mapper.debug("%s dont need to send steal request",
+                               prolog(__FUNCTION__, __LINE__).c_str());
+  } else {
+    if(stealRequestOutstanding) {
+      log_task_pool_mapper.debug("%s cannot send because stealRequestOutstanding",
+                               prolog(__FUNCTION__, __LINE__).c_str());
+    } else {
+      const unsigned oversubscription = 2;
+      unsigned numTasks = (minRunningTasks() - totalPendingWorkload()) * oversubscription;
+      Request r = { uniqueId(), local_proc, target, local_proc, numTasks, 0 };
+      log_task_pool_mapper.debug("%s "
                                "send WORKER_POOL_STEAL_REQUEST "
                                "id %d numTasks %d to %s",
                                prolog(__FUNCTION__, __LINE__).c_str(),
                                r.id, numTasks, (describeProcId(target.id).c_str()));
-    stealRequestOutstanding = true;
-    runtime->send_message(ctx, target, &r, sizeof(r), WORKER_POOL_STEAL_REQUEST);
-  } else if(totalPendingWorkload() < minRunningTasks() && stealRequestOutstanding) {
-    log_task_pool_mapper.debug("%s "
-                               "cannot send because stealRequestOutstanding",
-                               prolog(__FUNCTION__, __LINE__).c_str());
-  } else {
-    maybeGetLocalTasks(ctx);
+      stealRequestOutstanding = true;
+      runtime->send_message(ctx, target, &r, sizeof(r), WORKER_POOL_STEAL_REQUEST);
+    }
   }
 }
 
@@ -602,7 +605,7 @@ void TaskPoolMapper::handle_POOL_WORKER_WAKEUP(const MapperContext ctx,
   log_task_pool_mapper.debug("%s handle_POOL_WORKER_WAKEUP id %d from %s",
                              prolog(__FUNCTION__, __LINE__).c_str(), r.id,
                              (describeProcId(r.sourceProc.id).c_str()));
-  maybeSendStealRequest(ctx, r.sourceProc);
+  getMoreWork(ctx, r.sourceProc);
 }
 
 //--------------------------------------------------------------------------
@@ -1342,7 +1345,7 @@ void TaskPoolMapper::select_steal_targets(const MapperContext         ctx,
                              prolog(__FUNCTION__, __LINE__).c_str(), mapperCategory);
 #endif
   if(mapperCategory == WORKER) {
-    maybeSendStealRequest(ctx, nearestTaskPoolProc);
+    getMoreWork(ctx, nearestTaskPoolProc);
   }
 }
 
@@ -1425,7 +1428,7 @@ void TaskPoolMapper::report_profiling(const MapperContext      ctx,
                             totalPendingWorkload(), 
                             locallyRunningTaskCount());
   if(mapperCategory == WORKER) {
-    maybeSendStealRequest(ctx, nearestTaskPoolProc);
+    getMoreWork(ctx, nearestTaskPoolProc);
   } else {
     maybeGetLocalTasks(ctx);
   }
