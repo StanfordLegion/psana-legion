@@ -29,6 +29,7 @@ enum TaskIDs {
   TOP_LEVEL_TASK_ID = 1,
   MAIN_TASK_ID = 2,
   MEMORY_BOUND_TASK_ID = 3,
+  CACHE_BOUND_TASK_ID = 4,
 };
 
 enum FieldIDs {
@@ -88,7 +89,8 @@ int main(int argc, char **argv)
 
   Runtime::set_top_level_task_id(MAIN_TASK_ID);
 
-  register_native_kernels_tasks(MEMORY_BOUND_TASK_ID);
+  register_native_kernels_tasks(MEMORY_BOUND_TASK_ID,
+                                CACHE_BOUND_TASK_ID);
 
   char *mapper = getenv("PSANA_MAPPER");
   if (mapper && strcmp(mapper, "simple") == 0) {

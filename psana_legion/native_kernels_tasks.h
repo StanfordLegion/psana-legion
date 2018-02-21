@@ -16,6 +16,7 @@
 #ifndef __NATIVE_KERNELS_TASKS_H__
 #define __NATIVE_KERNELS_TASKS_H__
 
-void register_native_kernels_tasks(int memory_bound_task_id);
+void register_native_kernels_tasks(int memory_bound_task_id,
+                                   int cache_bound_task_id);
 
 #endif // __NATIVE_KERNELS_TASKS_H__

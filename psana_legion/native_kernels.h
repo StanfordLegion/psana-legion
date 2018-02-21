@@ -26,6 +26,8 @@ void memory_bound_kernel(size_t buffer_size, size_t rounds);
 
 void memory_bound_kernel_default(void);
 
+void cache_bound_kernel_default(void);
+
 #ifdef __cplusplus
 }
 #endif
