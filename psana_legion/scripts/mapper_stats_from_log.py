@@ -123,6 +123,6 @@ for key in sorted(statistics):
 
 print "key", "numProcs", "imbalance", "randomImbalance"
 for key in balance:
-  print key, balance[key]["numProcs"], balance[key]["imbalance"], balance[key]["randomImbalance"]
-
+  print "balance", key, balance[key]["numProcs"], balance[key]["imbalance"]
+  print "random", key, balance[key]["numProcs"], balance[key]["randomImbalance"]
 
