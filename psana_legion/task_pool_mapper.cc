@@ -501,7 +501,7 @@ void TaskPoolMapper::getMoreWork(MapperContext ctx, Processor target)
   if(maybeGetLocalTasks(ctx)) {
     log_task_pool_mapper.debug("%s dont need to send steal request",
                                prolog(__FUNCTION__, __LINE__).c_str());
-  } else {
+  } else if (locallyRunningTaskCount() < minRunningTasks()) {
     if(stealRequestOutstanding) {
       log_task_pool_mapper.debug("%s cannot send because stealRequestOutstanding",
                                prolog(__FUNCTION__, __LINE__).c_str());
