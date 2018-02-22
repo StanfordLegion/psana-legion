@@ -229,6 +229,7 @@ class TaskPoolMapper : public DefaultMapper
   SendQueue send_queue;
   std::deque<Request> failed_requests;
   unsigned numUniqueIds;
+  bool isNodeZero;
   
   // these are the counters that track workload
   int locallyStartedTaskCount; // tasks that start running here
@@ -395,6 +396,7 @@ proc_sysmems(*_proc_sysmems)
   selfGeneratedTaskCount = 0;
   mappedRelocatedTaskCount = 0;
   mappedSelfGeneratedTaskCount = 0;
+  isNodeZero = false;
   
   log_task_pool_mapper.info("%lld # %s totalPendingWorkload %d mapper category %s %s",
                             timeNow(), describeProcId(local_proc.id).c_str(),
@@ -756,6 +758,7 @@ void TaskPoolMapper::categorizeMappers()
   Processor recentTaskPoolProc = Processor::NO_PROC;
   Processor recentIOProc = Processor::NO_PROC;
   Processor recentLegionCPUProc = Processor::NO_PROC;
+  isNodeZero = (local_proc.id >> 40) == 0;
   
   log_task_pool_mapper.debug("%s procs_list %ld",
                              prolog(__FUNCTION__, __LINE__).c_str(),
@@ -1560,7 +1563,7 @@ void TaskPoolMapper::select_task_options(const MapperContext    ctx,
                                                 Processor::NO_KIND);
   
   Processor target_proc;
-  bool runLocally = (variantInfo.proc_kind == local_proc.kind());
+  bool runLocally = (variantInfo.proc_kind == local_proc.kind()) && !isNodeZero;
   
   if(runLocally) {
     target_proc = local_proc;
