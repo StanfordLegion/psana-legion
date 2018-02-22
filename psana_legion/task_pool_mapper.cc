@@ -922,6 +922,16 @@ void TaskPoolMapper::handleStealRequest(const MapperContext          ctx,
     std::vector<const Task*> tasks;
     std::set<const Task*>::const_iterator to_steal = worker_ready_queue.begin();
     
+#if VERBOSE_DEBUG
+    for(std::set<const Task*>::const_iterator it = worker_ready_queue.begin();
+        it != worker_ready_queue.end(); it++) {
+      const Task* task = *it;
+      log_task_pool_mapper.debug("%s worker_ready_queue %s ",
+                                 prolog(__FUNCTION__, __LINE__).c_str(),
+                                 taskDescription(*task).c_str());
+    }
+#endif
+    
     unsigned numStolen = 0;
     while ((r.numTasks > 0) && (to_steal != worker_ready_queue.end()))
     {
@@ -932,6 +942,10 @@ void TaskPoolMapper::handleStealRequest(const MapperContext          ctx,
         r.numTasks--;
         numStolen++;
         stolenAwayTaskCount++;
+        log_task_pool_mapper.debug("%s let %s be stolen by %s",
+                                   prolog(__FUNCTION__, __LINE__).c_str(),
+                                   taskDescription(*task).c_str(),
+                                   describeProcId(r.thiefProc.id).c_str());
       } else {
         to_steal++;
       }
@@ -962,6 +976,10 @@ void TaskPoolMapper::handleStealRequest(const MapperContext          ctx,
   }
   else
   {
+    log_task_pool_mapper.debug("%s failed request, worker_ready_queue.empty %d ",
+                               prolog(__FUNCTION__, __LINE__).c_str(),
+                               worker_ready_queue.empty());
+
     failed_requests.push_back(r);
     forwardStealRequest(ctx, r);
   }
