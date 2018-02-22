@@ -30,6 +30,8 @@ if kernel_kind == 'memory_bound':
     kernel = kernels.make_memory_bound_kernel(int(os.environ.get('KERNEL_ROUNDS', 100)))
 elif kernel_kind == 'memory_bound_native':
     kernel = legion.extern_task(task_id=3)
+elif kernel_kind == 'cache_bound_native':
+    kernel = legion.extern_task(task_id=4)
 elif kernel_kind is None:
     kernel = None
 else:

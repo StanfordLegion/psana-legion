@@ -15,6 +15,9 @@ if kernel_kind == 'memory_bound':
 elif kernel_kind == 'memory_bound_native':
     import native_kernels
     kernel = native_kernels.memory_bound_kernel
+elif kernel_kind == 'cache_bound_native':
+    import native_kernels
+    kernel = native_kernels.cache_bound_kernel
 elif kernel_kind is None:
     kernel = None
 else:
