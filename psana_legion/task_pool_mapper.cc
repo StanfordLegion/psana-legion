@@ -396,7 +396,6 @@ proc_sysmems(*_proc_sysmems)
   selfGeneratedTaskCount = 0;
   mappedRelocatedTaskCount = 0;
   mappedSelfGeneratedTaskCount = 0;
-  isNodeZero = false;
   
   log_task_pool_mapper.info("%lld # %s totalPendingWorkload %d mapper category %s %s",
                             timeNow(), describeProcId(local_proc.id).c_str(),
@@ -536,11 +535,11 @@ void TaskPoolMapper::getMoreWork(MapperContext ctx, Processor target)
   if(maybeGetLocalTasks(ctx)) {
     log_task_pool_mapper.debug("%s dont need to send steal request",
                                prolog(__FUNCTION__, __LINE__).c_str());
-  } else if (locallyRunningTaskCount() < minRunningTasks()) {
+  } else if(!isNodeZero && locallyRunningTaskCount() < minRunningTasks()) {
     if(stealRequestOutstanding) {
       log_task_pool_mapper.debug("%s cannot send because stealRequestOutstanding",
                                  prolog(__FUNCTION__, __LINE__).c_str());
-    } else {
+    } else if(!isNodeZero) {
       const unsigned oversubscription = 2;
       unsigned numTasks = (minRunningTasks() - locallyRunningTaskCount()) * oversubscription;
       Request r = { uniqueId(), local_proc, target, local_proc, numTasks, 0 };
@@ -758,7 +757,7 @@ void TaskPoolMapper::categorizeMappers()
   Processor recentTaskPoolProc = Processor::NO_PROC;
   Processor recentIOProc = Processor::NO_PROC;
   Processor recentLegionCPUProc = Processor::NO_PROC;
-  isNodeZero = (local_proc.id >> 40) == 0;
+  isNodeZero = (local_proc.id >> 40) == 0x1d0000;
   
   log_task_pool_mapper.debug("%s procs_list %ld",
                              prolog(__FUNCTION__, __LINE__).c_str(),

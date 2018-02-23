@@ -3,8 +3,8 @@ DIR="$(dirname "${BASH_SOURCE[0]}")"
 
 if [[ "$1" == "" ]]
 then
-  must specify a directory that holds a set of log files
-  exit 1
+  echo must specify a directory that holds a set of log files
+  exit 
 fi
 
 DATADIR=$1
