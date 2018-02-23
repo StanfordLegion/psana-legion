@@ -32,7 +32,7 @@ export KERNEL_KIND=memory_bound
 for rounds in 20 40 80 160; do
   export KERNEL_ROUNDS=$rounds
   for n in 32; do
-    export LIMIT=$(( n * 512 ))
+    export LIMIT=$(( n * 2048 ))
     for c in 256 128 64 32 16; do
       ./make_nodelist.py $c > nodelist.txt
       export SLURM_HOSTFILE=$PWD/nodelist.txt
