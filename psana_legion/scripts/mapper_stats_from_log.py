@@ -121,6 +121,21 @@ for key in balance:
         randomImbalance = float(statistics[statsKey]["randomTotalDuration"]) / idealTime
         balance[key]["randomImbalance"] = max(balance[key]["randomImbalance"], randomImbalance)
 
+print "Computing duration histogram for PY_PROC ..."
+
+key = 'PY_PROC' # consider doing for all keys
+numBins = 100
+minDuration = balance[key]["minDuration"]
+maxDuration = balance[key]["maxDuration"]
+binExtent = (maxDuration - minDuration) / numBins
+histogram = []
+for i in range(numBins):
+  histogram.append(0)
+for duration in balance[key]["durations"]:
+  binId = (duration - minDuration) / binExtent
+  histogram[binId] = histogram[binId] + 1
+
+
 print "mapper", mapper
 for key in sorted(statistics):
   print key, "numTasks", statistics[key]["numTasks"], "totalDuration", statistics[key]["totalDuration"], "mean", statistics[key]["mean"], "standardDeviation", statistics[key]["standardDeviation"], "randomTotalDuration", statistics[key]["randomTotalDuration"]
@@ -132,3 +147,6 @@ for key in balance:
   print "random", key, balance[key]["numProcs"], balance[key]["randomImbalance"]
   print "duration", key, balance[key]["minDuration"], balance[key]["maxDuration"]
 
+print "Histogram of PY_PROC durations"
+for bin in histogram:
+  print bin, ","
