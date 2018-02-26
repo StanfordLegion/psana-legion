@@ -219,7 +219,7 @@ class TaskPoolMapper : public DefaultMapper
   Processor nearestTaskPoolProc;
   Processor nearestIOProc;
   Processor nearestLegionCPUProc;
-  Processor nodeZeroPrProc;
+  Processor nodeZeroPyProc;
   std::map<std::pair<LogicalRegion,Memory>,PhysicalInstance> local_instances;
   typedef long long Timestamp;
   MapperRuntime *runtime;
@@ -260,7 +260,8 @@ class TaskPoolMapper : public DefaultMapper
                   const Task&              task,
                   const SliceTaskInput&    input,
                   SliceTaskOutput&   output);
-  void decompose_points(const Rect<1, coord_t> &point_rect,
+  void decompose_points(const MapperContext      ctx,
+                        const Rect<1, coord_t> &point_rect,
                         const std::vector<Processor> &targets,
                         const Point<1, coord_t> &num_blocks,
                         std::vector<TaskSlice> &slices);
@@ -757,7 +758,7 @@ void TaskPoolMapper::categorizeMappers()
   Processor recentIOProc = Processor::NO_PROC;
   Processor recentLegionCPUProc = Processor::NO_PROC;
   isNodeZero = (local_proc.id >> 40) == 0x1d0000;
-  nodeZeroPyPRoc = Processor::NO_PROC;
+  nodeZeroPyProc = Processor::NO_PROC;
   
   log_task_pool_mapper.debug("%s procs_list %ld",
                              prolog(__FUNCTION__, __LINE__).c_str(),
@@ -766,10 +767,6 @@ void TaskPoolMapper::categorizeMappers()
   for(std::vector<Processor>::iterator it = procs_list.begin();
       it != procs_list.end(); it++) {
     Processor processor = *it;
-    log_task_pool_mapper.debug("%s %s %s",
-                               prolog(__FUNCTION__, __LINE__).c_str(),
-                               describeProcId(processor.id).c_str(),
-                               processorKindString(processor.kind()));
     
     switch(processor.kind()) {
       case TOC_PROC:
@@ -811,7 +808,7 @@ void TaskPoolMapper::categorizeMappers()
                                    describeProcId(processor.id).c_str());
       } else {
         worker_procs.push_back(processor);
-        if(isNodeZero) {
+        if(isNodeZero && nodeZeroPyProc == Processor::NO_PROC) {
           nodeZeroPyProc = processor;
         }
         if(processor == local_proc) {
@@ -858,7 +855,8 @@ std::string TaskPoolMapper::taskDescription(const Legion::Task& task)
 
 
 //--------------------------------------------------------------------------
-void TaskPoolMapper::decompose_points(const Rect<1, coord_t> &point_rect,
+void TaskPoolMapper::decompose_points(const MapperContext      ctx,
+                                      const Rect<1, coord_t> &point_rect,
                                       const std::vector<Processor> &targets,
                                       const Point<1, coord_t> &num_blocks,
                                       std::vector<TaskSlice> &slices)
@@ -889,14 +887,14 @@ void TaskPoolMapper::decompose_points(const Rect<1, coord_t> &point_rect,
     }
   }
   
-  for(std::vector<Processor>::iteration it = destinationProcs.begin();
+  for(std::vector<Processor>::iterator it = destinationProcs.begin();
       it != destinationProcs.end(); ++it) {
     Processor destinationProc = *it;
     Request r = { 0, destinationProc, local_proc, local_proc, TASKS_PER_STEALABLE_SLICE, 0 };
     log_task_pool_mapper.debug("%s send RELOCATE_TASK_INFO to %s",
                                prolog(__FUNCTION__, __LINE__).c_str(),
-                               describeProcId(target_proc.id).c_str());
-    runtime->send_message(ctx, target_proc, &r, sizeof(r), RELOCATE_TASK_INFO);
+                               describeProcId(destinationProc.id).c_str());
+    runtime->send_message(ctx, destinationProc, &r, sizeof(r), RELOCATE_TASK_INFO);
 
   }
 }
@@ -920,7 +918,7 @@ void TaskPoolMapper::slice_task(const MapperContext      ctx,
     
     Rect<1, coord_t> point_rect = input.domain;
     Point<1, coord_t> num_blocks(point_rect.volume() / TASKS_PER_STEALABLE_SLICE);
-    decompose_points(point_rect, task_pool_procs, num_blocks, output.slices);
+    decompose_points(ctx, point_rect, task_pool_procs, num_blocks, output.slices);
     slicedPointTaskCount += point_rect.volume();
     
   } else {
