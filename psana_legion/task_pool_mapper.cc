@@ -219,6 +219,7 @@ class TaskPoolMapper : public DefaultMapper
   Processor nearestTaskPoolProc;
   Processor nearestIOProc;
   Processor nearestLegionCPUProc;
+  Processor nodeZeroPrProc;
   std::map<std::pair<LogicalRegion,Memory>,PhysicalInstance> local_instances;
   typedef long long Timestamp;
   MapperRuntime *runtime;
@@ -255,8 +256,6 @@ class TaskPoolMapper : public DefaultMapper
   void categorizeMappers();
   std::string taskDescription(const Legion::Task& task);
   std::string prolog(const char* function, int line) const;
-//  bool isAnalysisTask(const Legion::Task& task);
-//  bool isAnalysisRootTask(const Legion::Task& task);
   void slice_task(const MapperContext      ctx,
                   const Task&              task,
                   const SliceTaskInput&    input,
@@ -758,6 +757,7 @@ void TaskPoolMapper::categorizeMappers()
   Processor recentIOProc = Processor::NO_PROC;
   Processor recentLegionCPUProc = Processor::NO_PROC;
   isNodeZero = (local_proc.id >> 40) == 0x1d0000;
+  nodeZeroPyPRoc = Processor::NO_PROC;
   
   log_task_pool_mapper.debug("%s procs_list %ld",
                              prolog(__FUNCTION__, __LINE__).c_str(),
@@ -811,6 +811,9 @@ void TaskPoolMapper::categorizeMappers()
                                    describeProcId(processor.id).c_str());
       } else {
         worker_procs.push_back(processor);
+        if(isNodeZero) {
+          nodeZeroPyProc = processor;
+        }
         if(processor == local_proc) {
           mapperCategory = WORKER;
         }
@@ -861,6 +864,7 @@ void TaskPoolMapper::decompose_points(const Rect<1, coord_t> &point_rect,
                                       std::vector<TaskSlice> &slices)
 //--------------------------------------------------------------------------
 {
+  std::vector<Processor> destinationProcs;
   long long num_points = point_rect.hi - point_rect.lo + Point<1, coord_t>(1);
   Rect<1, coord_t> blocks(Point<1, coord_t>(0), num_blocks - Point<1, coord_t>(1));
   size_t next_index = 0;
@@ -881,9 +885,20 @@ void TaskPoolMapper::decompose_points(const Rect<1, coord_t> &point_rect,
       slice.recurse = false;
       slice.stealable = true;
       slices.push_back(slice);
+      destinationProcs.push_back(slice.proc);
     }
   }
   
+  for(std::vector<Processor>::iteration it = destinationProcs.begin();
+      it != destinationProcs.end(); ++it) {
+    Processor destinationProc = *it;
+    Request r = { 0, destinationProc, local_proc, local_proc, TASKS_PER_STEALABLE_SLICE, 0 };
+    log_task_pool_mapper.debug("%s send RELOCATE_TASK_INFO to %s",
+                               prolog(__FUNCTION__, __LINE__).c_str(),
+                               describeProcId(target_proc.id).c_str());
+    runtime->send_message(ctx, target_proc, &r, sizeof(r), RELOCATE_TASK_INFO);
+
+  }
 }
 
 
@@ -1575,7 +1590,11 @@ void TaskPoolMapper::select_task_options(const MapperContext    ctx,
       target_proc = nearestIOProc;
       break;
       case PY_PROC:
-      target_proc = nearestTaskPoolProc;
+        if(isNodeZero && !isAnalysisTask(task)) {
+          target_proc = nodeZeroPyProc;
+        } else {
+          target_proc = nearestTaskPoolProc;
+        }
       break;
       default: assert(false);
     }
