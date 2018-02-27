@@ -883,12 +883,6 @@ void TaskPoolMapper::decompose_points(const MapperContext      ctx,
     if (slice_rect.volume() > 0) {
       TaskSlice slice;
       slice.domain = slice_rect;
-      {
-        size_t shiftBits = sizeof(taskSerialId) * sizeof(char);
-        unsigned long long taskId = (local_proc.id << shiftBits) + taskSerialId++;
-        runtime->update_mappable_data(ctx, slice, &taskId, sizeof(taskId));
-      }
-      
       if(mapperCategory == TASK_POOL) {
         slice.proc = targets[next_index++ % targets.size()];
       } else {
