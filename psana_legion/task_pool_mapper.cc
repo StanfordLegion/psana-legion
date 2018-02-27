@@ -879,7 +879,11 @@ void TaskPoolMapper::decompose_points(const MapperContext      ctx,
     if (slice_rect.volume() > 0) {
       TaskSlice slice;
       slice.domain = slice_rect;
-      slice.proc = targets[next_index++ % targets.size()];
+      if(mapperCategory == TASK_POOL) {
+        slice.proc = targets[next_index++ % targets.size()];
+      } else {
+        slice.proc = local_proc;
+      }
       slice.recurse = false;
       slice.stealable = true;
       slices.push_back(slice);
@@ -1142,12 +1146,13 @@ bool TaskPoolMapper::filterInputReadyTasks(const SelectMappingInput&    input,
        it != input.ready_tasks.end(); it++)
   {
     const Task* task = *it;
+totalPendingWorkload();
     bool mapLocally = locallyRunningTaskCount() < minRunningTasks() || !isAnalysisTask(*task);
     if(mapLocally) {
-      if (isAnalysisTask(*task)) {
-        if (alreadyQueued(task))
-        continue;
-      }
+      //if (isAnalysisTask(*task)) {
+        //if (alreadyQueued(task))
+        //continue;
+      //}
       locallyStartedTaskCount++;
       output.map_tasks.insert(task);
       mapped = true;

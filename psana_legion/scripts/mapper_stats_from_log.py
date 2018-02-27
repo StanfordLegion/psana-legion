@@ -129,6 +129,8 @@ for key in balance:
   minDuration = balance[key]["minDuration"]
   maxDuration = balance[key]["maxDuration"]
   binExtent = (maxDuration - minDuration) / (numBins - 1)
+  if binExtent < 1:
+    binExtent = 1
   histogramValues = [0 for i in range(numBins)]
   histograms[key] = { "values": histogramValues }
   for duration in balance[key]["durations"]:
