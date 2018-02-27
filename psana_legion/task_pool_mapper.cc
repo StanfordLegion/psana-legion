@@ -451,15 +451,14 @@ int TaskPoolMapper::totalPendingWorkload() const
 //--------------------------------------------------------------------------
 {
   int result = promisedFromStealsTaskCount + promisedRelocatedTaskCount + slicedPointTaskCount
-  + selfGeneratedTaskCount - sliceTaskCount - stolenAwayTaskCount - locallyEndedTaskCount;
-  log_task_pool_mapper.debug("%s = %d, promisedSteal %d promisedRelocated %d slicedPoint %d selfGenerated %d - slice %d stolen %d locallyEnded %d",
+  + selfGeneratedTaskCount - stolenAwayTaskCount - locallyEndedTaskCount;
+  log_task_pool_mapper.debug("%s = %d, promisedSteal %d promisedRelocated %d slicedPoint %d selfGenerated %d - stolen %d locallyEnded %d",
                              prolog(__FUNCTION__, __LINE__).c_str(),
                              result,
                              promisedFromStealsTaskCount,
                              promisedRelocatedTaskCount,
                              slicedPointTaskCount,
                              selfGeneratedTaskCount,
-                             sliceTaskCount,
                              stolenAwayTaskCount,
                              locallyEndedTaskCount);
   return result;
@@ -848,6 +847,10 @@ std::string TaskPoolMapper::taskDescription(const Legion::Task& task)
 {
   char buffer[512];
   unsigned long long* serialId = (unsigned long long*)task.mapper_data;
+  unsigned long long ffff = 0xffffffffffffffff;
+  if(serialId == nullptr) {
+    serialId = &ffff;
+  }
   sprintf(buffer, "<%s:%llx>", task.get_task_name(), *serialId);
   return std::string(buffer);
 }
