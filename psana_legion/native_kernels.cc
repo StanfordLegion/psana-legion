@@ -38,31 +38,61 @@ void memory_bound_kernel(size_t buffer_size, size_t rounds)
 
 void memory_bound_kernel_default()
 {
-  static size_t buffer_size = 0;
-  static size_t rounds = 0;
+  static volatile size_t buffer_size = 0;
+  static volatile size_t rounds = 0;
+  static volatile size_t dop = 0;
 
-  if (buffer_size == 0) {
-    const char *str = getenv("KERNEL_MEMORY_SIZE");
-    if (!str) {
-      str = "64";
-    }
-    long long value = atoll(str); // MB
-    if (value <= 0) {
-      abort();
-    }
-    buffer_size = value << 20;
-  }
+  // Load globals into local variables.
+  size_t new_buffer_size = buffer_size;
+  size_t new_rounds = rounds;
+  size_t new_dop = dop;
 
-  if (rounds == 0) {
-    const char *str = getenv("KERNEL_ROUNDS");
-    if (!str) {
-      str = "100";
+  if (new_buffer_size == 0 || new_rounds == 0 || new_dop == 0) {
+    if (new_buffer_size == 0) {
+      const char *str = getenv("KERNEL_MEMORY_SIZE");
+      if (!str) {
+        str = "64";
+      }
+      long long value = atoll(str); // MB
+      if (value <= 0) {
+        abort();
+      }
+      new_buffer_size = value << 20;
     }
-    long long value = atoll(str);
-    if (value <= 0) {
-      abort();
+
+    if (new_rounds == 0) {
+      const char *str = getenv("KERNEL_ROUNDS");
+      if (!str) {
+        str = "100";
+      }
+      long long value = atoll(str);
+      if (value <= 0) {
+        abort();
+      }
+      new_rounds = value;
     }
-    rounds = value;
+
+    if (new_dop == 0) {
+      const char *str = getenv("KERNEL_DOP");
+      if (!str) {
+        str = "1";
+      }
+      long long value = atoll(str); // MB
+      if (value <= 0) {
+        abort();
+      }
+      new_dop = value;
+
+    }
+
+    // Divide out parallelism to get correct buffer size.
+    new_buffer_size = new_buffer_size / new_dop;
+
+    // Store back into global variables.
+    // It's ok that this is racy because everyone will write the same result.
+    buffer_size = new_buffer_size;
+    rounds = new_rounds;
+    dop = new_dop;
   }
 
   memory_bound_kernel(buffer_size, rounds);
@@ -70,31 +100,61 @@ void memory_bound_kernel_default()
 
 void cache_bound_kernel_default()
 {
-  static size_t buffer_size = 0;
-  static size_t rounds = 0;
+  static volatile size_t buffer_size = 0;
+  static volatile size_t rounds = 0;
+  static volatile size_t dop = 0;
 
-  if (buffer_size == 0) {
-    const char *str = getenv("KERNEL_MEMORY_SIZE");
-    if (!str) {
-      str = "64";
-    }
-    long long value = atoll(str); // bytes
-    if (value/sizeof(float) <= 0 || value%sizeof(float) != 0) {
-      abort();
-    }
-    buffer_size = value;
-  }
+  // Load globals into local variables.
+  size_t new_buffer_size = buffer_size;
+  size_t new_rounds = rounds;
+  size_t new_dop = dop;
 
-  if (rounds == 0) {
-    const char *str = getenv("KERNEL_ROUNDS");
-    if (!str) {
-      str = "100";
+  if (new_buffer_size == 0 || new_rounds == 0 || new_dop == 0) {
+    if (new_buffer_size == 0) {
+      const char *str = getenv("KERNEL_MEMORY_SIZE");
+      if (!str) {
+        str = "64";
+      }
+      long long value = atoll(str); // bytes
+      if (value/sizeof(float) <= 0 || value%sizeof(float) != 0) {
+        abort();
+      }
+      new_buffer_size = value;
     }
-    long long value = atoll(str);
-    if (value <= 0) {
-      abort();
+
+    if (new_rounds == 0) {
+      const char *str = getenv("KERNEL_ROUNDS");
+      if (!str) {
+        str = "100";
+      }
+      long long value = atoll(str);
+      if (value <= 0) {
+        abort();
+      }
+      new_rounds = value;
     }
-    rounds = value;
+
+    if (new_dop == 0) {
+      const char *str = getenv("KERNEL_DOP");
+      if (!str) {
+        str = "1";
+      }
+      long long value = atoll(str); // MB
+      if (value <= 0) {
+        abort();
+      }
+      new_dop = value;
+
+    }
+
+    // Divide out parallelism to get correct buffer size.
+    new_buffer_size = new_buffer_size / new_dop;
+
+    // Store back into global variables.
+    // It's ok that this is racy because everyone will write the same result.
+    buffer_size = new_buffer_size;
+    rounds = new_rounds;
+    dop = new_dop;
   }
 
   memory_bound_kernel(buffer_size, rounds);

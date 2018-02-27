@@ -22,6 +22,8 @@ def nop_kernel():
     pass
 
 _memory_size = int(os.environ.get('KERNEL_MEMORY_SIZE', 64)) # MB
+_dop = int(os.environ.get('KERNEL_DOP', 1))
+_memory_size = _memory_size / _dop
 
 def make_memory_bound_kernel(rounds):
     def kernel():

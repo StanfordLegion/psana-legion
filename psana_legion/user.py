@@ -37,6 +37,16 @@ elif kernel_kind is None:
 else:
     raise Exception('Unrecognized kernel kind: %s' % kernel_kind)
 
+dop = int(os.environ.get('KERNEL_DOP', 1))
+if kernel is not None and dop > 1:
+    def make_parallel(thunk):
+        def new_kernel():
+            for _ in xrange(dop):
+                thunk()
+        return new_kernel
+    kernel = make_parallel(kernel)
+    print('Kernel DOP is %s' % dop)
+
 experiment = os.environ['EXPERIMENT'] if 'EXPERIMENT' in os.environ else ('exp=cxid9114:run=%s:rax' % 108)
 detector = os.environ['DETECTOR'] if 'DETECTOR' in os.environ else 'CxiDs2.0:Cspad.0'
 ds = psana_legion.LegionDataSource(experiment)
