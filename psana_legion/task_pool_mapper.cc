@@ -195,7 +195,7 @@ static LegionRuntime::Logger::Category log_task_pool_mapper("task_pool_mapper");
 
 class TaskPoolMapper : public DefaultMapper
 {
-  public:
+public:
   TaskPoolMapper(MapperRuntime *rt,
                  Machine machine, Processor local,
                  const char *mapper_name,
@@ -204,7 +204,7 @@ class TaskPoolMapper : public DefaultMapper
                  std::map<Memory, std::vector<Processor> >* sysmem_local_procs,
                  std::map<Processor, Memory>* proc_sysmems,
                  std::map<Processor, Memory>* proc_regmems);
-  private:
+private:
   std::vector<Processor>& procs_list;
   std::vector<Memory>& sysmems_list;
   //std::map<Memory, std::vector<Processor> >& sysmem_local_procs;
@@ -225,7 +225,7 @@ class TaskPoolMapper : public DefaultMapper
   MapperRuntime *runtime;
   MapperEvent defer_select_tasks_to_map;
   std::set<const Task*> worker_ready_queue;
-  std::set<const Task*> tasks_to_map_locally;
+  std::set<const Task*> tasks_to_map_on_this_node;
   typedef std::vector<std::pair<Request, std::vector<const Task*> > > SendQueue;
   SendQueue send_queue;
   std::deque<Request> failed_requests;
@@ -284,7 +284,7 @@ class TaskPoolMapper : public DefaultMapper
   char* processorKindString(unsigned kind) const;
   void debugOutput1(const SelectMappingInput& input);
   void debugOutput2(const SelectMappingOutput& output);
-  bool filterTasksToMapLocally(const MapperContext ctx, SelectMappingOutput&   output);
+  bool filterTasksToMapOnThisNode(const MapperContext ctx, SelectMappingOutput&   output);
   void select_tasks_to_map(const MapperContext          ctx,
                            const SelectMappingInput&    input,
                            SelectMappingOutput&   output);
@@ -428,11 +428,11 @@ int TaskPoolMapper::minRunningTasks() const
   int result;
   switch(local_proc.kind()) {
     case PY_PROC:
-    result = 5;
-    break;
+      result = 5;
+      break;
     default:
-    result = 10;
-    break;
+      result = 10;
+      break;
   }
   return result;
 }
@@ -509,14 +509,14 @@ bool TaskPoolMapper::maybeGetLocalTasks(MapperContext ctx)
     for(std::set<const Task*>::iterator it = worker_ready_queue.begin();
         it != worker_ready_queue.end() && numTasks > 0; ) {
       const Task* task = *it;
-      tasks_to_map_locally.insert(task);
+      tasks_to_map_on_this_node.insert(task);
       it = worker_ready_queue.erase(it);
       numTasks--;
-      log_task_pool_mapper.debug("%s task %s should map locally, tasks_to_map_locally.size %ld"
+      log_task_pool_mapper.debug("%s task %s should map locally, tasks_to_map_on_this_node.size %ld"
                                  " locallyRunning %d",
                                  prolog(__FUNCTION__, __LINE__).c_str(),
                                  taskDescription(*task).c_str(),
-                                 tasks_to_map_locally.size(),
+                                 tasks_to_map_on_this_node.size(),
                                  locallyRunningTaskCount());
     }
     triggerSelectTasksToMap(ctx);
@@ -714,26 +714,26 @@ void TaskPoolMapper::handle_message(const MapperContext ctx,
 {
   switch(message.kind) {
     case WORKER_POOL_STEAL_REQUEST:
-    handle_WORKER_POOL_STEAL_REQUEST(ctx, message);
-    break;
+      handle_WORKER_POOL_STEAL_REQUEST(ctx, message);
+      break;
     case POOL_WORKER_STEAL_ACK:
-    handle_POOL_WORKER_STEAL_ACK(ctx, message);
-    break;
+      handle_POOL_WORKER_STEAL_ACK(ctx, message);
+      break;
     case POOL_WORKER_STEAL_NACK:
-    handle_POOL_WORKER_STEAL_NACK(ctx, message);
-    break;
+      handle_POOL_WORKER_STEAL_NACK(ctx, message);
+      break;
     case POOL_WORKER_WAKEUP:
-    handle_POOL_WORKER_WAKEUP(ctx, message);
-    break;
+      handle_POOL_WORKER_WAKEUP(ctx, message);
+      break;
     case POOL_POOL_FORWARD_STEAL:
-    handle_POOL_POOL_FORWARD_STEAL(ctx, message);
-    break;
+      handle_POOL_POOL_FORWARD_STEAL(ctx, message);
+      break;
     case POOL_POOL_FORWARD_STEAL_SUCCESS:
-    handle_POOL_POOL_FORWARD_STEAL_SUCCESS(ctx, message);
-    break;
+      handle_POOL_POOL_FORWARD_STEAL_SUCCESS(ctx, message);
+      break;
     case RELOCATE_TASK_INFO:
-    handle_RELOCATE_TASK_INFO(ctx, message);
-    break;
+      handle_RELOCATE_TASK_INFO(ctx, message);
+      break;
     default: assert(false);
   }
 }
@@ -770,57 +770,57 @@ void TaskPoolMapper::categorizeMappers()
     
     switch(processor.kind()) {
       case TOC_PROC:
-      break;
+        break;
       case LOC_PROC:
-      if(processor == local_proc) {
-        mapperCategory = LEGION_CPU;
-      }
-      legionProcCount++;
-      recentLegionCPUProc = processor;
-      break;
+        if(processor == local_proc) {
+          mapperCategory = LEGION_CPU;
+        }
+        legionProcCount++;
+        recentLegionCPUProc = processor;
+        break;
       case UTIL_PROC:
-      break;
+        break;
       case IO_PROC:
-      if(processor == local_proc) {
-        mapperCategory = IO;
-      }
-      ioProcCount++;
-      recentIOProc = processor;
-      break;
+        if(processor == local_proc) {
+          mapperCategory = IO;
+        }
+        ioProcCount++;
+        recentIOProc = processor;
+        break;
       case PROC_GROUP:
-      break;
+        break;
       case PROC_SET:
-      break;
+        break;
       case OMP_PROC:
-      break;
+        break;
       case PY_PROC:
-      if(count++ % NUM_RANKS_PER_TASK_POOL == 1) {
-        task_pool_procs.push_back(processor);
-        recentTaskPoolProc = processor;
-        if(firstTaskPoolProc == Processor::NO_PROC) {
-          firstTaskPoolProc = processor;
+        if(count++ % NUM_RANKS_PER_TASK_POOL == 1) {
+          task_pool_procs.push_back(processor);
+          recentTaskPoolProc = processor;
+          if(firstTaskPoolProc == Processor::NO_PROC) {
+            firstTaskPoolProc = processor;
+          }
+          if(processor == local_proc) {
+            mapperCategory = TASK_POOL;
+          }
+          log_task_pool_mapper.debug("%s task pool proc %s",
+                                     prolog(__FUNCTION__, __LINE__).c_str(),
+                                     describeProcId(processor.id).c_str());
+        } else {
+          worker_procs.push_back(processor);
+          if(isNodeZero && nodeZeroPyProc == Processor::NO_PROC) {
+            nodeZeroPyProc = processor;
+          }
+          if(processor == local_proc) {
+            mapperCategory = WORKER;
+          }
         }
         if(processor == local_proc) {
-          mapperCategory = TASK_POOL;
+          nearestTaskPoolProc = recentTaskPoolProc;
+          nearestIOProc = recentIOProc;
+          nearestLegionCPUProc = recentLegionCPUProc;
         }
-        log_task_pool_mapper.debug("%s task pool proc %s",
-                                   prolog(__FUNCTION__, __LINE__).c_str(),
-                                   describeProcId(processor.id).c_str());
-      } else {
-        worker_procs.push_back(processor);
-        if(isNodeZero && nodeZeroPyProc == Processor::NO_PROC) {
-          nodeZeroPyProc = processor;
-        }
-        if(processor == local_proc) {
-          mapperCategory = WORKER;
-        }
-      }
-      if(processor == local_proc) {
-        nearestTaskPoolProc = recentTaskPoolProc;
-        nearestIOProc = recentIOProc;
-        nearestLegionCPUProc = recentLegionCPUProc;
-      }
-      break;
+        break;
       default: assert(false);
     }
   }
@@ -903,7 +903,7 @@ void TaskPoolMapper::decompose_points(const MapperContext      ctx,
                                prolog(__FUNCTION__, __LINE__).c_str(),
                                describeProcId(destinationProc.id).c_str());
     runtime->send_message(ctx, destinationProc, &r, sizeof(r), RELOCATE_TASK_INFO);
-
+    
   }
 }
 
@@ -917,11 +917,13 @@ void TaskPoolMapper::slice_task(const MapperContext      ctx,
 {
   if(isAnalysisTask(task)){
     sliceTaskCount++;
-    log_task_pool_mapper.debug("%s task %s target proc %s proc_kind %d",
+    locallyEndedTaskCount++;
+    log_task_pool_mapper.debug("%s task %s target proc %s proc_kind %d totalPending %d",
                                prolog(__FUNCTION__, __LINE__).c_str(),
                                taskDescription(task).c_str(),
                                (describeProcId(task.target_proc.id).c_str()),
-                               task.target_proc.kind());
+                               task.target_proc.kind(),
+                               totalPendingWorkload());
     assert(input.domain.get_dim() == 1);
     
     Rect<1, coord_t> point_rect = input.domain;
@@ -929,9 +931,11 @@ void TaskPoolMapper::slice_task(const MapperContext      ctx,
     decompose_points(ctx, point_rect, task_pool_procs, num_blocks, output.slices);
     
   } else {
-    log_task_pool_mapper.debug("%s pass %s to default mapper",
+    locallyEndedTaskCount++;
+    log_task_pool_mapper.debug("%s pass %s to default mapper, total pending %d",
                                prolog(__FUNCTION__, __LINE__).c_str(),
-                               taskDescription(task).c_str());
+                               taskDescription(task).c_str(),
+                               totalPendingWorkload());
     this->DefaultMapper::slice_task(ctx, task, input, output);
   }
 }
@@ -1124,9 +1128,9 @@ bool TaskPoolMapper::alreadyQueued(const Task* task)
       return true;
     }
   }
-  if(tasks_to_map_locally.find(task) != tasks_to_map_locally.end()) {
+  if(tasks_to_map_on_this_node.find(task) != tasks_to_map_on_this_node.end()) {
 #if VERBOSE_DEBUG
-    log_task_pool_mapper.debug("%s task %s already queued in tasks_to_map_locally",
+    log_task_pool_mapper.debug("%s task %s already queued in tasks_to_map_on_this_node",
                                prolog(__FUNCTION__, __LINE__).c_str(),
                                taskDescription(*task).c_str());
 #endif
@@ -1146,13 +1150,9 @@ bool TaskPoolMapper::filterInputReadyTasks(const SelectMappingInput&    input,
        it != input.ready_tasks.end(); it++)
   {
     const Task* task = *it;
-totalPendingWorkload();
+    totalPendingWorkload();
     bool mapLocally = locallyRunningTaskCount() < minRunningTasks() || !isAnalysisTask(*task);
     if(mapLocally) {
-      //if (isAnalysisTask(*task)) {
-        //if (alreadyQueued(task))
-        //continue;
-      //}
       locallyStartedTaskCount++;
       output.map_tasks.insert(task);
       mapped = true;
@@ -1237,36 +1237,36 @@ char* TaskPoolMapper::processorKindString(unsigned kind) const
 {
   switch(kind) {
     case TOC_PROC:
-    return (char*)"TOC_PROC";
-    break;
+      return (char*)"TOC_PROC";
+      break;
     case LOC_PROC:
-    return (char*)"LOC_PROC";
-    break;
+      return (char*)"LOC_PROC";
+      break;
     case UTIL_PROC:
-    return (char*)"UTIL_PROC";
-    break;
+      return (char*)"UTIL_PROC";
+      break;
     case IO_PROC:
-    return (char*)"IO_PROC";
-    break;
+      return (char*)"IO_PROC";
+      break;
     case PROC_GROUP:
-    return (char*)"PROC_GROUP";
-    break;
+      return (char*)"PROC_GROUP";
+      break;
     case PROC_SET:
-    return (char*)"PROC_SET";
-    break;
+      return (char*)"PROC_SET";
+      break;
     case OMP_PROC:
-    return (char*)"OMP_PROC";
-    break;
+      return (char*)"OMP_PROC";
+      break;
     case PY_PROC:
-    return (char*)"PY_PROC";
-    break;
+      return (char*)"PY_PROC";
+      break;
     case NO_KIND:
-    return (char*)"NO_KIND";
-    break;
+      return (char*)"NO_KIND";
+      break;
     default:
-    log_task_pool_mapper.debug("%s processor kind %d",
-                               prolog(__FUNCTION__, __LINE__).c_str(), kind);
-    assert(false);
+      log_task_pool_mapper.debug("%s processor kind %d",
+                                 prolog(__FUNCTION__, __LINE__).c_str(), kind);
+      assert(false);
   }
 }
 
@@ -1286,8 +1286,8 @@ void TaskPoolMapper::debugOutput1(const SelectMappingInput& input)
                                prolog(__FUNCTION__, __LINE__).c_str(),
                                taskDescription(**it).c_str());
   }
-  for(std::set<const Task*>::iterator it = tasks_to_map_locally.begin();
-      it != tasks_to_map_locally.end(); ++it) {
+  for(std::set<const Task*>::iterator it = tasks_to_map_on_this_node.begin();
+      it != tasks_to_map_on_this_node.end(); ++it) {
     log_task_pool_mapper.debug("%s tasks map locally %s",
                                prolog(__FUNCTION__, __LINE__).c_str(),
                                taskDescription(**it).c_str());
@@ -1317,13 +1317,13 @@ void TaskPoolMapper::debugOutput2(const SelectMappingOutput& output)
 }
 
 //--------------------------------------------------------------------------
-bool TaskPoolMapper::filterTasksToMapLocally(const MapperContext          ctx,
-                                             SelectMappingOutput&   output)
+bool TaskPoolMapper::filterTasksToMapOnThisNode(const MapperContext          ctx,
+                                                SelectMappingOutput&   output)
 //--------------------------------------------------------------------------
 {
   bool mapped = false;
-  for(std::set<const Task*>::iterator it = tasks_to_map_locally.begin();
-      it != tasks_to_map_locally.end(); ++it) {
+  for(std::set<const Task*>::iterator it = tasks_to_map_on_this_node.begin();
+      it != tasks_to_map_on_this_node.end(); ++it) {
     const Task* task = *it;
     
     VariantInfo chosen = default_find_preferred_variant(*task, ctx,
@@ -1343,22 +1343,24 @@ bool TaskPoolMapper::filterTasksToMapLocally(const MapperContext          ctx,
                                  processorKindString(local_proc.kind()),
                                  taskDescription(*task).c_str(),
                                  processorKindString(task->target_proc.kind()));
-      mapped = true;
       switch(chosen.proc_kind) {
         case Realm::Processor::IO_PROC:
-        output.relocate_tasks[task] = nearestIOProc;
-        break;
+          output.relocate_tasks[task] = nearestIOProc;
+          mapped = true;
+          break;
         case Realm::Processor::LOC_PROC:
-        output.relocate_tasks[task] = nearestLegionCPUProc;
-        break;
+          output.relocate_tasks[task] = nearestLegionCPUProc;
+          mapped = true;
+          break;
         case Realm::Processor::PY_PROC:
-        output.relocate_tasks[task] = nearestTaskPoolProc;
-        break;
+          output.relocate_tasks[task] = nearestTaskPoolProc;
+          mapped = true;
+          break;
         default: assert(false);
       }
     }
   }
-  tasks_to_map_locally.clear();
+  tasks_to_map_on_this_node.clear();
   return mapped;
 }
 
@@ -1381,11 +1383,11 @@ void TaskPoolMapper::select_tasks_to_map(const MapperContext          ctx,
                              input.ready_tasks.size());
   
   bool mapped = filterInputReadyTasks(input, output);
-  mapped |= filterTasksToMapLocally(ctx, output);
+  mapped |= filterTasksToMapOnThisNode(ctx, output);
   
   if(mapperCategory == TASK_POOL) {
     if (!worker_ready_queue.empty())
-    wakeUpWorkers(ctx, (unsigned)worker_ready_queue.size());
+      wakeUpWorkers(ctx, (unsigned)worker_ready_queue.size());
     mapped |= sendSatisfiedTasks(ctx, output);
     assert(send_queue.empty());
   }
@@ -1429,7 +1431,7 @@ Memory TaskPoolMapper::get_associated_sysmem(Processor proc)
   std::map<Processor,Memory>::const_iterator finder =
   proc_sysmems.find(proc);
   if (finder != proc_sysmems.end())
-  return finder->second;
+    return finder->second;
   Machine::MemoryQuery sysmem_query(machine);
   sysmem_query.same_address_space_as(proc);
   sysmem_query.only_kind(Memory::SYSTEM_MEM);
@@ -1550,7 +1552,7 @@ void TaskPoolMapper::map_task(const MapperContext      ctx,
   
   for (unsigned idx = 0; idx < task.regions.size(); idx++) {
     if (task.regions[idx].privilege == NO_ACCESS)
-    continue;
+      continue;
     Memory target_mem = get_associated_sysmem(task.target_proc);
     map_task_array(ctx, task.regions[idx].region, target_mem,
                    output.chosen_instances[idx]);
@@ -1590,18 +1592,18 @@ void TaskPoolMapper::select_task_options(const MapperContext    ctx,
   } else {
     switch(variantInfo.proc_kind) {
       case LOC_PROC:
-      target_proc = nearestLegionCPUProc;
-      break;
+        target_proc = nearestLegionCPUProc;
+        break;
       case IO_PROC:
-      target_proc = nearestIOProc;
-      break;
+        target_proc = nearestIOProc;
+        break;
       case PY_PROC:
         if(isNodeZero && !isAnalysisTask(task)) {
           target_proc = nodeZeroPyProc;
         } else {
           target_proc = nearestTaskPoolProc;
         }
-      break;
+        break;
       default: assert(false);
     }
   }
@@ -1690,10 +1692,10 @@ static void create_mappers(Machine machine, HighLevelRuntime *runtime, const std
       if (affinity.m.kind() == Memory::SYSTEM_MEM) {
         (*proc_sysmems)[affinity.p] = affinity.m;
         if (proc_regmems->find(affinity.p) == proc_regmems->end())
-        (*proc_regmems)[affinity.p] = affinity.m;
+          (*proc_regmems)[affinity.p] = affinity.m;
       }
       else if (affinity.m.kind() == Memory::REGDMA_MEM)
-      (*proc_regmems)[affinity.p] = affinity.m;
+        (*proc_regmems)[affinity.p] = affinity.m;
     }
   }
   
@@ -1705,7 +1707,7 @@ static void create_mappers(Machine machine, HighLevelRuntime *runtime, const std
   
   for (std::map<Memory, std::vector<Processor> >::iterator it =
        sysmem_local_procs->begin(); it != sysmem_local_procs->end(); ++it)
-  sysmems_list->push_back(it->first);
+    sysmems_list->push_back(it->first);
   
   for (std::set<Processor>::const_iterator it = local_procs.begin();
        it != local_procs.end(); it++)
