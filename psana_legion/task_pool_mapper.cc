@@ -502,7 +502,7 @@ bool TaskPoolMapper::maybeGetLocalTasks(MapperContext ctx)
                              locallyRunningTaskCount(),
                              worker_ready_queue.size());
   
-  if(locallyRunningTaskCount() < minRunningTasks() && worker_ready_queue.size() > 0) {
+  if((locallyRunningTaskCount() < minRunningTasks()) && worker_ready_queue.size() > 0) {
     int numTasks = minRunningTasks() - locallyRunningTaskCount();
     
     for(std::set<const Task*>::iterator it = worker_ready_queue.begin();
@@ -511,7 +511,8 @@ bool TaskPoolMapper::maybeGetLocalTasks(MapperContext ctx)
       tasks_to_map_on_this_node.insert(task);
       it = worker_ready_queue.erase(it);
       numTasks--;
-      log_task_pool_mapper.debug("%s task %s should map locally, tasks_to_map_on_this_node.size %ld"
+      log_task_pool_mapper.debug("%s task %s should map on this node, "
+                                 "tasks_to_map_on_this_node.size %ld"
                                  " locallyRunning %d",
                                  prolog(__FUNCTION__, __LINE__).c_str(),
                                  taskDescription(*task).c_str(),
@@ -534,7 +535,7 @@ void TaskPoolMapper::getMoreWork(MapperContext ctx, Processor target)
   if(maybeGetLocalTasks(ctx)) {
     log_task_pool_mapper.debug("%s dont need to send steal request",
                                prolog(__FUNCTION__, __LINE__).c_str());
-  } else if(!isNodeZero && locallyRunningTaskCount() < minRunningTasks()) {
+  } else if(!isNodeZero && (locallyRunningTaskCount() < minRunningTasks())) {
     if(stealRequestOutstanding) {
       log_task_pool_mapper.debug("%s cannot send because stealRequestOutstanding",
                                  prolog(__FUNCTION__, __LINE__).c_str());
@@ -882,6 +883,12 @@ void TaskPoolMapper::decompose_points(const MapperContext      ctx,
     if (slice_rect.volume() > 0) {
       TaskSlice slice;
       slice.domain = slice_rect;
+      {
+        size_t shiftBits = sizeof(taskSerialId) * sizeof(char);
+        unsigned long long taskId = (local_proc.id << shiftBits) + taskSerialId++;
+        runtime->update_mappable_data(ctx, slice, &taskId, sizeof(taskId));
+      }
+      
       if(mapperCategory == TASK_POOL) {
         slice.proc = targets[next_index++ % targets.size()];
       } else {
@@ -1153,29 +1160,21 @@ bool TaskPoolMapper::filterInputReadyTasks(const SelectMappingInput&    input,
        it != input.ready_tasks.end(); it++)
   {
     const Task* task = *it;
-    totalPendingWorkload();
-    bool mapLocally = locallyRunningTaskCount() < minRunningTasks() || !isAnalysisTask(*task);
+    if(alreadyQueued(task)) continue;
+    bool mapLocally = (locallyRunningTaskCount() < minRunningTasks()) || !isAnalysisTask(*task);
     if(mapLocally) {
       locallyStartedTaskCount++;
       output.map_tasks.insert(task);
       mapped = true;
-      log_task_pool_mapper.debug("%s pool selects %s for local mapping locallyRunning %d",
+      log_task_pool_mapper.debug("%s selects %s for local mapping locallyRunning %d",
                                  prolog(__FUNCTION__, __LINE__).c_str(),
                                  taskDescription(*task).c_str(),
                                  locallyRunningTaskCount());
     } else {
-      if(isAnalysisTask(*task)) {
-        if(!alreadyQueued(task)) {
-          worker_ready_queue.insert(task);
-          log_task_pool_mapper.debug("%s pool %s copy to worker_ready_queue",
-                                     prolog(__FUNCTION__, __LINE__).c_str(),
-                                     taskDescription(*task).c_str());
-        }
-      } else {
-        log_task_pool_mapper.debug("%s not adding %s to worker_ready_queue, already queued or not analysis task",
-                                   prolog(__FUNCTION__, __LINE__).c_str(),
-                                   taskDescription(*task).c_str());
-      }
+      worker_ready_queue.insert(task);
+      log_task_pool_mapper.debug("%s copy %s to worker_ready_queue",
+                                 prolog(__FUNCTION__, __LINE__).c_str(),
+                                 taskDescription(*task).c_str());
     }
   }
   return mapped;
