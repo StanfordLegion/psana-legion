@@ -883,7 +883,11 @@ void TaskPoolMapper::decompose_points(const MapperContext      ctx,
       slice.recurse = false;
       slice.stealable = true;
       slices.push_back(slice);
-      destinationProcs.push_back(slice.proc);
+      if(slice.proc.id == local_proc.id) {
+        slicedPointTaskCount++;
+      } else {
+        destinationProcs.push_back(slice.proc);
+      }
     }
   }
   
@@ -919,7 +923,6 @@ void TaskPoolMapper::slice_task(const MapperContext      ctx,
     Rect<1, coord_t> point_rect = input.domain;
     Point<1, coord_t> num_blocks(point_rect.volume() / TASKS_PER_STEALABLE_SLICE);
     decompose_points(ctx, point_rect, task_pool_procs, num_blocks, output.slices);
-    slicedPointTaskCount += point_rect.volume();
     
   } else {
     log_task_pool_mapper.debug("%s pass %s to default mapper",
