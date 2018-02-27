@@ -1516,6 +1516,23 @@ void TaskPoolMapper::map_task(const MapperContext      ctx,
                                                       true/*needs tight bound*/,
                                                       false/*cache*/,
                                                       Processor::NO_KIND);
+  
+  if(task.is_index_space) {
+    // rename a point task so we can distinguish it from its parent
+    unsigned long long* parentIdPtr = (unsigned long long*)task.mapper_data;
+    unsigned long long parentId = 0xdeadbeefdeadbeef;;
+    if(parentIdPtr != nullptr) {
+      parentId = *parentIdPtr;
+    }
+    char buffer[512];
+    sprintf(buffer, "<%s:%llx>", task.get_task_name(), parentId);
+    assignTaskId(ctx, task);
+    log_task_pool_mapper.debug("%s task %s derived from parent %s",
+                               prolog(__FUNCTION__, __LINE__).c_str(),
+                               taskDescription(task).c_str(),
+                               buffer);
+  }
+  
   output.chosen_variant = chosen.variant;
   output.task_priority = 0;
   output.postmap_task = false;
