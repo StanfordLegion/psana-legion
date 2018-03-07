@@ -16,6 +16,7 @@
 #include "task_pool_mapper.h"
 
 
+#error do not use this task pool mapper it contains bugs, fix it if you want to run it
 
 /*
  Goal: write a distributed task pool to serve a set of worker processors.
