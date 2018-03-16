@@ -43,22 +43,30 @@ LD_FLAGS	?=
 CORE_GEN_OBJ ?= native_kernels.o native_kernels_helper.o
 MPI_GEN_OBJ ?= test_mpi.o
 MPI_OUTFILE ?= test_mpi
+MPI_OPENMP_GEN_OBJ ?= test_mpi_openmp.o
+MPI_OPENMP_OUTFILE ?= test_mpi_openmp
 
 ifeq ($(CRAYPE_VERSION),)
 	MPI_LD_FLAGS += -lmpi
 endif
 
 .PHONY: all
-all: $(OUTFILE) $(MPI_OUTFILE)
+all: $(OUTFILE) $(MPI_OUTFILE) $(MPI_OPENMP_OUTFILE)
 
 $(CORE_GEN_OBJ) : %.o : %.cc
 	$(CXX) -o $@ -c $< $(CC_FLAGS) $(INC_FLAGS) -O3
 $(MPI_GEN_OBJ) : %.o : %.cc
 	$(CXX) -o $@ -c $< $(CC_FLAGS) $(INC_FLAGS)
+$(MPI_OPENMP_GEN_OBJ) : %.o : %.cc
+	$(CXX) -o $@ -c $< $(CC_FLAGS) $(INC_FLAGS) -fopenmp
 
 $(MPI_OUTFILE) : $(CORE_GEN_OBJ) $(MPI_GEN_OBJ)
 	@echo "---> Linking objects into one binary: $(MPI_OUTFILE)"
 	$(CXX) -o $(MPI_OUTFILE) $(CORE_GEN_OBJ) $(MPI_GEN_OBJ) $(MPI_LD_FLAGS)
+
+$(MPI_OPENMP_OUTFILE) : $(CORE_GEN_OBJ) $(MPI_OPENMP_GEN_OBJ)
+	@echo "---> Linking objects into one binary: $(MPI_OPENMP_OUTFILE)"
+	$(CXX) -o $(MPI_OPENMP_OUTFILE) $(CORE_GEN_OBJ) $(MPI_OPENMP_GEN_OBJ) $(MPI_LD_FLAGS) -fopenmp
 
 NO_BUILD_ALL=1
 
