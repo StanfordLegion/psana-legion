@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --nodes=2
+#SBATCH --nodes=1
 #SBATCH --time=00:30:00
 #SBATCH --qos=debug
 #SBATCH --constraint=knl,quad,cache
@@ -7,8 +7,8 @@
 #SBATCH --mail-type=ALL
 #SBATCH --account=lcls
 
-for rounds in 20 40 80; do
-  for n in 2 1; do
+for rounds in 20 80; do
+  for n in 1; do
     for c in 128 64 32 16 8 4; do
       if [[ ! -e mpi_rounds"$rounds"_n"$n"_c"$c".log ]]; then
         srun -n $(( n * c )) -N $n --cpus-per-task $(( 256 / c )) --cpu_bind cores --output mpi_rounds"$rounds"_n"$n"_c"$c".log \
