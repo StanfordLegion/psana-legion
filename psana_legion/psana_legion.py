@@ -24,6 +24,7 @@ import os
 import psana
 import random
 import sys
+import legion_HDF5
 
 # User configurable analysis and filter predicate.
 class Config(object):
@@ -34,9 +35,29 @@ class Config(object):
         self.teardown = None
         self.limit = None
 
+class LegionSmallData:
+    __slots__ = ['_legionDataSource', '_filepath', '_gatherInterval', '_data', '_item_count', '_hdf5']
+    def __init__(self, legionDataSource, filepath, gather_interval):
+        self._legionDataSource = legionDataSource
+        self._filepath = filepath
+        self._gatherInterval = gather_interval
+        self._data = []
+        self._item_count = 0
+        self._hdf5 = legion_HDF5.LegionHDF5(self._filepath)
+    
+    def event(self, **kwargs):
+        if kwargs is not None:
+            for key, value in kwargs.iteritems():
+                self._data.append([key, value])
+                self._item_count = self._item_count + 1
+            if self._item_count >= self._gatherInterval:
+                self._hdf5.append_to_file(self._data)
+                self._item_count = 0
+
+
 _ds = None
 class LegionDataSource(object):
-    __slots__ = ['descriptor', 'ds_rax', 'ds_smd', 'config']
+    __slots__ = ['descriptor', 'ds_rax', 'ds_smd', 'config', '_small_data']
     def __init__(self, descriptor):
         if ':rax' not in descriptor:
             raise Exception('LegionDataSource requires RAX mode')
@@ -45,6 +66,7 @@ class LegionDataSource(object):
         self.ds_rax = psana.DataSource(self.descriptor)
         self.ds_smd = None
         self.config = Config()
+        self._small_data = None
 
     def rax(self):
         return self.ds_rax
@@ -73,6 +95,11 @@ class LegionDataSource(object):
         self.config.predicate = predicate
         self.config.teardown = teardown
         self.config.limit = limit
+
+    def small_data(self, filepath, gather_interval=100):
+        self._small_data = LegionSmallData(self, filepath, gather_interval)
+        return self._small_data
+
 
 class Location(object):
     __slots__ = ['filenames', 'offsets']

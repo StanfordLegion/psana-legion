@@ -51,6 +51,8 @@ experiment = os.environ['EXPERIMENT'] if 'EXPERIMENT' in os.environ else ('exp=c
 detector = os.environ['DETECTOR'] if 'DETECTOR' in os.environ else 'CxiDs2.0:Cspad.0'
 ds = psana_legion.LegionDataSource(experiment)
 det = psana.Detector(detector, ds.env())
+small_data = ds.small_data('TEST.HDF5', gather_interval = 10)
+FUBAR = 0
 
 def analyze(event):
     # raw = det.raw(event)
@@ -58,6 +60,9 @@ def analyze(event):
 
     if kernel is not None:
         kernel()
+    global FUBAR
+    small_data.event(fubar='fubar' + str(FUBAR)) # debugging
+    FUBAR = FUBAR + 1
 
 def filter(event):
     return True

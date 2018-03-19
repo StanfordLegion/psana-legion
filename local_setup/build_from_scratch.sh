@@ -37,7 +37,7 @@ export REL_PREFIX=\$CONDA_PREFIX/myrel
 
 export PATH=\$REL_PREFIX/arch/\$SIT_ARCH/bin:\$CONDA_PREFIX/bin:\$PATH
 export LD_LIBRARY_PATH=\$REL_PREFIX/arch/\$SIT_ARCH/lib:\$CONDA_PREFIX/lib:\$PSANA_LEGION_DIR:\$LD_LIBRARY_PATH
-export PYTHONPATH=\$REL_PREFIX/arch/\$SIT_ARCH/python:\$PSANA_LEGION_DIR:\$PYTHONPATH
+export PYTHONPATH=.:\$REL_PREFIX/arch/\$SIT_ARCH/python:\$PSANA_LEGION_DIR:\$PYTHONPATH
 
 # variables needed for scons only
 if which conda; then
