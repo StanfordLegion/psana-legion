@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 
+from __future__ import print_function
+
 
 class SmallFile(object):
     """
@@ -201,14 +203,14 @@ class SmallFile(object):
 
 
 
-class LegionHDF5:
-
+class LegionHDF5(object):
+    __slots__ = ['filepath']
     def __init__(self, filepath):
-        _filepath = filepath
-        print 'LegionHDF5 constructor filepath=', filepath
+        self.filepath = filepath
+        print( 'LegionHDF5 constructor filepath=', filepath)
 
     def append_to_file(self, list):
         for item in list:
-            print 'HDF5:', item
+            print( 'HDF5:', item)
 
 

@@ -35,29 +35,30 @@ class Config(object):
         self.teardown = None
         self.limit = None
 
-class LegionSmallData:
-    __slots__ = ['_legionDataSource', '_filepath', '_gatherInterval', '_data', '_item_count', '_hdf5']
+class LegionSmallData(object):
+    __slots__ = ['legionDataSource', 'filepath', 'gather_interval', 'data', 'item_count', 'hdf5']
     def __init__(self, legionDataSource, filepath, gather_interval):
-        self._legionDataSource = legionDataSource
-        self._filepath = filepath
-        self._gatherInterval = gather_interval
-        self._data = []
-        self._item_count = 0
-        self._hdf5 = legion_HDF5.LegionHDF5(self._filepath)
+        self.legionDataSource = legionDataSource
+        self.filepath = filepath
+        self.gather_interval = gather_interval
+        self.data = []
+        self.item_count = 0
+        self.hdf5 = legion_HDF5.LegionHDF5(self.filepath)
     
     def event(self, **kwargs):
         if kwargs is not None:
             for key, value in kwargs.iteritems():
-                self._data.append([key, value])
-                self._item_count = self._item_count + 1
-            if self._item_count >= self._gatherInterval:
-                self._hdf5.append_to_file(self._data)
-                self._item_count = 0
+                self.data.append([key, value])
+                self.item_count = self.item_count + 1
+            if self.item_count >= self.gather_interval:
+                self.hdf5.append_to_file(self.data)
+                self.item_count = 0
+                self.data = []
 
 
 _ds = None
 class LegionDataSource(object):
-    __slots__ = ['descriptor', 'ds_rax', 'ds_smd', 'config', '_small_data']
+    __slots__ = ['descriptor', 'ds_rax', 'ds_smd', 'config', 'small_data']
     def __init__(self, descriptor):
         if ':rax' not in descriptor:
             raise Exception('LegionDataSource requires RAX mode')
@@ -66,7 +67,7 @@ class LegionDataSource(object):
         self.ds_rax = psana.DataSource(self.descriptor)
         self.ds_smd = None
         self.config = Config()
-        self._small_data = None
+        self.small_data = None
 
     def rax(self):
         return self.ds_rax
@@ -96,9 +97,9 @@ class LegionDataSource(object):
         self.config.teardown = teardown
         self.config.limit = limit
 
-    def small_data(self, filepath, gather_interval=100):
-        self._small_data = LegionSmallData(self, filepath, gather_interval)
-        return self._small_data
+    def smalldata(self, filepath, gather_interval=100):
+        self.small_data = LegionSmallData(self, filepath, gather_interval)
+        return self.small_data
 
 
 class Location(object):
