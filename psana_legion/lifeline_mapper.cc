@@ -62,8 +62,8 @@ using namespace Legion::Mapping;
 #define _X {log_lifeline_mapper.debug("%s trace mappedRelocated %d", prolog(__FUNCTION__, __LINE__).c_str(), mappedRelocatedTaskCount);}
 
 static const char* ANALYSIS_TASK_NAMES[] = {
-  "psana_legion.analyze",
-  "psana_legion.analyze_leaf",
+  "psana_legion.analyze_chunk",
+  "psana_legion.analyze_single",
   "jump"
 };
 

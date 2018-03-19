@@ -98,10 +98,10 @@ SimpleMapper::default_policy_select_task_priority(
                                     MapperContext ctx, const Task &task)
 {
   const char* task_name = task.get_task_name();
-  if (strcmp(task_name, "psana_legion.analyze") == 0) {
+  if (strcmp(task_name, "psana_legion.analyze_chunk") == 0) {
     // Always enumerate the set of tasks as quickly as possible
     return 1;
-  } else if (strcmp(task_name, "psana_legion.analyze_leaf") == 0) {
+  } else if (strcmp(task_name, "psana_legion.analyze_single") == 0) {
     // Set initial priority of analysis tasks higher than the continuation
     return 2;
 #if 0
@@ -146,7 +146,7 @@ SimpleMapper::configure_context(const MapperContext         ctx,
   DefaultMapper::configure_context(ctx, task, output);
 
   const char* task_name = task.get_task_name();
-  if (strcmp(task_name, "psana_legion.analyze_leaf") == 0) {
+  if (strcmp(task_name, "psana_legion.analyze_single") == 0) {
     output.mutable_priority = true;
   }
 }
@@ -159,7 +159,7 @@ SimpleMapper::select_task_options(const MapperContext    ctx,
   DefaultMapper::select_task_options(ctx, task, output);
 
   const Task *parent = task.parent_task;
-  if (parent && strcmp(parent->get_task_name(), "psana_legion.analyze_leaf") == 0) {
+  if (parent && strcmp(parent->get_task_name(), "psana_legion.analyze_single") == 0) {
     // Upon blocking, deprioritize the analysis task so that
     // subsequent invokations will occur before any expensive analysis
     output.parent_priority = 0;
@@ -228,7 +228,7 @@ void SimpleMapper::map_task(const MapperContext ctx,
   DefaultMapper::map_task(ctx, task, input, output);
 
   const char* task_name = task.get_task_name();
-  if (strcmp(task_name, "psana_legion.analyze_leaf") == 0) {
+  if (strcmp(task_name, "psana_legion.analyze_single") == 0) {
     output.task_prof_requests.add_measurement<Realm::ProfilingMeasurements::OperationStatus>();
   }
 }
@@ -255,7 +255,7 @@ void SimpleMapper::select_tasks_to_map(const MapperContext ctx,
     bool schedule = true;
 
     const char* task_name = (*it)->get_task_name();
-    if (strcmp(task_name, "psana_legion.analyze_leaf") == 0) {
+    if (strcmp(task_name, "psana_legion.analyze_single") == 0) {
       schedule = tasks_in_flight < max_tasks_in_flight;
       if (schedule) tasks_in_flight++;
     }
@@ -282,7 +282,7 @@ void SimpleMapper::report_profiling(const MapperContext ctx,
                                    const TaskProfilingInfo &input)
 {
   const char* task_name = task.get_task_name();
-  if (strcmp(task_name, "psana_legion.analyze_leaf") == 0) {
+  if (strcmp(task_name, "psana_legion.analyze_single") == 0) {
     tasks_in_flight--;
     if ((tasks_in_flight <
          max_tasks_in_flight*(100-tasks_in_flight_hysteresis)/100) &&

@@ -145,12 +145,12 @@ using namespace Legion;
 using namespace Legion::Mapping;
 
 static const char* ANALYSIS_ROOT_TASK_NAMES[] = {
-  "psana_legion.analyze",
+  "psana_legion.analyze_chunk",
 };
 
 static const char* ANALYSIS_TASK_NAMES[] = {
-  "psana_legion.analyze",
-  "psana_legion.analyze_leaf",
+  "psana_legion.analyze_chunk",
+  "psana_legion.analyze_single",
   "jump"
 };
 

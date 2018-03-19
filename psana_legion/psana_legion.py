@@ -84,7 +84,7 @@ class Location(object):
         return 'Location(%s, %s)' % (self.offsets, self.filenames)
 
 @legion.task
-def analyze_leaf(loc, calib):
+def analyze_single(loc, calib):
     runtime = long(legion.ffi.cast("unsigned long long", legion._my.ctx.runtime_root))
     ctx = long(legion.ffi.cast("unsigned long long", legion._my.ctx.context_root))
 
@@ -93,9 +93,9 @@ def analyze_leaf(loc, calib):
     return True
 
 @legion.task(inner=True)
-def analyze(locs, calib):
+def analyze_chunk(locs, calib):
     for loc in locs:
-        future = analyze_leaf(loc, calib)
+        future = analyze_single(loc, calib)
 
 @legion.task
 def teardown():
@@ -172,7 +172,7 @@ def main_task():
                 print('Processing event %s' % nevents)
                 sys.stdout.flush()
             for idx in legion.IndexLaunch([len(launch_events)]):
-                analyze(map(Location, launch_events[idx]), calib)
+                analyze_chunk(map(Location, launch_events[idx]), calib)
                 nevents += len(launch_events[idx])
             nlaunch += 1
         ncalib += 1
