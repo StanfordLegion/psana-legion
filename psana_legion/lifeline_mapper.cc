@@ -25,29 +25,6 @@
 //#include <assert.h>
 
 
-/*
- note to self - in discussing these results identify the span of time when the mapper will
- count a task in locallyStartedTaskCount until locallEndedTaskCount; compare this to the actual time form when the task starts running in map_task.  Account for the difference in time, we
- start to count the task when it gets promsied, which is sooner than when it gets mapped.
- Try to estimate the impact of this appoximation.
- 
- use the random assignment probability formula from J Supercomputing as a baseline for the
- psana testbed tasks, compute mean and variance, generate scaling prediction for desired
- imbalanve epsilon as a function of problem scale, show whether either mapper performs better
- than random.  how to measure workload, think about it.  total execution time of all tasks
- mapped to a processor between start and finish?  then also need to account for system overheads
- that are the difference between the sum of the tasks times and the actual oveall elapsed time (how efficiently did we run)?
- plot the probability surface in 3D using wolfram alpha
- 
- need to measure the elaped time of each task to get mean and variance, also need to compute
- total time on each proceasor = sum of task times on each processor.
- 
- need to define some appropriate metrics to measure as processor count scales.  load balance is one.
- are there others?
- 
- capture some plots of representative processors using legion_prof, plots of workload over time using eg gnuplot or wolfram alpha
- */
-
 
 #include "default_mapper.h"
 
@@ -65,6 +42,10 @@ static const char* ANALYSIS_TASK_NAMES[] = {
   "psana_legion.analyze_chunk",
   "psana_legion.analyze_single",
   "jump"
+};
+
+static const char* LIMITED_TASK_NAMES[] = {
+  "psana_legion.analyze_single"
 };
 
 static const int TASKS_PER_STEALABLE_SLICE = 1;
@@ -164,7 +145,8 @@ private:
   std::string prolog(const char* function, int line) const;
   char* processorKindString(unsigned kind) const;
   bool isAnalysisTask(const Legion::Task& task);
-  
+  bool isLimitedTask(const Legion::Task& task);
+
   void configure_context(const MapperContext         ctx,
                          const Task&                 task,
                          ContextConfigOutput&  output);
@@ -850,6 +832,21 @@ bool LifelineMapper::isAnalysisTask(const Legion::Task& task)
 
 
 //--------------------------------------------------------------------------
+bool LifelineMapper::isLimitedTask(const Legion::Task& task)
+//--------------------------------------------------------------------------
+{
+  int numAnalysisTasks = sizeof(LIMITED_TASK_NAMES) / sizeof(LIMITED_TASK_NAMES[0]);
+  for(int i = 0; i < numAnalysisTasks; ++i) {
+    if(!strcmp(task.get_task_name(), LIMITED_TASK_NAMES[i])) {
+      return true;
+    }
+  }
+  return false;
+}
+
+
+
+//--------------------------------------------------------------------------
 void LifelineMapper::decompose_points(const Rect<1, coord_t> &point_rect,
                                       const Point<1, coord_t> &num_blocks,
                                       std::vector<TaskSlice> &slices)
@@ -1047,8 +1044,10 @@ void LifelineMapper::processNewReadyTasks(const SelectMappingInput&    input,
     if(!alreadyQueued(task)) {
       
       bool mapHereNow = (locallyRunningTaskCount() < MIN_RUNNING_TASKS)
-      || (local_proc.kind() != Processor::PY_PROC);
-      
+      || (local_proc.kind() != Processor::PY_PROC)
+      || !isLimitedTask(*task)
+      ;
+
       if(mapHereNow) {
         output.map_tasks.insert(task);
         if(isAnalysisTask(*task)) {
