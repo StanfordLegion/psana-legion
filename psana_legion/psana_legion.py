@@ -44,11 +44,9 @@ class LegionSmallData(object):
         self.data = []
     
     def event(self, **kwargs):
-        print('LegionSmallData.event kwargs', kwargs)
         if kwargs is not None:
             for key, value in kwargs.iteritems():
                 self.data.append([key, value])
-            print('LegionSmallData.event sets data=', self.data)
 
 
 _ds = None
@@ -83,7 +81,6 @@ class LegionDataSource(object):
         return self.ds_smd
 
     def start(self, analysis, predicate=None, teardown=None, limit=None):
-        print('LegionDataSource.start')
         global _ds
         assert _ds is None
         _ds = self
@@ -95,7 +92,6 @@ class LegionDataSource(object):
 
     def smalldata(self, filepath, gather_interval=100):
         self.small_data = LegionSmallData(self, filepath, gather_interval)
-        print('LegionDataSource.smalldata returns', self.small_data)
         return self.small_data
 
 
@@ -110,35 +106,23 @@ class Location(object):
 
 @legion.task
 def analyze_single(loc, calib):
-    print('in analyze_single', loc, calib)
-    sys.stdout.flush()
     runtime = long(legion.ffi.cast("unsigned long long", legion._my.ctx.runtime_root))
     ctx = long(legion.ffi.cast("unsigned long long", legion._my.ctx.context_root))
 
     event = _ds.jump(loc.filenames, loc.offsets, calib, runtime, ctx) # Fetches the data
     _ds.config.analysis(event) # Performs user analysis
-    print('analyze_single returns _ds.small_data.data', _ds.small_data.data)
-    sys.stdout.flush()
     return _ds.small_data.data
 
 @legion.task(inner=True)
 def analyze_chunk(locs, calib):
-    print('analyze_chunk len(locs)', len(locs))
-    sys.stdout.flush()
     futures = []
     for loc in locs:
         future = analyze_single(loc, calib)
         futures.append(future)
-    print('analyze_chunk obtained', len(futures), 'futures')
-    sys.stdout.flush()
     results = []
     for future in futures:
-        print('analyze_chunk waiting on future', future)
-        sys.stdout.flush()
         result = future.get()
         results.append(result)
-    print('analyze_chunk returns results', results)
-    sys.stdout.flush()
     return results
 
 
@@ -222,21 +206,23 @@ def main_task():
             if nlaunch % 20 == 0:
                 print('Processing event %s' % nevents)
                 sys.stdout.flush()
+            futures = []
+
             for idx in legion.IndexLaunch([len(launch_events)]):
-                print('calling analyze_chunk')
-                sys.stdout.flush()
-                results = analyze_chunk(map(Location, launch_events[idx]), calib)
-                print('analyze_chunk returned', results)
-                sys.stdout.flush()
-                if results is not None:
-                    file_buffer.append(results)
-                    file_buffer_length = file_buffer_length + len(results)
-                    if file_buffer_length >= _ds.small_data.gather_interval:
-                        hdf5.append_to_file(file_buffer)
-                        file_buffer = []
-                        file_buffer_length = 0
+                future = analyze_chunk(map(Location, launch_events[idx]), calib)
+                futures.append(future)
                 nevents += len(launch_events[idx])
             nlaunch += 1
+
+            for future in futures:
+                results = future.get()
+                file_buffer.append(results)
+                file_buffer_length = file_buffer_length + len(results)
+                if file_buffer_length >= _ds.small_data.gather_interval:
+                    hdf5.append_to_file(file_buffer)
+                    file_buffer = []
+                    file_buffer_length = 0
+
         ncalib += 1
 
     legion.execution_fence(block=True)

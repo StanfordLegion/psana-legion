@@ -210,7 +210,6 @@ class LegionHDF5(object):
         print( 'LegionHDF5 constructor filepath=', filepath)
 
     def append_to_file(self, list):
-        for item in list:
-            print( 'HDF5:', item)
+        print('HDF5:', len(list))
 
 

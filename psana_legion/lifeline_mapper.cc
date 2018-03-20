@@ -45,7 +45,7 @@ static const char* ANALYSIS_TASK_NAMES[] = {
 };
 
 static const char* LIMITED_TASK_NAMES[] = {
-  "psana_legion.analyze_single"
+  "psana_legion.analyze_chunk"
 };
 
 static const int TASKS_PER_STEALABLE_SLICE = 1;
