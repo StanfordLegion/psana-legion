@@ -111,28 +111,34 @@ class Location(object):
 @legion.task
 def analyze_single(loc, calib):
     print('in analyze_single', loc, calib)
+    sys.stdout.flush()
     runtime = long(legion.ffi.cast("unsigned long long", legion._my.ctx.runtime_root))
     ctx = long(legion.ffi.cast("unsigned long long", legion._my.ctx.context_root))
 
     event = _ds.jump(loc.filenames, loc.offsets, calib, runtime, ctx) # Fetches the data
     _ds.config.analysis(event) # Performs user analysis
     print('analyze_single returns _ds.small_data.data', _ds.small_data.data)
+    sys.stdout.flush()
     return _ds.small_data.data
 
 @legion.task(inner=True)
 def analyze_chunk(locs, calib):
-    print('analyze_chunk locs', locs)
+    print('analyze_chunk len(locs)', len(locs))
+    sys.stdout.flush()
     futures = []
     for loc in locs:
         future = analyze_single(loc, calib)
         futures.append(future)
     print('analyze_chunk obtained', len(futures), 'futures')
+    sys.stdout.flush()
     results = []
     for future in futures:
         print('analyze_chunk waiting on future', future)
+        sys.stdout.flush()
         result = future.get()
         results.append(result)
     print('analyze_chunk returns results', results)
+    sys.stdout.flush()
     return results
 
 
@@ -217,7 +223,11 @@ def main_task():
                 print('Processing event %s' % nevents)
                 sys.stdout.flush()
             for idx in legion.IndexLaunch([len(launch_events)]):
+                print('calling analyze_chunk')
+                sys.stdout.flush()
                 results = analyze_chunk(map(Location, launch_events[idx]), calib)
+                print('analyze_chunk returned', results)
+                sys.stdout.flush()
                 if results is not None:
                     file_buffer.append(results)
                     file_buffer_length = file_buffer_length + len(results)
