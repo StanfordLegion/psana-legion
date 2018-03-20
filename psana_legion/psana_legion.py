@@ -36,24 +36,19 @@ class Config(object):
         self.limit = None
 
 class LegionSmallData(object):
-    __slots__ = ['legionDataSource', 'filepath', 'gather_interval', 'data', 'item_count', 'hdf5']
+    __slots__ = ['legionDataSource', 'filepath', 'gather_interval', 'data', 'hdf5']
     def __init__(self, legionDataSource, filepath, gather_interval):
         self.legionDataSource = legionDataSource
         self.filepath = filepath
         self.gather_interval = gather_interval
         self.data = []
-        self.item_count = 0
-        self.hdf5 = legion_HDF5.LegionHDF5(self.filepath)
     
     def event(self, **kwargs):
+        print('LegionSmallData.event kwargs', kwargs)
         if kwargs is not None:
             for key, value in kwargs.iteritems():
                 self.data.append([key, value])
-                self.item_count = self.item_count + 1
-            if self.item_count >= self.gather_interval:
-                self.hdf5.append_to_file(self.data)
-                self.item_count = 0
-                self.data = []
+            print('LegionSmallData.event sets data=', self.data)
 
 
 _ds = None
@@ -88,6 +83,7 @@ class LegionDataSource(object):
         return self.ds_smd
 
     def start(self, analysis, predicate=None, teardown=None, limit=None):
+        print('LegionDataSource.start')
         global _ds
         assert _ds is None
         _ds = self
@@ -99,6 +95,7 @@ class LegionDataSource(object):
 
     def smalldata(self, filepath, gather_interval=100):
         self.small_data = LegionSmallData(self, filepath, gather_interval)
+        print('LegionDataSource.smalldata returns', self.small_data)
         return self.small_data
 
 
@@ -113,17 +110,31 @@ class Location(object):
 
 @legion.task
 def analyze_single(loc, calib):
+    print('in analyze_single', loc, calib)
     runtime = long(legion.ffi.cast("unsigned long long", legion._my.ctx.runtime_root))
     ctx = long(legion.ffi.cast("unsigned long long", legion._my.ctx.context_root))
 
     event = _ds.jump(loc.filenames, loc.offsets, calib, runtime, ctx) # Fetches the data
     _ds.config.analysis(event) # Performs user analysis
-    return True
+    print('analyze_single returns _ds.small_data.data', _ds.small_data.data)
+    return _ds.small_data.data
 
 @legion.task(inner=True)
 def analyze_chunk(locs, calib):
+    print('analyze_chunk locs', locs)
+    futures = []
     for loc in locs:
         future = analyze_single(loc, calib)
+        futures.append(future)
+    print('analyze_chunk obtained', len(futures), 'futures')
+    results = []
+    for future in futures:
+        print('analyze_chunk waiting on future', future)
+        result = future.get()
+        results.append(result)
+    print('analyze_chunk returns results', results)
+    return results
+
 
 @legion.task
 def teardown():
@@ -191,16 +202,29 @@ def main_task():
     events = itertools.groupby(
         events, lambda e: e.get(psana.EventOffset).lastBeginCalibCycleDgram())
 
+    # create HDF5 output file
+    hdf5 = legion_HDF5.LegionHDF5(_ds.small_data.filepath)
+
     nevents = 0
     nlaunch = 0
     ncalib = 0
+    file_buffer = []
+    file_buffer_length = 0
+    
     for calib, calib_events in events:
         for launch_events in chunk(chunk(calib_events, chunksize), launchsize):
             if nlaunch % 20 == 0:
                 print('Processing event %s' % nevents)
                 sys.stdout.flush()
             for idx in legion.IndexLaunch([len(launch_events)]):
-                analyze_chunk(map(Location, launch_events[idx]), calib)
+                results = analyze_chunk(map(Location, launch_events[idx]), calib)
+                if results is not None:
+                    file_buffer.append(results)
+                    file_buffer_length = file_buffer_length + len(results)
+                    if file_buffer_length >= _ds.small_data.gather_interval:
+                        hdf5.append_to_file(file_buffer)
+                        file_buffer = []
+                        file_buffer_length = 0
                 nevents += len(launch_events[idx])
             nlaunch += 1
         ncalib += 1

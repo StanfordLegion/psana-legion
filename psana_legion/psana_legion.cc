@@ -58,7 +58,7 @@ int main(int argc, char **argv)
 #endif
   char *previous_python_path = getenv("PYTHONPATH");
   if (previous_python_path != 0) {
-    size_t bufsize = 8192;
+    size_t bufsize = 16 * 1024;
     char *buffer = (char *)calloc(bufsize, sizeof(char));
     assert(buffer != 0);
 
