@@ -1,3 +1,4 @@
 /test_legion
 /test_mpi
+/test_mpi_openmp
 /run*

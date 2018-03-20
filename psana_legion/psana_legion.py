@@ -24,6 +24,7 @@ import os
 import psana
 import random
 import sys
+import legion_HDF5
 
 # User configurable analysis and filter predicate.
 class Config(object):
@@ -34,9 +35,30 @@ class Config(object):
         self.teardown = None
         self.limit = None
 
+class LegionSmallData(object):
+    __slots__ = ['legionDataSource', 'filepath', 'gather_interval', 'data', 'item_count', 'hdf5']
+    def __init__(self, legionDataSource, filepath, gather_interval):
+        self.legionDataSource = legionDataSource
+        self.filepath = filepath
+        self.gather_interval = gather_interval
+        self.data = []
+        self.item_count = 0
+        self.hdf5 = legion_HDF5.LegionHDF5(self.filepath)
+    
+    def event(self, **kwargs):
+        if kwargs is not None:
+            for key, value in kwargs.iteritems():
+                self.data.append([key, value])
+                self.item_count = self.item_count + 1
+            if self.item_count >= self.gather_interval:
+                self.hdf5.append_to_file(self.data)
+                self.item_count = 0
+                self.data = []
+
+
 _ds = None
 class LegionDataSource(object):
-    __slots__ = ['descriptor', 'ds_rax', 'ds_smd', 'config']
+    __slots__ = ['descriptor', 'ds_rax', 'ds_smd', 'config', 'small_data']
     def __init__(self, descriptor):
         if ':rax' not in descriptor:
             raise Exception('LegionDataSource requires RAX mode')
@@ -45,6 +67,7 @@ class LegionDataSource(object):
         self.ds_rax = psana.DataSource(self.descriptor)
         self.ds_smd = None
         self.config = Config()
+        self.small_data = None
 
     def rax(self):
         return self.ds_rax
@@ -74,6 +97,11 @@ class LegionDataSource(object):
         self.config.teardown = teardown
         self.config.limit = limit
 
+    def smalldata(self, filepath, gather_interval=100):
+        self.small_data = LegionSmallData(self, filepath, gather_interval)
+        return self.small_data
+
+
 class Location(object):
     __slots__ = ['filenames', 'offsets']
     def __init__(self, event):
@@ -84,7 +112,7 @@ class Location(object):
         return 'Location(%s, %s)' % (self.offsets, self.filenames)
 
 @legion.task
-def analyze_leaf(loc, calib):
+def analyze_single(loc, calib):
     runtime = long(legion.ffi.cast("unsigned long long", legion._my.ctx.runtime_root))
     ctx = long(legion.ffi.cast("unsigned long long", legion._my.ctx.context_root))
 
@@ -93,9 +121,9 @@ def analyze_leaf(loc, calib):
     return True
 
 @legion.task(inner=True)
-def analyze(locs, calib):
+def analyze_chunk(locs, calib):
     for loc in locs:
-        future = analyze_leaf(loc, calib)
+        future = analyze_single(loc, calib)
 
 @legion.task
 def teardown():
@@ -172,7 +200,7 @@ def main_task():
                 print('Processing event %s' % nevents)
                 sys.stdout.flush()
             for idx in legion.IndexLaunch([len(launch_events)]):
-                analyze(map(Location, launch_events[idx]), calib)
+                analyze_chunk(map(Location, launch_events[idx]), calib)
                 nevents += len(launch_events[idx])
             nlaunch += 1
         ncalib += 1
