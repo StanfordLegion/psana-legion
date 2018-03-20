@@ -830,7 +830,7 @@ std::string LifelineMapper::taskDescription(const Legion::Task& task)
 {
   char buffer[512];
   unsigned long long* serialId = (unsigned long long*)task.mapper_data;
-  sprintf(buffer, "<%s:%llx>", task.get_task_name(), *serialId);
+  sprintf(buffer, "<%s:%llx:%llx>", task.get_task_name(), *serialId, task.get_unique_id());
   return std::string(buffer);
 }
 
@@ -1329,12 +1329,16 @@ void LifelineMapper::select_task_options(const MapperContext    ctx,
   output.inline_task = false;
   output.stealable = false;
   output.map_locally = false;
+
+log_lifeline_mapper.debug("print parent task %p for task %s",task.parent_task,taskDescription(task).c_str());
   
-  log_lifeline_mapper.debug("%s %s on %s %s",
+  log_lifeline_mapper.debug("%s %s on %s %s parent task %s",
                             prolog(__FUNCTION__, __LINE__).c_str(),
                             taskDescription(task).c_str(),
                             processorKindString(initial_proc.kind()),
-                            workloadState().c_str());
+                            workloadState().c_str(),
+                            task.parent_task == NULL ? "<none>" :
+                              taskDescription(*task.parent_task).c_str());
   
   if(sendRelocateTaskInfo) {
     Request r = { initial_proc, local_proc, 1 };
