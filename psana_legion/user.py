@@ -51,10 +51,12 @@ experiment = os.environ['EXPERIMENT'] if 'EXPERIMENT' in os.environ else ('exp=c
 detector = os.environ['DETECTOR'] if 'DETECTOR' in os.environ else 'CxiDs2.0:Cspad.0'
 ds = psana_legion.LegionDataSource(experiment)
 det = psana.Detector(detector, ds.env())
-small_data = ds.small_data('TEST.HDF5', gather_interval = 10)
+small_data = ds.smalldata('TEST.HDF5', gather_interval = 10)
+
 FUBAR = 0
 
 def analyze(event):
+    print('in user analyze', event)
     # raw = det.raw(event)
     # calib = det.calib(event) # Calibrate the data
 
