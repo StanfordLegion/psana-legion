@@ -48,7 +48,7 @@ conda install -y legion -c file://`pwd`/channels/external # --override-channels
 
 # Build psana.
 git clone https://github.com/slac-lcls/lcls2.git $LCLS2_PREFIX
-./rebuild.sh
+./clean_rebuild.sh
 
 echo
 echo "Done. Please run 'source env.sh' to use this build."
