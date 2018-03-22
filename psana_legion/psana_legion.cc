@@ -26,9 +26,8 @@ using namespace Legion;
 
 enum TaskIDs {
   TOP_LEVEL_TASK_ID = 1,
-  MAIN_TASK_ID = 2,
-  MEMORY_BOUND_TASK_ID = 3,
-  CACHE_BOUND_TASK_ID = 4,
+  MEMORY_BOUND_TASK_ID = 2,
+  CACHE_BOUND_TASK_ID = 3,
 };
 
 enum FieldIDs {
@@ -80,13 +79,7 @@ int main(int argc, char **argv)
   }
   Realm::Python::PythonModule::import_python_module(module);
 
-  {
-    TaskVariantRegistrar registrar(MAIN_TASK_ID, "main_task");
-    registrar.add_constraint(ProcessorConstraint(Processor::PY_PROC));
-    preregister_python_task_variant(registrar, "psana_legion", "main_task");
-  }
-
-  Runtime::set_top_level_task_id(MAIN_TASK_ID);
+  Runtime::set_top_level_task_id(TOP_LEVEL_TASK_ID);
 
   register_native_kernels_tasks(MEMORY_BOUND_TASK_ID,
                                 CACHE_BOUND_TASK_ID);

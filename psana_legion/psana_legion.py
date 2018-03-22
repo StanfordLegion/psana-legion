@@ -139,7 +139,7 @@ def chunk(iterable, chunksize):
 
 # Define the main Python task. This task is called from C++. See
 # top_level_task in psana_legion.cc.
-@legion.task(inner=True)
+@legion.task(top_level=True)
 def main_task():
     assert _ds is not None
 
