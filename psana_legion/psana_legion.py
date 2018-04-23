@@ -116,16 +116,19 @@ def analyze_single(loc, calib):
 
 @legion.task(inner=True)
 def analyze_chunk(locs, calib):
-    futures = []
-    for loc in locs:
-        future = analyze_single(loc, calib)
-        futures.append(future)
-    results = []
-    for future in futures:
-        result = future.get()
-        results.append(result)
-    return results
-
+    if _ds.small_data is None:
+        for loc in locs:
+            analyze_single(loc, calib)
+    else:
+        futures = []
+        for loc in locs:
+            future = analyze_single(loc, calib)
+            futures.append(future)
+        results = []
+        for future in futures:
+            result = future.get()
+            results.append(result)
+        return results
 
 @legion.task
 def teardown():
@@ -193,7 +196,7 @@ def main_task():
     events = itertools.groupby(
         events, lambda e: e.get(psana.EventOffset).lastBeginCalibCycleDgram())
 
-    if _ds._small_data is not None:
+    if _ds.small_data is not None:
         # create HDF5 output file
         hdf5 = legion_HDF5.LegionHDF5(_ds.small_data.filepath)
 
@@ -216,7 +219,7 @@ def main_task():
                 nevents += len(launch_events[idx])
             nlaunch += 1
 
-            if _ds._small_data is not None:
+            if _ds.small_data is not None:
                 for future in futures:
                     results = future.get()
                     file_buffer.append(results)
