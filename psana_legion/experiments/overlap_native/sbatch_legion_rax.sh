@@ -9,7 +9,7 @@
 #SBATCH --image=docker:stanfordlegion/psana-legion:elliott
 #SBATCH --exclusive # causes shifter to preload image before run
 #SBATCH --mail-type=ALL
-#SBATCH --account=lcls
+#SBATCH --account=m2859
 
 # Host directory where Psana is located
 # (Needed for native Legion shared library)
@@ -40,8 +40,8 @@ for rounds in 20 40 80; do
       ./make_nodelist.py $c > nodelist.txt
       export SLURM_HOSTFILE=$PWD/nodelist.txt
       export MAX_TASKS_IN_FLIGHT=$(( 1280 / c ))
-      for p in 1 2 4 6 8 14; do
-        if (( $p * $c < 64 )); then
+      for p in 4 8 16 32; do
+        if (( $p * $c >= 64 && $p * $c <= 128 )); then
           for i in 1 2 4 8; do
             if [[ ! -e rax_rounds"$rounds"_n"$n"_c"$c"_p"$p"_i"$i".log ]]; then
                 srun -n $(( n * c + 1 )) -N $(( n + 1 )) --cpus-per-task $(( 256 / c )) --cpu_bind cores --distribution=arbitrary --output rax_rounds"$rounds"_n"$n"_c"$c"_p"$p"_i"$i".log \
