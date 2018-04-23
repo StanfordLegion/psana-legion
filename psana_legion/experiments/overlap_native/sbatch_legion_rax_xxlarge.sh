@@ -32,7 +32,7 @@ export EAGER=1
 export PSANA_MAPPER=simple
 export KERNEL_KIND=memory_bound_native
 
-for rounds in 20 40 80; do
+for rounds in 80; do
   export KERNEL_ROUNDS=$rounds
   for n in 64; do
     export LIMIT=$(( n * 2048 ))

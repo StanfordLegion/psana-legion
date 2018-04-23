@@ -34,7 +34,7 @@ export KERNEL_KIND=memory_bound
 
 export GASNET_PHYSMEM_MAX=64G # per node
 
-for rounds in 20 40 80; do
+for rounds in 80; do
   export KERNEL_ROUNDS=$rounds
   for n in 2 1; do
     export LIMIT=$(( n * 2048 ))
