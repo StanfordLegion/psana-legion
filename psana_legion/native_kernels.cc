@@ -21,19 +21,23 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 void memory_bound_kernel(size_t buffer_size, size_t rounds)
 {
-  float *buffer = (float *)calloc(buffer_size/sizeof(float), sizeof(float));
+  thread_local float *buffer = NULL;
   if (!buffer) {
-    abort();
+    buffer = (float *)malloc(buffer_size);
+    if (!buffer) abort();
   }
+
+  memset(buffer, 0, buffer_size);
 
   for (size_t round = 0; round < rounds; round++) {
     memory_bound_helper(buffer, buffer_size/sizeof(float));
   }
 
-  free(buffer);
+  // Just leak the memory...
 }
 
 void memory_bound_kernel_default()
