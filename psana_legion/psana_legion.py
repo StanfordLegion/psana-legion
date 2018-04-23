@@ -111,7 +111,8 @@ def analyze_single(loc, calib):
 
     event = _ds.jump(loc.filenames, loc.offsets, calib, runtime, ctx) # Fetches the data
     _ds.config.analysis(event) # Performs user analysis
-    return _ds.small_data.data
+    if _ds.small_data is not None:
+        return _ds.small_data.data
 
 @legion.task(inner=True)
 def analyze_chunk(locs, calib):
@@ -192,8 +193,9 @@ def main_task():
     events = itertools.groupby(
         events, lambda e: e.get(psana.EventOffset).lastBeginCalibCycleDgram())
 
-    # create HDF5 output file
-    hdf5 = legion_HDF5.LegionHDF5(_ds.small_data.filepath)
+    if _ds._small_data is not None:
+        # create HDF5 output file
+        hdf5 = legion_HDF5.LegionHDF5(_ds.small_data.filepath)
 
     nevents = 0
     nlaunch = 0
@@ -214,14 +216,15 @@ def main_task():
                 nevents += len(launch_events[idx])
             nlaunch += 1
 
-            for future in futures:
-                results = future.get()
-                file_buffer.append(results)
-                file_buffer_length = file_buffer_length + len(results)
-                if file_buffer_length >= _ds.small_data.gather_interval:
-                    hdf5.append_to_file(file_buffer)
-                    file_buffer = []
-                    file_buffer_length = 0
+            if _ds._small_data is not None:
+                for future in futures:
+                    results = future.get()
+                    file_buffer.append(results)
+                    file_buffer_length = file_buffer_length + len(results)
+                    if file_buffer_length >= _ds.small_data.gather_interval:
+                        hdf5.append_to_file(file_buffer)
+                        file_buffer = []
+                        file_buffer_length = 0
 
         ncalib += 1
 

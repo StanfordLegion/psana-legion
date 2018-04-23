@@ -51,20 +51,22 @@ experiment = os.environ['EXPERIMENT'] if 'EXPERIMENT' in os.environ else ('exp=c
 detector = os.environ['DETECTOR'] if 'DETECTOR' in os.environ else 'CxiDs2.0:Cspad.0'
 ds = psana_legion.LegionDataSource(experiment)
 det = psana.Detector(detector, ds.env())
-small_data = ds.smalldata('TEST.HDF5', gather_interval = 10)
+small_data = None
+if os.environ.get('TEST_HDF5') == '1':
+    small_data = ds.smalldata('TEST.HDF5', gather_interval = 10)
 
-FUBAR = 0
+dummy = 0
 
 def analyze(event):
-    print('in user analyze', event)
     # raw = det.raw(event)
     # calib = det.calib(event) # Calibrate the data
 
     if kernel is not None:
         kernel()
-    global FUBAR
-    small_data.event(fubar='fubar' + str(FUBAR)) # debugging
-    FUBAR = FUBAR + 1
+    if small_data is not None:
+        global dummy
+        small_data.event(dummy='dummy' + str(dummy)) # debugging
+        dummy = dummy + 1
 
 def filter(event):
     return True
