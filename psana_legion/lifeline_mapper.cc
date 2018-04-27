@@ -49,7 +49,7 @@ static const char* LIMITED_TASK_NAMES[] = {
 };
 
 static const int TASKS_PER_STEALABLE_SLICE = 1;
-static const int MIN_RUNNING_TASKS = 2;
+static int MIN_RUNNING_TASKS = 2;
 static const int MAX_FAILED_STEALS = 5;
 
 typedef enum {
@@ -283,6 +283,10 @@ proc_sysmems(*_proc_sysmems)
   numFailedSteals = 0;
   taskSerialId = 0;
   quiesced = false;
+  
+  if(const char* env_p = std::getenv("PSANA_LEGION_MIN_RUNNING_TASKS")) {
+    sscanf("%d", env_p, &MIN_RUNNING_TASKS);
+  }
 }
 
 //--------------------------------------------------------------------------
