@@ -207,9 +207,9 @@ class LegionHDF5(object):
     __slots__ = ['filepath']
     def __init__(self, filepath):
         self.filepath = filepath
-        print( 'LegionHDF5 constructor filepath=', filepath)
+        self.smallFile = SmallFile(self.filepath)
 
     def append_to_file(self, list):
-        print('HDF5:', len(list))
+        self.smallFile.save_event_data(list)
 
 
