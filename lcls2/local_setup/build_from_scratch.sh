@@ -15,10 +15,11 @@ export CXX=$CXX
 
 export CONDA_PREFIX=$PWD/conda
 export REL_PREFIX=\$CONDA_PREFIX/myrel
-export PATH=\$REL_PREFIX/bin:\$CONDA_PREFIX/bin:\$PATH
 
 export PYVER=3.5
 export LCLS2_PREFIX=$PWD/lcls2
+
+export PATH=\$LCLS2_PREFIX/install/bin:\$REL_PREFIX/bin:\$CONDA_PREFIX/bin:\$PATH
 export PYTHONPATH=\$LCLS2_PREFIX/install/lib/python\$PYVER/site-packages:\$PYTHONPATH
 EOF
 
@@ -36,7 +37,7 @@ bash Miniconda3-latest-Linux-x86_64.sh -b -p $CONDA_PREFIX
 rm Miniconda3-latest-Linux-x86_64.sh
 conda update -y conda
 conda install -y conda-build # Must be installed in root environment
-conda create -y -p $REL_PREFIX python=$PYVER cmake h5py ipython numpy cython
+conda create -y -p $REL_PREFIX python=$PYVER cmake h5py ipython numpy cython nose
 source activate $REL_PREFIX
 # conda install -y --channel lcls-rhel7 cpsw yaml-cpp
 # conda install -y --channel lightsource2-tag epics-base
