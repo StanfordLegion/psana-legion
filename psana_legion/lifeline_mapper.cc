@@ -101,6 +101,9 @@ private:
   Processor nearestLOCProc;
   Processor nearestIOProc;
   Processor nearestPYProc;
+  std::vector<Processor> neighborLOCProcs;
+  std::vector<Processor> neighborIOProcs;
+  std::vector<Processor> neighborPYProcs;
   std::random_device rd;     // only used once to initialise (seed) engine
   std::mt19937 rng;
   std::uniform_int_distribution<int> uni;
@@ -1235,7 +1238,21 @@ void LifelineMapper::map_task(const MapperContext      ctx,
   output.chosen_variant = chosen.variant;
   output.task_priority = 0;
   output.postmap_task = false;
-  output.target_procs.push_back(local_proc);
+  
+  std::vector<Processor> procsToInsert;
+  switch(local_proc.kind()) {
+    case Processor::LOC_PROC:
+      procsToInsert = local_cpus;
+      break;
+    case Processor::IO_PROC:
+      procsToInsert = local_ios;
+      break;
+    case Processor::PY_PROC:
+      procsToInsert = local_pys;
+      break;
+    default: log_lifeline_mapper.fatal("mapping a task onto processor type %d", local_proc.kind());
+  }
+  output.target_procs.insert(output.target_procs.end(), procsToInsert.begin(), procsToInsert.end());
   
   if(task.orig_proc.id == local_proc.id) {
     
