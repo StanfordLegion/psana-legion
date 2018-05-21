@@ -16,7 +16,8 @@
 #
 
 from __future__ import print_function
-
+import tables
+import warnings
 
 class SmallFile(object):
     """
