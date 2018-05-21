@@ -46,7 +46,9 @@ class LegionSmallData(object):
     def event(self, **kwargs):
         if kwargs is not None:
             for key, value in kwargs.iteritems():
-                self.data.append([key, value])
+                dict = {}
+                dict[key] = value
+                self.data.append(dict)
 
 
 _ds = None

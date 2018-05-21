@@ -211,6 +211,9 @@ class LegionHDF5(object):
         self.smallFile = SmallFile(self.filepath)
 
     def append_to_file(self, list):
-        self.smallFile.save_event_data(list)
+        print('append_to_file', list)
+        for event in list:
+            print('event', event)
+            self.smallFile.save_event_data(event)
 
 
