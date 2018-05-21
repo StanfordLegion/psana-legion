@@ -205,7 +205,7 @@ class SmallFile(object):
 
 
 class LegionHDF5(object):
-    __slots__ = ['filepath']
+    __slots__ = ['filepath', 'smallFile']
     def __init__(self, filepath):
         self.filepath = filepath
         self.smallFile = SmallFile(self.filepath)
