@@ -102,8 +102,6 @@ class SmallFile(object):
 
             ex = dlist_master[k][0]
 
-            print('ex', ex)
-            print('dlist_master[' + k + ']', dlist_master[k])
             if num_or_array(ex) == 'array':
                 a = tables.Atom.from_dtype(ex.dtype)
                 shp = tuple([0] + list(ex.shape))

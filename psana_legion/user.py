@@ -57,6 +57,8 @@ if os.environ.get('TEST_HDF5') == '1':
 
 dummy = 0
 
+import numpy
+
 def analyze(event):
     # raw = det.raw(event)
     # calib = det.calib(event) # Calibrate the data
@@ -65,7 +67,7 @@ def analyze(event):
         kernel()
     if small_data is not None:
         global dummy
-        small_data.event(dummy=[dummy]) # debugging
+        small_data.event(dummy=[numpy.array([dummy])]) # debugging
         dummy = dummy + 1
 
 def filter(event):
