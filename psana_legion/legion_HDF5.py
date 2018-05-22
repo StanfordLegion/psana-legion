@@ -16,8 +16,52 @@
 #
 
 from __future__ import print_function
+import numpy as np
 import tables
+import collections
 import warnings
+
+def _flatten_dictionary(d, parent_key='', sep='/'):
+  """
+    http://stackoverflow.com/questions/6027558/flatten-nested-python-dictionaries-compressing-keys
+    """
+      items = []
+      for k, v in d.items():
+        new_key = parent_key + sep + k if parent_key else k
+        if isinstance(v, collections.MutableMapping):
+          items.extend(_flatten_dictionary(v, new_key, sep=sep).items())
+        else:
+          items.append((new_key, v))
+            return dict(items)
+
+
+def remove_values(the_list, val):
+  """
+    Remove all items with value `val` from `the_list`
+    """
+      return [value for value in the_list if value != val]
+
+
+def num_or_array(obj):
+  """
+    Returns string 'num' or 'array' if object is a number
+    (int, float) or array.
+    """
+      
+      data_type = type(obj)
+      if ((data_type in [int, float]) or
+          np.issubdtype(data_type, np.integer) or
+          np.issubdtype(data_type, np.float)):
+        s = 'num'
+          
+          elif data_type is np.ndarray:
+            s = 'array'
+              
+              else:
+                raise TypeError('object is not number or array')
+                  
+                  return s
+
 
 class SmallFile(object):
     """
