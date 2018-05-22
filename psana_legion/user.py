@@ -65,7 +65,7 @@ def analyze(event):
         kernel()
     if small_data is not None:
         global dummy
-        small_data.event(dummy='dummy' + str(dummy)) # debugging
+        small_data.event(dummy=[dummy]) # debugging
         dummy = dummy + 1
 
 def filter(event):

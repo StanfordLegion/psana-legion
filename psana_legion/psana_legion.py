@@ -129,9 +129,7 @@ def analyze_chunk(locs, calib):
         dicts = []
         for future in futures:
             dict = future.get()
-            print('future.get', dict)
             dicts = dicts + dict
-        print('analyze_chunk returns', dicts)
         return dicts
 
 @legion.task
@@ -220,14 +218,12 @@ def main_task():
             for idx in legion.IndexLaunch([len(launch_events)]):
                 dicts = analyze_chunk(map(Location, launch_events[idx]), calib)
                 dictsBuffer.append(dicts)
-                print('dictsBuffer', dictsBuffer)
                 nevents += len(launch_events[idx])
             nlaunch += 1
 
             if _ds.small_data is not None:
                 for dicts in dictsBuffer:
                     d = dicts.get()
-                    print('dicts.get', d)
                     file_buffer = file_buffer + d
                     file_buffer_length = file_buffer_length + len(d)
                     if file_buffer_length >= _ds.small_data.gather_interval:
