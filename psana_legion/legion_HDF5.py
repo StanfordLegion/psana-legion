@@ -21,6 +21,8 @@ import tables
 import collections
 import warnings
 
+RAGGED_PREFIX = 'ragged_'
+
 def _flatten_dictionary(d, parent_key='', sep='/'):
   """
   http://stackoverflow.com/questions/6027558/flatten-nested-python-dictionaries-compressing-keys
