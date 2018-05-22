@@ -126,11 +126,13 @@ def analyze_chunk(locs, calib):
         for loc in locs:
             future = analyze_single(loc, calib)
             futures.append(future)
-        results = []
+        dicts = []
         for future in futures:
-            result = future.get()
-            results.append(result)
-        return results
+            dict = future.get()
+            print('future.get', dict)
+            dicts.append(dict)
+        print('analyze_chunk returns', dicts)
+        return dicts
 
 @legion.task
 def teardown():
@@ -213,19 +215,19 @@ def main_task():
             if nlaunch % 20 == 0:
                 print('Processing event %s' % nevents)
                 sys.stdout.flush()
-            futures = []
+            dictsBuffer = []
 
             for idx in legion.IndexLaunch([len(launch_events)]):
-                future = analyze_chunk(map(Location, launch_events[idx]), calib)
-                futures.append(future)
+                dicts = analyze_chunk(map(Location, launch_events[idx]), calib)
+                dictsBuffer = dictsBuffer + dict
+                print('dictsBuffer', dictsBuffer)
                 nevents += len(launch_events[idx])
             nlaunch += 1
 
             if _ds.small_data is not None:
-                for future in futures:
-                    results = future.get()
-                    file_buffer.append(results)
-                    file_buffer_length = file_buffer_length + len(results)
+                for dicts in dictsBuffer:
+                    file_buffer = file_buffer + dicts
+                    file_buffer_length = file_buffer_length + len(dicts)
                     if file_buffer_length >= _ds.small_data.gather_interval:
                         hdf5.append_to_file(file_buffer)
                         file_buffer = []
