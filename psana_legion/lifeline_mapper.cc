@@ -383,8 +383,19 @@ void LifelineMapper::sendStealRequest(MapperContext ctx, Processor target)
 bool LifelineMapper::maybeGetLocalTasks(MapperContext ctx)
 //--------------------------------------------------------------------------
 {
+///DEBUG
+  if(locallyRunningTaskCount() < MIN_RUNNING_TASKS && worker_ready_queue.size() > 0) {
+    log_lifeline_mapper.debug("%s isNodeZero=%d",
+                            prolog(__FUNCTION__, __LINE__).c_str(),
+                            isNodeZero());
+  }
+
   if(locallyRunningTaskCount() < MIN_RUNNING_TASKS && worker_ready_queue.size() > 0
+#if 1
+) {
+#else
      && !isNodeZero()) {
+#endif
     int numTasks = MIN_RUNNING_TASKS - locallyRunningTaskCount();
     
     for(std::set<const Task*>::iterator it = worker_ready_queue.begin();
@@ -858,6 +869,9 @@ bool LifelineMapper::isLimitedTask(const Legion::Task& task)
 bool LifelineMapper::isNodeZero() const
 //--------------------------------------------------------------------------
 {
+///DEBUG
+log_lifeline_mapper.debug("%s address_space=%d", prolog(__FUNCTION__, __LINE__).c_str(), local_proc.address_space());
+
   return local_proc.address_space() == 0;
 }
 
@@ -1112,7 +1126,14 @@ void LifelineMapper::select_tasks_to_map(const MapperContext          ctx,
   bool mappedOrRelocated = false;
   bool sawWorkerReadyTasks = false;
   
+///DEBUG
+log_lifeline_mapper.debug("%s isNodeZero=%d", prolog(__FUNCTION__, __LINE__).c_str(), isNodeZero());
+
+#if 1
+{
+#else
   if(!isNodeZero()) {
+#endif
     processNewReadyTasks(input, output, mappedOrRelocated, sawWorkerReadyTasks);
     
     for(std::set<const Task*>::iterator it = tasks_to_map_locally.begin();
