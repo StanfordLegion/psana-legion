@@ -84,9 +84,10 @@ rm -rf $GCC_WRAPPER_DIR
 wget https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh
 bash Miniconda2-latest-Linux-x86_64.sh -b -p $CONDA_PREFIX
 rm Miniconda2-latest-Linux-x86_64.sh
-conda install -y scons cython libtiff=4.0.6 icu=54
-conda install -y --channel conda-forge "mpich>=3" mpi4py h5py pytables
+conda install -y scons cython libtiff=4.0.6 icu=54 future wxpython pillow mock pytest jinja2 scikit-learn tabulate
+conda install -y --channel conda-forge "mpich>=3" mpi4py h5py pytables orderedset
 conda install -y --channel lcls-rhel7 psana-conda ndarray
+python -m pip install procrunner
 
 # Build GASNet.
 git clone https://github.com/StanfordLegion/gasnet.git $GASNET_ROOT_DIR

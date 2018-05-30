@@ -39,9 +39,10 @@ RUN curl -O https://repo.continuum.io/miniconda/Miniconda2-4.3.21-Linux-x86_64.s
     echo "b87adda9eb41f3ae6c2999fda739ab61ebb3892e  Miniconda2-4.3.21-Linux-x86_64.sh" | sha1sum --check && \
     /bin/bash Miniconda2-4.3.21-Linux-x86_64.sh -b -p "$CONDA_PREFIX" && \
     conda update -y conda && \
-    conda install -y scons cython libtiff=4.0.6 icu=54 && \
+    conda install -y scons cython libtiff=4.0.6 icu=54 future wxpython pillow mock pytest jinja2 scikit-learn tabulate && \
+    conda install -y --channel conda-forge "mpich>=3" mpi4py h5py pytables orderedset && \
     conda install -y --channel lcls-rhel7 psana-conda ndarray && \
-    conda install -y --channel conda-forge "mpich>=3" mpi4py h5py pytables && \
+    python -m pip install procrunner && \
     git clone -b python https://github.com/StanfordLegion/legion.git /legion && \
     git clone https://github.com/StanfordLegion/psana-legion.git /psana-legion && \
     ORIGINAL_DIR=$PWD && \

@@ -25,8 +25,10 @@ RUN curl -O https://repo.continuum.io/miniconda/Miniconda2-4.3.21-Linux-x86_64.s
     echo "b87adda9eb41f3ae6c2999fda739ab61ebb3892e  Miniconda2-4.3.21-Linux-x86_64.sh" | sha1sum --check && \
     /bin/bash Miniconda2-4.3.21-Linux-x86_64.sh -b -p "$CONDA_PREFIX" && \
     conda update -y conda && \
-    conda install -y --channel lcls-rhel7 psana-conda && \
-    conda install -y --channel conda-forge "mpich>=3" mpi4py h5py pytables libtiff=4.0.6 && \
+    conda install -y scons cython libtiff=4.0.6 icu=54 future wxpython pillow mock pytest jinja2 scikit-learn tabulate && \
+    conda install -y --channel conda-forge "mpich>=3" mpi4py h5py pytables orderedset && \
+    conda install -y --channel lcls-rhel7 psana-conda ndarray && \
+    python -m pip install procrunner && \
     cd $CCTBX_PREFIX && \
       curl -O https://raw.githubusercontent.com/cctbx/cctbx_project/master/libtbx/auto_build/bootstrap.py && \
       mkdir -p modules/cxi_xdr_xes && \
