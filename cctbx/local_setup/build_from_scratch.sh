@@ -42,7 +42,9 @@ export REL_PREFIX=\$CONDA_PREFIX/myrel
 
 export GCC_WRAPPER_DIR=$PWD/gcc_wrapper
 
-export PATH=\$REL_PREFIX/arch/\$SIT_ARCH/bin:\$CONDA_PREFIX/bin:\$GCC_WRAPPER_DIR:\$PATH
+# FIXME: Scons doesn't like having REL_PREFIX on PATH???
+# export PATH=\$REL_PREFIX/arch/\$SIT_ARCH/bin:\$CONDA_PREFIX/bin:\$GCC_WRAPPER_DIR:\$PATH
+export PATH=\$CONDA_PREFIX/bin:\$GCC_WRAPPER_DIR:\$PATH
 export LD_LIBRARY_PATH=\$REL_PREFIX/arch/\$SIT_ARCH/lib:\$CONDA_PREFIX/lib:\$LD_LIBRARY_PATH
 export PYTHONPATH=\$REL_PREFIX/arch/\$SIT_ARCH/python:\$PYTHONPATH
 
@@ -60,6 +62,7 @@ export SIT_USE_CONDA=1
 export USE_PYTHON=1
 export USE_GASNET=1
 export DEBUG=1
+unset WARN_AS_ERROR
 
 # variables needed for run only
 export SIT_PSDM_DATA=$SIT_PSDM_DATA
