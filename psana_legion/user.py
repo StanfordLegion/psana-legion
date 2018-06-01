@@ -20,8 +20,12 @@ from __future__ import print_function
 import os
 
 import psana
-import psana_legion
-import legion
+if os.environ.get('PSANA_FRAMEWORK') == 'mpi':
+    import psana_mpi as psana_legion
+    legion = None
+else:
+    import psana_legion
+    import legion
 
 # Get the analysis kernel to perform on each event
 kernel_kind = os.environ.get('KERNEL_KIND')
@@ -29,9 +33,17 @@ if kernel_kind == 'memory_bound':
     import kernels
     kernel = kernels.make_memory_bound_kernel(int(os.environ.get('KERNEL_ROUNDS', 100)))
 elif kernel_kind == 'memory_bound_native':
-    kernel = legion.extern_task(task_id=2)
+    if legion is not None:
+        kernel = legion.extern_task(task_id=2)
+    else:
+        import native_kernels
+        kernel = native_kernels.memory_bound_kernel
 elif kernel_kind == 'cache_bound_native':
-    kernel = legion.extern_task(task_id=3)
+    if legion is not None:
+        kernel = legion.extern_task(task_id=3)
+    else:
+        import native_kernels
+        kernel = native_kernels.cache_bound_kernel
 elif kernel_kind is None:
     kernel = None
 else:
