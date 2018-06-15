@@ -92,18 +92,18 @@ class LegionDataSource(object):
         else:
             self.client()
 
-    def analyze_single(loc, calib):
+    def analyze_single(self, loc, calib):
         event = self.jump(loc.filenames, loc.offsets, calib) # Fetches the data
         self.config.analysis(event) # Performs user analysis
 
-    def analyze_chunk(locs, calib):
+    def analyze_chunk(self, locs, calib):
         for loc in locs:
             self.analyze_single(loc, calib)
 
-    def teardown():
+    def teardown(self):
         self.config.teardown() # Performs user teardown
 
-    def client():
+    def client(self):
         rank = MPI.COMM_WORLD.Get_rank()
 
         while True:
@@ -116,7 +116,7 @@ class LegionDataSource(object):
         if self.config.teardown is not None:
             self.teardown()
 
-    def server():
+    def server(self):
         events = self.smd().events()
         if self.config.limit is not None:
             events = itertools.islice(events, self.config.limit)
