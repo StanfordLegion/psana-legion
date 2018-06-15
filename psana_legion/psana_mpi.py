@@ -125,13 +125,13 @@ class LegionDataSource(object):
 
         eager = 'EAGER' in os.environ and os.environ['EAGER'] == '1'
         if eager:
-            start = legion.c.legion_get_current_time_in_micros()
+            start = MPI.Wtime()
             events = list(events)
-            stop = legion.c.legion_get_current_time_in_micros()
+            stop = MPI.Wtime()
 
-            print('Enumerating: Elapsed time: %e seconds' % ((stop - start)/1e6))
+            print('Enumerating: Elapsed time: %e seconds' % (stop - start))
             print('Enumerating: Number of events: %s' % len(events))
-            print('Enumerating: Events per second: %e' % (len(events)/((stop - start)/1e6)))
+            print('Enumerating: Events per second: %e' % (len(events)/(stop - start)))
 
         repeat = int(os.environ['REPEAT']) if 'REPEAT' in os.environ else 1
         if repeat > 1:
@@ -152,7 +152,7 @@ class LegionDataSource(object):
         overcommit = int(os.environ['OVERCOMMIT']) if 'OVERCOMMIT' in os.environ else 1
 
         # Number of Python processors
-        nprocs = legion.Tunable.select(legion.Tunable.GLOBAL_PYS).get()
+        nprocs = MPI.COMM_WORLD.Get_size()
 
         # Number of tasks per launch
         launchsize = (nprocs - 1) * overcommit
