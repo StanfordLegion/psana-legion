@@ -40,6 +40,7 @@ export SIT_USE_CONDA=1
 export USE_PYTHON=1
 export USE_GASNET=1
 export DEBUG=1
+unset WARN_AS_ERROR
 
 # variables needed for run only
 export SIT_PSDM_DATA=/scratch/oldhome/eslaught/reg/d/psdm
