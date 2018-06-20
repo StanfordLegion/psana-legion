@@ -38,25 +38,14 @@ export CONDUIT=mpi
 # variables needed for conda
 export SIT_ARCH=x86_64-rhel7-gcc48-opt
 export CONDA_PREFIX=$PWD/conda
-export REL_PREFIX=\$CONDA_PREFIX/myrel
 
 export GCC_WRAPPER_DIR=$PWD/gcc_wrapper
 
-# FIXME: Scons doesn't like having REL_PREFIX on PATH???
-# export PATH=\$REL_PREFIX/arch/\$SIT_ARCH/bin:\$CONDA_PREFIX/bin:\$GCC_WRAPPER_DIR:\$PATH
 export PATH=\$CONDA_PREFIX/bin:\$GCC_WRAPPER_DIR:\$PATH
-export LD_LIBRARY_PATH=\$REL_PREFIX/arch/\$SIT_ARCH/lib:\$CONDA_PREFIX/lib:\$LD_LIBRARY_PATH
-export PYTHONPATH=\$REL_PREFIX/arch/\$SIT_ARCH/python:\$PYTHONPATH
+export LD_LIBRARY_PATH=\$CONDA_PREFIX/lib:\$LD_LIBRARY_PATH
 
 # variables needed for CCTBX
 export CCTBX_PREFIX=$PWD/cctbx
-
-# variables needed for scons only
-if which conda; then
-  export SIT_RELEASE=\$(conda list | grep psana-conda | tr -s ' ' | cut -f1-2 -d' ' | tr ' ' '-')
-fi
-export SIT_REPOS="\$CONDA_PREFIX/data/anarelinfo"
-export SIT_USE_CONDA=1
 
 # variables needed for legion
 export USE_PYTHON=1
@@ -66,6 +55,7 @@ unset WARN_AS_ERROR
 
 # variables needed for run only
 export SIT_PSDM_DATA=$SIT_PSDM_DATA
+export PSANA_FRAMEWORK=mpi
 
 # variables needed to run CCTBX
 if [[ -e \$CCTBX_PREFIX/build/setpaths.sh ]]; then
@@ -102,22 +92,6 @@ popd
 pushd "$PSANA_LEGION_DIR"
   make clean
   make -j $(nproc --all)
-popd
-
-# Build psana.
-mkdir "$REL_PREFIX"
-pushd "$REL_PREFIX"
-  ln -s "$CONDA_PREFIX/lib/python2.7/site-packages/SConsTools/SConstruct.main" SConstruct
-  export SIT_RELEASE=$(conda list | grep psana-conda | tr -s ' ' | cut -f1-2 -d' ' | tr ' ' '-')
-  echo "$SIT_RELEASE" > .sit_release
-  echo "$CONDA_PREFIX" > .sit_conda_env
-  git clone -b legion https://github.com/elliottslaughter/psana.git
-  git clone -b legion https://github.com/elliottslaughter/psana_python.git
-  git clone https://github.com/lcls-psana/python.git
-  git clone https://github.com/lcls-psana/numpy.git
-  git clone -b legion https://github.com/elliottslaughter/PSXtcInput.git
-  git clone https://github.com/lcls-psana/SConsTools.git
-  scons
 popd
 
 # CCTBX can't handle the new ABIs in GCC >= 5. Since the CCTBX build

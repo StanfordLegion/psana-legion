@@ -38,19 +38,14 @@ export LIBTBX_DISPATCHER_NAME="cctbx.xfel.xtc_process"
 # $CONDA_PREFIX/bin/python -Qnew "$CCTBX_PREFIX/modules/cctbx_project/xfel/command_line/xtc_process.py" \
 
 ### Legion version:
-export PSANA_MODULE=xtc_process
-export PSANA_MAPPER=simple
-export PYTHONPATH="$CCTBX_PREFIX/modules/cctbx_project/xfel/command_line:$PYTHONPATH"
-
+export PYTHONPATH="$PSANA_LEGION_DIR:$PYTHONPATH"
 export PYTHONUNBUFFERED=1
-
-export REALM_SYNTHETIC_CORE_MAP=
 
 # psana-legion variables:
 export EAGER=1
 export LIMIT=1
 
-$PSANA_LEGION_DIR/psana_legion -ll:py 1 -ll:io 1 -ll:csize 6000 \
+$CONDA_PREFIX/bin/python -Qnew $CCTBX_PREFIX/modules/cctbx_project/xfel/command_line/xtc_process.py \
   input.experiment=$EXP \
   input.run_num=$RUN \
   output.logging_dir=$OUT_DIR/discovery/dials/$RUN_F/$TRIAL_F/stdout \
