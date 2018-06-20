@@ -24,7 +24,7 @@ RUN curl -O https://repo.continuum.io/miniconda/Miniconda2-4.3.21-Linux-x86_64.s
     conda update -y conda && \
     conda install -y scons cython libtiff=4.0.6 icu=54 && \
     conda install -y --channel lcls-rhel7 psana-conda ndarray && \
-    git clone -b python https://github.com/StanfordLegion/legion.git /legion && \
+    git clone -b python https://gitlab.com/StanfordLegion/legion.git /legion && \
     git clone https://github.com/StanfordLegion/psana-legion.git /psana-legion && \
     ORIGINAL_DIR=$PWD && \
     cd "$PSANA_LEGION_DIR" && \

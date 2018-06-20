@@ -43,7 +43,7 @@ RUN curl -O https://repo.continuum.io/miniconda/Miniconda2-4.3.21-Linux-x86_64.s
     conda install -y --channel conda-forge "mpich>=3" mpi4py h5py pytables orderedset && \
     conda install -y --channel lcls-rhel7 psana-conda ndarray && \
     python -m pip install procrunner && \
-    git clone -b python https://github.com/StanfordLegion/legion.git /legion && \
+    git clone -b python https://gitlab.com/StanfordLegion/legion.git /legion && \
     git clone https://github.com/StanfordLegion/psana-legion.git /psana-legion && \
     ORIGINAL_DIR=$PWD && \
     cd "$PSANA_LEGION_DIR" && \

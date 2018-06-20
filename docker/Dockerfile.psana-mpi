@@ -21,7 +21,7 @@ RUN curl -O https://repo.continuum.io/miniconda/Miniconda2-4.3.21-Linux-x86_64.s
 ENV LG_RT_DIR /legion/runtime
 ENV PSANA_LEGION_DIR /psana-legion/psana_legion
 
-RUN git clone -b python https://github.com/StanfordLegion/legion.git /legion && \
+RUN git clone -b python https://gitlab.com/StanfordLegion/legion.git /legion && \
     git clone https://github.com/StanfordLegion/psana-legion.git /psana-legion && \
     ORIGINAL_DIR=$PWD && \
     cd "$PSANA_LEGION_DIR" && \
