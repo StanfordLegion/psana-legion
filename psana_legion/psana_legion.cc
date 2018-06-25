@@ -20,7 +20,7 @@
 #include "native_kernels_tasks.h"
 
 #include "simple_mapper.h"
-#include "lifeline_mapper.h"
+// #include "lifeline_mapper.h"
 
 using namespace Legion;
 
@@ -72,8 +72,8 @@ int main(int argc, char **argv)
   char *mapper = getenv("PSANA_MAPPER");
   if (mapper && strcmp(mapper, "simple") == 0) {
     register_simple_mapper();
-  } else if (mapper && strcmp(mapper, "lifeline") == 0) {
-    register_lifeline_mapper();
+  // } else if (mapper && strcmp(mapper, "lifeline") == 0) {
+  //   register_lifeline_mapper();
   } else {
     fprintf(stderr, "Error: PSANA_MAPPER is not set.\n");
     exit(1);
