@@ -43,8 +43,8 @@ RUN curl -O https://repo.continuum.io/miniconda/Miniconda2-4.3.21-Linux-x86_64.s
     conda install -y --channel conda-forge "mpich>=3" mpi4py h5py pytables orderedset && \
     conda install -y --channel lcls-rhel7 psana-conda ndarray && \
     python -m pip install procrunner && \
-    git clone -b python https://gitlab.com/StanfordLegion/legion.git /legion && \
-    git clone https://github.com/StanfordLegion/psana-legion.git /psana-legion && \
+    git clone -b python-cctbx-repro https://gitlab.com/StanfordLegion/legion.git /legion && \
+    git clone -b cctbx-repro https://github.com/StanfordLegion/psana-legion.git /psana-legion && \
     ORIGINAL_DIR=$PWD && \
     cd "$PSANA_LEGION_DIR" && \
       DEBUG=0 make -j 8 && \
@@ -77,7 +77,7 @@ RUN curl -O https://repo.continuum.io/miniconda/Miniconda2-4.3.21-Linux-x86_64.s
       cd modules/cctbx_project && \
         git remote add elliott https://github.com/elliottslaughter/cctbx_project.git && \
         git fetch elliott && \
-        git checkout -b psana-tasking elliott/psana-tasking && \
+        git checkout -b psana-tasking-debug elliott/psana-tasking-debug && \
       cd ../.. && \
       python bootstrap.py build --builder=xfel --with-python=$CONDA_PREFIX/bin/python --nproc 8 && \
     cd "$ORIGINAL_DIR" && \
