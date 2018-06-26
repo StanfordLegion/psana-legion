@@ -34,6 +34,11 @@ RUN curl -O https://repo.continuum.io/miniconda/Miniconda2-4.3.21-Linux-x86_64.s
       mkdir -p modules/cxi_xdr_xes && \
       python bootstrap.py hot --builder=xfel && \
       python bootstrap.py update --builder=dials && \
+      cd modules/cctbx_project && \
+        git remote add elliott https://github.com/elliottslaughter/cctbx_project.git && \
+        git fetch elliott && \
+        git checkout -b snapshot elliott/psana-tasking && \
+      cd ../.. && \
       python bootstrap.py build --builder=xfel --with-python=$CONDA_PREFIX/bin/python --nproc 8 && \
     cd .. && \
     conda uninstall --force mpich && \
