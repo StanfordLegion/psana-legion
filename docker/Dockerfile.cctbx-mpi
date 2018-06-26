@@ -37,7 +37,7 @@ RUN curl -O https://repo.continuum.io/miniconda/Miniconda2-4.3.21-Linux-x86_64.s
       cd modules/cctbx_project && \
         git remote add elliott https://github.com/elliottslaughter/cctbx_project.git && \
         git fetch elliott && \
-        git checkout -b snapshot elliott/psana-tasking && \
+        git checkout -b snapshot elliott/snapshot && \
       cd ../.. && \
       python bootstrap.py build --builder=xfel --with-python=$CONDA_PREFIX/bin/python --nproc 8 && \
     cd .. && \
