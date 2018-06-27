@@ -28,6 +28,8 @@ RUN curl -O https://repo.continuum.io/miniconda/Miniconda2-4.3.21-Linux-x86_64.s
     conda install -y scons cython libtiff=4.0.6 icu=54 future wxpython pillow mock pytest jinja2 scikit-learn tabulate && \
     conda install -y --channel conda-forge "mpich>=3" mpi4py h5py pytables orderedset && \
     conda install -y --channel lcls-rhel7 psana-conda ndarray && \
+    conda install -y numpy=1.13.3 && \
+    conda install -y --no-deps --channel lcls-rhel7 psana-conda && \
     python -m pip install procrunner && \
     cd $CCTBX_PREFIX && \
       curl -O https://raw.githubusercontent.com/cctbx/cctbx_project/master/libtbx/auto_build/bootstrap.py && \
