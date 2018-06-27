@@ -1,0 +1,57 @@
+FROM ubuntu:16.04
+MAINTAINER Elliott Slaughter <slaughter@cs.stanford.edu>
+
+# Before running, go to http://phenix-online.org and follow the
+# instructions to download Phenix. Then extract *only* modules/labelit
+# into the current directory:
+#
+# tar xfzv phenix-installer.tar.gz --strip 1 --wildcards '*/modules/labelit'
+
+ENV DEBIAN_FRONTEND noninteractive
+
+RUN apt-get update -qq && \
+    apt-get install -qq build-essential bzip2 curl libdigest-sha-perl git zlib1g-dev && \
+    apt-get clean
+
+ENV CONDA_PREFIX /conda
+ENV PATH $CONDA_PREFIX/bin:$PATH
+ENV LD_LIBRARY_PATH $CONDA_PREFIX/lib:$LD_LIBRARY_PATH
+
+ENV CCTBX_PREFIX /cctbx
+RUN mkdir $CCTBX_PREFIX
+ADD modules $CCTBX_PREFIX/modules
+
+# CCTBX can't handle the new ABIs in GCC >= 5. Since the CCTBX build
+# system doesn't recognize the CXX environment variable, we use a
+# wrapper to pass the necessary flags.
+
+ENV GCC_WRAPPER /gcc_wrapper
+ADD gcc_wrapper $GCC_WRAPPER
+
+# https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh
+RUN curl -O https://repo.continuum.io/miniconda/Miniconda2-4.3.21-Linux-x86_64.sh && \
+    echo "b87adda9eb41f3ae6c2999fda739ab61ebb3892e  Miniconda2-4.3.21-Linux-x86_64.sh" | sha1sum --check && \
+    /bin/bash Miniconda2-4.3.21-Linux-x86_64.sh -b -p "$CONDA_PREFIX" && \
+    conda update -y conda && \
+    conda install -y scons cython libtiff=4.0.6 icu=54 future wxpython pillow mock pytest jinja2 scikit-learn tabulate && \
+    conda install -y --channel conda-forge "mpich>=3" mpi4py h5py pytables orderedset && \
+    conda install -y --channel lcls-rhel7 psana-conda ndarray && \
+    conda install -y numpy=1.13.3 && \
+    conda install -y --no-deps --channel lcls-rhel7 psana-conda && \
+    python -m pip install procrunner && \
+    ORIGINAL_DIR=$PWD && \
+    export PATH="$GCC_WRAPPER:$PATH" && \
+    cd $CCTBX_PREFIX && \
+      curl -O https://raw.githubusercontent.com/cctbx/cctbx_project/master/libtbx/auto_build/bootstrap.py && \
+      mkdir -p modules/cxi_xdr_xes && \
+      python bootstrap.py hot --builder=xfel && \
+      python bootstrap.py update --builder=dials && \
+      cd modules/cctbx_project && \
+        git remote add elliott https://github.com/elliottslaughter/cctbx_project.git && \
+        git fetch elliott && \
+        git checkout -b psana-tasking elliott/psana-tasking && \
+      cd ../.. && \
+      python bootstrap.py build --builder=xfel --with-python=$CONDA_PREFIX/bin/python --nproc 8 && \
+    cd "$ORIGINAL_DIR" && \
+    conda uninstall --force mpich mpich2 && \
+    rm Miniconda2-4.3.21-Linux-x86_64.sh
