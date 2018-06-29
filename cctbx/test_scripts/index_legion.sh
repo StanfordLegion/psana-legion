@@ -45,7 +45,7 @@ export PSANA_MAPPER=simple
 export PYTHONPATH="$CCTBX_PREFIX/modules/cctbx_project/xfel/command_line:$PYTHONPATH"
 
 ### Important: Put the EXTERNAL copy of psana_legion on path before the INTERNAL copy
-external_psana_dir=$PWD/../../psana_legion
+external_psana_dir=$PSANA_LEGION_DIR
 export PYTHONPATH="$external_psana_dir:$PYTHONPATH"
 export LD_LIBRARY_PATH="$external_psana_dir:$external_psana_dir/lib64:$LD_LIBRARY_PATH"
 
