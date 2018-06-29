@@ -89,7 +89,12 @@ bash Miniconda2-latest-Linux-x86_64.sh -b -p $CONDA_PREFIX
 rm Miniconda2-latest-Linux-x86_64.sh
 conda install -y scons cython libtiff=4.0.6 icu=54 future wxpython pillow mock pytest jinja2 scikit-learn tabulate
 conda install -y --channel conda-forge "mpich>=3" mpi4py h5py pytables orderedset
+# The --no-deps flag doesn't look at dependencies *at all*, so to
+# ensure the right dependencies are in place, install psana first,
+# then upgrade numpy (removes psana), then install psana --no-deps.
 conda install -y --channel lcls-rhel7 psana-conda ndarray
+conda install -y numpy=1.13.3
+conda install -y --no-deps --channel lcls-rhel7 psana-conda
 python -m pip install procrunner
 
 # Build GASNet.
