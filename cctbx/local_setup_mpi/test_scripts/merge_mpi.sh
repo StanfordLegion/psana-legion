@@ -9,7 +9,7 @@ if [[ ! -e 4ngz.pdb ]]; then
 fi
 
 export trial=0
-export nproc=1
+export nproc=2
 
 export TARDATA=output/discovery/dials/r0*/000/out/int*.pickle.tar
 
@@ -29,5 +29,5 @@ scaling.mtz_column_F=f(+) \
 min_corr=-1.0 \
 output.prefix=merge_output/$trial"
 
-cxi.merge ${effective_params}
-cxi.xmerge ${effective_params}
+mpirun -n 1 dev.cxi.mpi_merge_refltable ${effective_params}
+# cxi.xmerge ${effective_params}
