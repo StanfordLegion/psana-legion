@@ -13,6 +13,9 @@ export nproc=2
 
 export TARDATA=output/discovery/dials/r0*/000/out/int*.pickle.tar
 
+rm -rf merge_output
+mkdir merge_output
+
 export effective_params="d_min=2.0 \
 targlob=$TARDATA \
 model=4ngz.pdb \
@@ -24,7 +27,7 @@ postrefinement.enable=True \
 scaling.mtz_file=4ngz.mtz \
 scaling.mtz_column_F=f(+) \
 min_corr=-1.0 \
-output.prefix=$trial"
+output.prefix=merge_output/$trial"
 
 cxi.merge ${effective_params}
 cxi.xmerge ${effective_params}
