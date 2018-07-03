@@ -11,3 +11,11 @@ core
 *.log
 *.gz
 *.out
+
+# CCTBX output files
+*.cif
+*.db
+*.fa
+*.mtz
+*.pdb
+*.pkl
