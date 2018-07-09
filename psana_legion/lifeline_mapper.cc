@@ -383,19 +383,9 @@ void LifelineMapper::sendStealRequest(MapperContext ctx, Processor target)
 bool LifelineMapper::maybeGetLocalTasks(MapperContext ctx)
 //--------------------------------------------------------------------------
 {
-///DEBUG
-  if(locallyRunningTaskCount() < MIN_RUNNING_TASKS && worker_ready_queue.size() > 0) {
-    log_lifeline_mapper.debug("%s isNodeZero=%d",
-                            prolog(__FUNCTION__, __LINE__).c_str(),
-                            isNodeZero());
-  }
 
   if(locallyRunningTaskCount() < MIN_RUNNING_TASKS && worker_ready_queue.size() > 0
-#if 1
 ) {
-#else
-     && !isNodeZero()) {
-#endif
     int numTasks = MIN_RUNNING_TASKS - locallyRunningTaskCount();
     
     for(std::set<const Task*>::iterator it = worker_ready_queue.begin();
@@ -1078,6 +1068,9 @@ void LifelineMapper::processNewReadyTasks(const SelectMappingInput&    input,
       || (local_proc.kind() != Processor::PY_PROC)
       || !isLimitedTask(*task)
       ;
+      if(isNodeZero()) {
+        mapHereNow &= !isAnalysisTask(*task);
+      }
 
       if(mapHereNow) {
         output.map_tasks.insert(task);
@@ -1126,26 +1119,17 @@ void LifelineMapper::select_tasks_to_map(const MapperContext          ctx,
   bool mappedOrRelocated = false;
   bool sawWorkerReadyTasks = false;
   
-///DEBUG
-log_lifeline_mapper.debug("%s isNodeZero=%d", prolog(__FUNCTION__, __LINE__).c_str(), isNodeZero());
-
-#if 1
-{
-#else
-  if(!isNodeZero()) {
-#endif
-    processNewReadyTasks(input, output, mappedOrRelocated, sawWorkerReadyTasks);
-    
-    for(std::set<const Task*>::iterator it = tasks_to_map_locally.begin();
-        it != tasks_to_map_locally.end(); ++it) {
-      const Task* task = *it;
-      output.map_tasks.insert(task);
-      log_lifeline_mapper.debug("%s select local task %s for here now",
-                                prolog(__FUNCTION__, __LINE__).c_str(),
-                                taskDescription(*task).c_str());
-    }
-    tasks_to_map_locally.clear();
+  processNewReadyTasks(input, output, mappedOrRelocated, sawWorkerReadyTasks);
+  
+  for(std::set<const Task*>::iterator it = tasks_to_map_locally.begin();
+      it != tasks_to_map_locally.end(); ++it) {
+    const Task* task = *it;
+    output.map_tasks.insert(task);
+    log_lifeline_mapper.debug("%s select local task %s for here now",
+                              prolog(__FUNCTION__, __LINE__).c_str(),
+                              taskDescription(*task).c_str());
   }
+  tasks_to_map_locally.clear();
   
   if(quiesced && (mappedOrRelocated || sawWorkerReadyTasks)) {
     withdrawActiveLifelines(ctx);
