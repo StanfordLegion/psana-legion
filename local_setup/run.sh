@@ -1,3 +1,4 @@
+#!/bin/bash
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source ${DIR}/env.sh
 ( pushd ${PSANA_LEGION_DIR} && \
