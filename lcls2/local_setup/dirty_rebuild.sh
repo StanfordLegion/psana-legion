@@ -14,9 +14,16 @@ pushd $LCLS2_PREFIX
     make -j8 install
   popd
 
+  mkdir -p psalg/build
+  pushd psalg/build
+    cmake -DCMAKE_INSTALL_PREFIX=$install_dir ..
+    make -j8 install
+  popd
+
   mkdir -p $install_dir/lib/python$PYVER/site-packages
 
   pushd psana
-    python setup.py install --xtcdata=$install_dir --legion=$REL_PREFIX --prefix=$install_dir
+    python setup.py install --xtcdata=$install_dir --prefix=$install_dir
+    # python setup.py install --xtcdata=$install_dir --legion=$REL_PREFIX --prefix=$install_dir
   popd
 popd
