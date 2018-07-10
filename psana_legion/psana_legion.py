@@ -187,7 +187,7 @@ def main_task():
     nprocs = legion.Tunable.select(legion.Tunable.GLOBAL_PYS).get()
 
     # Number of tasks per launch
-    launchsize = (nprocs - 1) * overcommit
+    launchsize = (max(nprocs - 1, 1)) * overcommit
 
     print('Chunk size %s' % chunksize)
     print('Launch size %s' % launchsize)

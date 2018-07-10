@@ -17,6 +17,9 @@
 
 #include "native_kernels.h"
 
+#include <cstdint>
+#include <cinttypes>
+
 using namespace Legion;
 
 void memory_bound_task(const Task *task,
@@ -27,14 +30,34 @@ void memory_bound_task(const Task *task,
 }
 
 void cache_bound_task(const Task *task,
-                       const std::vector<PhysicalRegion> &regions,
-                       Context ctx, Runtime *runtime)
+                      const std::vector<PhysicalRegion> &regions,
+                      Context ctx, Runtime *runtime)
 {
   cache_bound_kernel_default();
 }
 
+int64_t sum_task(const Task *task,
+              const std::vector<PhysicalRegion> &regions,
+              Context ctx, Runtime *runtime)
+{
+  assert(regions.size() == 1);
+
+  const FieldAccessor<READ_ONLY, int16_t, 3> x(regions[0], X_FIELD_ID);
+
+  Rect<3> rect = runtime->get_index_space_domain(ctx,
+                  regions[0].get_logical_region().get_index_space());
+
+  int64_t sum = 0;
+  for (PointInRectIterator<3> p(rect); p(); p++) {
+    sum += x[*p];
+  }
+  printf("sum is %" PRId64 "\n", sum);
+  return sum;
+}
+
 void register_native_kernels_tasks(int memory_bound_task_id,
-                                   int cache_bound_task_id)
+                                   int cache_bound_task_id,
+                                   int sum_task_id)
 {
   {
     TaskVariantRegistrar registrar(memory_bound_task_id, "memory_bound_task");
@@ -46,5 +69,11 @@ void register_native_kernels_tasks(int memory_bound_task_id,
     TaskVariantRegistrar registrar(cache_bound_task_id, "cache_bound_task");
     registrar.add_constraint(ProcessorConstraint(Processor::LOC_PROC));
     Runtime::preregister_task_variant<cache_bound_task>(registrar, "cache_bound_task");
+  }
+
+  {
+    TaskVariantRegistrar registrar(sum_task_id, "sum_task");
+    registrar.add_constraint(ProcessorConstraint(Processor::LOC_PROC));
+    Runtime::preregister_task_variant<int64_t, sum_task>(registrar, "sum_task");
   }
 }

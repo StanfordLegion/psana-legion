@@ -327,6 +327,9 @@ SimpleMapper::custom_slice_task(const Task &task,
     if (!local_set.count(*it))
       procs.push_back(*it);
   }
+  if (procs.empty()) {
+    procs.assign(all_procs.begin(), all_procs.end());
+  }
 
   switch (input.domain.get_dim())
   {

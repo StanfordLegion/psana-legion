@@ -20,6 +20,7 @@ from __future__ import print_function
 import os
 
 import psana
+import numpy
 if os.environ.get('PSANA_FRAMEWORK') == 'mpi':
     import psana_mpi as psana_legion
     legion = None
@@ -29,6 +30,7 @@ else:
 
 # Get the analysis kernel to perform on each event
 kernel_kind = os.environ.get('KERNEL_KIND')
+kernel_uses_raw = False
 if kernel_kind == 'memory_bound':
     import kernels
     kernel = kernels.make_memory_bound_kernel(int(os.environ.get('KERNEL_ROUNDS', 100)))
@@ -44,6 +46,12 @@ elif kernel_kind == 'cache_bound_native':
     else:
         import native_kernels
         kernel = native_kernels.cache_bound_kernel
+elif kernel_kind == 'sum':
+    kernel_uses_raw = True
+    if legion is not None:
+        kernel = legion.extern_task(task_id=4, privileges=[legion.RO])
+    else:
+        assert False
 elif kernel_kind is None:
     kernel = None
 else:
@@ -76,7 +84,13 @@ def analyze(event):
     # calib = det.calib(event) # Calibrate the data
 
     if kernel is not None:
-        kernel()
+        if kernel_uses_raw:
+            raw = det.raw(event)
+            raw_region = legion.Region.create(raw.shape, {'x': (legion.Type(raw.dtype), 1)})
+            numpy.copyto(raw_region.x, raw, casting='no')
+            kernel(raw_region)
+        else:
+            kernel()
     if small_data is not None:
         global dummy
         small_data.event(dummy=[numpy.array([dummy])]) # debugging
