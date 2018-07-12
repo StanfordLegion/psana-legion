@@ -31,7 +31,7 @@ void gpu_sum_kernel(Rect<3> rect,
   const int idx = blockIdx.x * blockDim.x + threadIdx.x;
   const int idy = blockIdx.y * blockDim.y + threadIdx.y;
   const int idz = blockIdx.z * blockDim.z + threadIdx.z;
-  const Point<3> p(idx, idy, idz);
+  const Point<3> p(rect.lo.x + idx, rect.lo.y + idy, rect.lo.z + idz);
 
   // WARNING: This kernel is really, really inefficient. Please don't
   // use this in any context where performance is important!!!
