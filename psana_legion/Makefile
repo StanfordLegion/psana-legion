@@ -77,6 +77,7 @@ CORE_GEN_OBJ ?= native_kernels.o native_kernels_helper.o
 # Create the real binary
 BIN_OUTFILE ?= psana_legion
 BIN_GEN_OBJ ?= psana_legion.o native_kernels_tasks.o simple_mapper.o lifeline_mapper.o
+BIN_GEN_GPU_OBJ ?= native_kernels_tasks_gpu.o
 
 .PHONY: all
 all: $(OUTFILE) $(CORE_OUTFILE) $(BIN_OUTFILE)
@@ -89,7 +90,9 @@ $(CORE_OUTFILE) : $(CORE_GEN_OBJ)
 
 $(BIN_GEN_OBJ) : %.o : %.cc
 	$(CXX) -o $@ -c $< $(CC_FLAGS) $(INC_FLAGS)
-$(BIN_OUTFILE) : $(BIN_GEN_OBJ) $(OUTFILE) $(CORE_OUTFILE)
+$(BIN_GEN_GPU_OBJ) : %.o : %.cu
+	$(NVCC) -o $@ -c $< $(NVCC_FLAGS) $(INC_FLAGS)
+$(BIN_OUTFILE) : $(BIN_GEN_OBJ) $(BIN_GEN_GPU_OBJ) $(OUTFILE) $(CORE_OUTFILE)
 	@echo "---> Linking objects into one binary: $(BIN_OUTFILE)"
 	$(CXX) -o $(BIN_OUTFILE) $(BIN_GEN_OBJ) $(BIN_GEN_COBJ) $(BIN_LD_FLAGS) -L. -lpsana_legion -lnative_kernels_core $(BIN_LIBS)
 
