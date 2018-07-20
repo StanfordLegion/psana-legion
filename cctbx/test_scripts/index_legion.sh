@@ -28,6 +28,7 @@ mkdir -p $OUT_DIR/discovery/dials/$RUN_F/$TRIAL_F/tmp
 #cctbx.xfel.xtc_process \
 
 # Here are the variables that were getting set in the command above.
+export PSANA_LEGION_DIR=$HOST_PSANA_DIR/psana_legion
 export PYTHONPATH="$CCTBX_PREFIX/modules/cctbx_project:$CCTBX_PREFIX/modules:$CCTBX_PREFIX/modules/cctbx_project/boost_adaptbx:$CCTBX_PREFIX/modules/cctbx_project/libtbx/pythonpath:$CCTBX_PREFIX/build/lib:$PYTHONPATH"
 export LD_LIBRARY_PATH="$CCTBX_PREFIX/build/lib:$PSANA_LEGION_DIR:$LD_LIBRARY_PATH"
 export PATH="$CCTBX_PREFIX/build/bin:$PATH"

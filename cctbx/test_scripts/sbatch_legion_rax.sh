@@ -13,6 +13,10 @@
 # --job-name=psana_legion
 # --dependency=singleton
 
+# Host directory where Psana is located
+# (Needed for native Legion shared library)
+export HOST_PSANA_DIR=$HOME/psana_legion/psana-legion
+
 # Host directory where data is located
 # HOST_DATA_DIR=$SCRATCH/data/reg
 # HOST_DATA_DIR=$SCRATCH/stripe_24_data/reg
