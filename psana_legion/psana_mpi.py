@@ -188,10 +188,10 @@ class LegionDataSource(object):
         if self.config.teardown is not None:
             self.teardown()
 
-        print('Elapsed time: %e seconds' % ((stop - start)/1e6))
+        print('Elapsed time: %e seconds' % (stop - start))
         print('Number of calib cycles: %s' % ncalib)
         print('Number of events: %s' % nevents)
-        print('Events per second: %e' % (nevents/((stop - start)/1e6)))
+        print('Events per second: %e' % (nevents/(stop - start)))
 
         # Hack: Estimate bandwidth used
 
@@ -199,7 +199,7 @@ class LegionDataSource(object):
         total_size = 875 * repeat # GB
 
         fraction_events = float(nevents)/total_events
-        bw = fraction_events * total_size / ((stop - start)/1e6)
+        bw = fraction_events * total_size / (stop - start)
         print('Estimated bandwidth used: %e GB/s' % bw)
 
         print('End of run')
