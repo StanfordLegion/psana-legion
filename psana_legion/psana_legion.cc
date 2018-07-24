@@ -22,6 +22,8 @@
 #include "simple_mapper.h"
 #include "lifeline_mapper.h"
 
+#include "mpi.h"
+
 using namespace Legion;
 
 enum TaskIDs {
@@ -33,6 +35,8 @@ enum TaskIDs {
 
 int main(int argc, char **argv)
 {
+  MPI_Init(&argc, &argv);
+
   // do this before any threads are spawned
 #ifndef PYTHON_MODULES_PATH
 #error PYTHON_MODULES_PATH not available at compile time
@@ -77,5 +81,8 @@ int main(int argc, char **argv)
     exit(1);
   }
 
-  return Runtime::start(argc, argv);
+  Runtime::start(argc, argv);
+
+  MPI_Finalize();
+  return 0;
 }
