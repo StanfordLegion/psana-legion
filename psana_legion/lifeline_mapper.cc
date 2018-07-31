@@ -50,6 +50,8 @@ static const char* LIMITED_TASK_NAMES[] = {
 
 static const int TASKS_PER_STEALABLE_SLICE = 1;
 static int MIN_RUNNING_TASKS = 2;
+static int MAX_RUNNING_TASKS = 4;
+assert(MIN_RUNNING_TASKS < MAX_RUNNING_TASKS);
 static const int MAX_FAILED_STEALS = 5;
 
 typedef enum {
@@ -1064,14 +1066,23 @@ void LifelineMapper::processNewReadyTasks(const SelectMappingInput&    input,
     const Task* task = *it;
     if(!alreadyQueued(task)) {
       
-      bool mapHereNow = (locallyRunningTaskCount() < MIN_RUNNING_TASKS)
-      || (local_proc.kind() != Processor::PY_PROC)
-      || !isLimitedTask(*task)
-      ;
+      bool mapHereNow = false;
+      if(locallyRunningTaskCount() < MIN_RUNNING_TASKS) {
+        mapHereNow = true;
+      } else if(local_proc.kind() != Processor::PY_PROC) {
+        mapHereNow = true;
+      } else if(!isLimitedTask(*task)) {
+        mapHereNow = true;
+      }
+      
       if(isNodeZero()) {
         mapHereNow &= !isAnalysisTask(*task);
       }
-
+      
+      if(local_proc.kind == Processor::PY_PROC && locallyRunningTaskCount() > MAX_RUNNING_TASKS) {
+        mapHereNow = false;
+      }
+      
       if(mapHereNow) {
         output.map_tasks.insert(task);
         if(isAnalysisTask(*task)) {
