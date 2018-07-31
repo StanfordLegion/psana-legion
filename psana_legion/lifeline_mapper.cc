@@ -22,14 +22,14 @@
 #include <deque>
 #include <sysexits.h>
 #include <unistd.h>
-//#include <assert.h>
 
 
 
 #include "default_mapper.h"
 
+
 #undef assert
-#define assert(condition) if(!(condition)) { log_lifeline_mapper.fatal("%s assert %s", prolog(__FUNCTION__, __LINE__).c_str(), #condition); exit(EX_SOFTWARE); }
+#define assert(condition) {if(!(condition)) { log_lifeline_mapper.fatal("%s assert %s", prolog(__FUNCTION__, __LINE__).c_str(), #condition); exit(EX_SOFTWARE); }}
 
 using namespace Legion;
 using namespace Legion::Mapping;
@@ -51,7 +51,6 @@ static const char* LIMITED_TASK_NAMES[] = {
 static const int TASKS_PER_STEALABLE_SLICE = 1;
 static int MIN_RUNNING_TASKS = 2;
 static int MAX_RUNNING_TASKS = 4;
-assert(MIN_RUNNING_TASKS < MAX_RUNNING_TASKS);
 static const int MAX_FAILED_STEALS = 5;
 
 typedef enum {
@@ -1079,7 +1078,7 @@ void LifelineMapper::processNewReadyTasks(const SelectMappingInput&    input,
         mapHereNow &= !isAnalysisTask(*task);
       }
       
-      if(local_proc.kind == Processor::PY_PROC && locallyRunningTaskCount() > MAX_RUNNING_TASKS) {
+      if(local_proc.kind() == Processor::PY_PROC && locallyRunningTaskCount() > MAX_RUNNING_TASKS) {
         mapHereNow = false;
       }
       
