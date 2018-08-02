@@ -35,6 +35,8 @@ enum TaskIDs {
 
 int main(int argc, char **argv)
 {
+  // Call MPI_Init here so that it happens before gasnet_init
+  // Needed to avoid conflict between MPI and GASNet on Cray systems
   MPI_Init(&argc, &argv);
 
   // do this before any threads are spawned
