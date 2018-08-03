@@ -39,18 +39,11 @@ using namespace Legion::Mapping;
 #define _X {log_lifeline_mapper.debug("%s trace mappedRelocated %d", prolog(__FUNCTION__, __LINE__).c_str(), mappedRelocatedTaskCount);}
 
 static const char* ANALYSIS_TASK_NAMES[] = {
-  "psana_legion.analyze_chunk",
-  "psana_legion.analyze_single",
-  "jump"
-};
-
-static const char* LIMITED_TASK_NAMES[] = {
-  "psana_legion.analyze_chunk"
+  "psana_legion.analyze_single"
 };
 
 static const int TASKS_PER_STEALABLE_SLICE = 1;
 static int MIN_RUNNING_TASKS = 2;
-static int MAX_RUNNING_TASKS = 4;
 static const int MAX_FAILED_STEALS = 5;
 
 typedef enum {
@@ -149,7 +142,6 @@ private:
   std::string prolog(const char* function, int line) const;
   char* processorKindString(unsigned kind) const;
   bool isAnalysisTask(const Legion::Task& task);
-  bool isLimitedTask(const Legion::Task& task);
   bool isNodeZero() const;
 
   void configure_context(const MapperContext         ctx,
@@ -159,6 +151,12 @@ private:
                   const Task&              task,
                   const SliceTaskInput&    input,
                   SliceTaskOutput&   output);
+  void custom_slice_task(const Task &task,
+                         const std::vector<Processor> &local,
+                         const std::vector<Processor> &remote,
+                         const SliceTaskInput &input,
+                         SliceTaskOutput &output,
+                 std::map<Domain,std::vector<TaskSlice> > &cached_slices) const;
   void decompose_points(const Rect<1, coord_t> &point_rect,
                         const Point<1, coord_t> &num_blocks,
                         std::vector<TaskSlice> &slices);
@@ -438,7 +436,7 @@ void LifelineMapper::maybeGetMoreTasks(MapperContext ctx, Processor target)
   if(local_proc.kind() == Processor::PY_PROC) {
     if(!quiesced) {
       int notRunning = MIN_RUNNING_TASKS - locallyRunningTaskCount();
-      bool wantMoreTasks = notRunning > 0;
+      bool wantMoreTasks = notRunning > 0 && !isNodeZero();
       bool havePendingTasks = totalPendingWorkload() >= notRunning;
       log_lifeline_mapper.debug("%s wantMore %d havePending %d stealOutstanding %d %s",
                                 prolog(__FUNCTION__, __LINE__).c_str(),
@@ -843,20 +841,6 @@ bool LifelineMapper::isAnalysisTask(const Legion::Task& task)
 
 
 //--------------------------------------------------------------------------
-bool LifelineMapper::isLimitedTask(const Legion::Task& task)
-//--------------------------------------------------------------------------
-{
-  int numAnalysisTasks = sizeof(LIMITED_TASK_NAMES) / sizeof(LIMITED_TASK_NAMES[0]);
-  for(int i = 0; i < numAnalysisTasks; ++i) {
-    if(!strcmp(task.get_task_name(), LIMITED_TASK_NAMES[i])) {
-      return true;
-    }
-  }
-  return false;
-}
-
-
-//--------------------------------------------------------------------------
 bool LifelineMapper::isNodeZero() const
 //--------------------------------------------------------------------------
 {
@@ -912,6 +896,51 @@ void LifelineMapper::slice_task(const MapperContext      ctx,
                                 SliceTaskOutput&   output)
 //--------------------------------------------------------------------------
 {
+#if 1 // Elliott: Added to ensure tasks never go to node 0
+  Processor::Kind target_kind =
+    task.must_epoch_task ? local_proc.kind() : task.target_proc.kind();
+  switch (target_kind)
+  {
+    case Processor::LOC_PROC:
+      {
+        custom_slice_task(task, local_cpus, remote_cpus, 
+                          input, output, cpu_slices_cache);
+        break;
+      }
+    case Processor::TOC_PROC:
+      {
+        custom_slice_task(task, local_gpus, remote_gpus, 
+                           input, output, gpu_slices_cache);
+        break;
+      }
+    case Processor::IO_PROC:
+      {
+        custom_slice_task(task, local_ios, remote_ios, 
+                           input, output, io_slices_cache);
+        break;
+      }
+    case Processor::PY_PROC:
+      {
+        custom_slice_task(task, local_pys, remote_pys, 
+                           input, output, py_slices_cache);
+        break;
+      }
+    case Processor::PROC_SET:
+      {
+        custom_slice_task(task, local_procsets, remote_procsets, 
+                           input, output, procset_slices_cache);
+        break;
+      }
+    case Processor::OMP_PROC:
+      {
+        custom_slice_task(task, local_omps, remote_omps,
+                           input, output, omp_slices_cache);
+        break;
+      }
+    default:
+      assert(false); // unimplemented processor kind
+  }
+#else
   if(isAnalysisTask(task)){
     assert(local_proc.kind() == Processor::Kind::PY_PROC);
     sliceTaskCount++;
@@ -934,8 +963,81 @@ void LifelineMapper::slice_task(const MapperContext      ctx,
                               taskDescription(task).c_str());
     this->DefaultMapper::slice_task(ctx, task, input, output);
   }
+#endif
 }
 
+void
+LifelineMapper::custom_slice_task(const Task &task,
+                                  const std::vector<Processor> &local,
+                                  const std::vector<Processor> &remote,
+                                  const SliceTaskInput &input,
+                                  SliceTaskOutput &output,
+                  std::map<Domain,std::vector<TaskSlice> > &cached_slices) const
+{
+  // Before we do anything else, see if it is in the cache
+  std::map<Domain,std::vector<TaskSlice> >::const_iterator finder = 
+    cached_slices.find(input.domain);
+  if (finder != cached_slices.end()) {
+    output.slices = finder->second;
+    return;
+  }
+
+  // The two-level decomposition doesn't work so for now do a
+  // simple one-level decomposition across all the processors.
+  Machine::ProcessorQuery all_procs(machine);
+  all_procs.only_kind(local[0].kind());
+
+  // Include only processors NOT on the local node.
+  std::set<Processor> local_set(local.begin(), local.end());
+  std::vector<Processor> procs;
+  for (Machine::ProcessorQuery::iterator it = all_procs.begin(),
+         ie = all_procs.end(); it != ie; ++it)
+  {
+    if (!local_set.count(*it))
+      procs.push_back(*it);
+  }
+  if (procs.empty()) {
+    procs.assign(all_procs.begin(), all_procs.end());
+  }
+
+  switch (input.domain.get_dim())
+  {
+    case 1:
+      {
+        DomainT<1,coord_t> point_space = input.domain;
+        Point<1,coord_t> num_blocks(procs.size());
+        default_decompose_points<1>(point_space, procs,
+              num_blocks, false/*recurse*/,
+              stealing_enabled, output.slices);
+        break;
+      }
+    case 2:
+      {
+        DomainT<2,coord_t> point_space = input.domain;
+        Point<2,coord_t> num_blocks =
+          default_select_num_blocks<2>(procs.size(), point_space.bounds);
+        default_decompose_points<2>(point_space, procs,
+            num_blocks, false/*recurse*/,
+            stealing_enabled, output.slices);
+        break;
+      }
+    case 3:
+      {
+        DomainT<3,coord_t> point_space = input.domain;
+        Point<3,coord_t> num_blocks =
+          default_select_num_blocks<3>(procs.size(), point_space.bounds);
+        default_decompose_points<3>(point_space, procs,
+            num_blocks, false/*recurse*/,
+            stealing_enabled, output.slices);
+        break;
+      }
+    default: // don't support other dimensions right now
+      assert(false);
+  }
+
+  // Save the result in the cache
+  cached_slices[input.domain] = output.slices;
+}
 
 //--------------------------------------------------------------------------
 char* LifelineMapper::processorKindString(unsigned kind) const
@@ -1064,22 +1166,11 @@ void LifelineMapper::processNewReadyTasks(const SelectMappingInput&    input,
        it != input.ready_tasks.end(); it++) {
     const Task* task = *it;
     if(!alreadyQueued(task)) {
-      
       bool mapHereNow = false;
-      if(locallyRunningTaskCount() < MIN_RUNNING_TASKS) {
+      if(locallyRunningTaskCount() < MIN_RUNNING_TASKS && !isNodeZero()) {
         mapHereNow = true;
-      } else if(local_proc.kind() != Processor::PY_PROC) {
+      } else if(!isAnalysisTask(*task)) {
         mapHereNow = true;
-      } else if(!isLimitedTask(*task)) {
-        mapHereNow = true;
-      }
-      
-      if(isNodeZero()) {
-        mapHereNow &= !isAnalysisTask(*task);
-      }
-      
-      if(local_proc.kind() == Processor::PY_PROC && locallyRunningTaskCount() > MAX_RUNNING_TASKS) {
-        mapHereNow = false;
       }
       
       if(mapHereNow) {
