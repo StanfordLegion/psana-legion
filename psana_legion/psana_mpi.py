@@ -118,6 +118,10 @@ class LegionDataSource(object):
 
     def server(self):
         events = self.smd().events()
+        repeat = int(os.environ['REPEAT']) if 'REPEAT' in os.environ else 1
+        if repeat > 1:
+            assert self.config.limit
+            events = itertools.cycle(events)
         if self.config.limit is not None:
             events = itertools.islice(events, self.config.limit)
         if self.config.predicate is not None:
@@ -132,11 +136,6 @@ class LegionDataSource(object):
             print('Enumerating: Elapsed time: %e seconds' % (stop - start))
             print('Enumerating: Number of events: %s' % len(events))
             print('Enumerating: Events per second: %e' % (len(events)/(stop - start)))
-
-        repeat = int(os.environ['REPEAT']) if 'REPEAT' in os.environ else 1
-        if repeat > 1:
-            assert eager
-            events = events * repeat
 
         randomize = 'RANDOMIZE' in os.environ and os.environ['RANDOMIZE'] == '1'
         print('Randomize?', randomize)

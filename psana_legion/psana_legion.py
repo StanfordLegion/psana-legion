@@ -150,6 +150,10 @@ def main_task():
     assert _ds is not None
 
     events = _ds.smd().events()
+    repeat = int(os.environ['REPEAT']) if 'REPEAT' in os.environ else 1
+    if repeat > 1:
+        assert _ds.config.limit
+        events = itertools.cycle(events)
     if _ds.config.limit is not None:
         events = itertools.islice(events, _ds.config.limit)
     if _ds.config.predicate is not None:
@@ -164,11 +168,6 @@ def main_task():
         print('Enumerating: Elapsed time: %e seconds' % ((stop - start)/1e6))
         print('Enumerating: Number of events: %s' % len(events))
         print('Enumerating: Events per second: %e' % (len(events)/((stop - start)/1e6)))
-
-    repeat = int(os.environ['REPEAT']) if 'REPEAT' in os.environ else 1
-    if repeat > 1:
-        assert eager
-        events = events * repeat
 
     randomize = 'RANDOMIZE' in os.environ and os.environ['RANDOMIZE'] == '1'
     print('Randomize?', randomize)
