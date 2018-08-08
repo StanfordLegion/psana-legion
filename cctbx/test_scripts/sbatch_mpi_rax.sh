@@ -24,14 +24,22 @@ export SIT_PSDM_DATA=$HOST_DATA_DIR/d/psdm
 export IN_DIR=$PWD/input
 
 # export EAGER=1 # Not supported
-export LIMIT=1
+# export LIMIT=1024
 
-for n in 8; do
-  echo "Running n$n"
+for n in 1; do
+  for c in 16; do
+    export LIMIT=$(( 512 * n ))
 
-  export OUT_DIR=$PWD/output_mpi_"$SLURM_JOB_ID"_n$n
-  mkdir $OUT_DIR
+    export OUT_DIR=$PWD/output_mpi_"$SLURM_JOB_ID"_n${n}_c${c}
+    mkdir $OUT_DIR
 
-  srun -n $n -N 1 --cpus-per-task $(( 256 / n )) --cpu_bind cores \
-    shifter ./index_mpi.sh cxid9114 108 0 # 95 89 lustre
+    echo "Running $(basename "$OUT_DIR")"
+
+    # $HOST_PSANA_DIR/psana_legion/scripts/make_nodelist.py $c > $OUT_DIR/nodelist.txt
+    # export SLURM_HOSTFILE=$OUT_DIR/nodelist.txt
+
+    # srun -n $(( n * c + 1 )) -N $(( n + 1 )) --cpus-per-task $(( 256 / c )) --cpu_bind cores --distribution=arbitrary \
+    srun -n $(( n * c )) -N $(( n )) --cpus-per-task $(( 256 / c )) --cpu_bind cores \
+      shifter ./index_mpi.sh cxid9114 108 0 # 95 89 lustre
+  done
 done
