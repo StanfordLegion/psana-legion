@@ -118,8 +118,8 @@ class LegionDataSource(object):
 
     def server(self):
         events = self.smd().events()
-        repeat = int(os.environ['REPEAT']) if 'REPEAT' in os.environ else 1
-        if repeat > 1:
+        repeat = 'REPEAT' in os.environ and os.environ['REPEAT'] == '1'
+        if repeat:
             assert self.config.limit
             events = itertools.cycle(events)
         if self.config.limit is not None:

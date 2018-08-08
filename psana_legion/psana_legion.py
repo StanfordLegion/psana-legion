@@ -150,8 +150,8 @@ def main_task():
     assert _ds is not None
 
     events = _ds.smd().events()
-    repeat = int(os.environ['REPEAT']) if 'REPEAT' in os.environ else 1
-    if repeat > 1:
+    repeat = 'REPEAT' in os.environ and os.environ['REPEAT'] == '1'
+    if repeat:
         assert _ds.config.limit
         events = itertools.cycle(events)
     if _ds.config.limit is not None:
