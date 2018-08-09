@@ -30,8 +30,9 @@ for n in 1; do
   for c in 16; do
     export LIMIT=$(( 512 * n ))
 
-    export OUT_DIR=$PWD/output_mpi_"$SLURM_JOB_ID"_n${n}_c${c}
-    mkdir $OUT_DIR
+    # export OUT_DIR=$PWD/output_mpi_"$SLURM_JOB_ID"_n${n}_c${c}
+    export OUT_DIR=$SCRATCH/cori-cctbx/output_mpi_"$SLURM_JOB_ID"_n${n}_c${c}
+    mkdir -p $OUT_DIR
 
     echo "Running $(basename "$OUT_DIR")"
 
