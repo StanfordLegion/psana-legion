@@ -47,7 +47,7 @@ export PYTHONPATH="$CCTBX_PREFIX/modules/cctbx_project/xfel/command_line:$PYTHON
 ### Important: Put the EXTERNAL copy of psana_legion on path before the INTERNAL copy
 external_psana_dir=$PWD/../../psana_legion
 export PYTHONPATH="$external_psana_dir:$PYTHONPATH"
-export LD_LIBRARY_PATH="$external_psana_dir:$external_psana_dir/lib64:$LD_LIBRARY_PATH"
+# export LD_LIBRARY_PATH="$external_psana_dir:$external_psana_dir/lib64:$LD_LIBRARY_PATH"
 
 # FIXME: This seems to be necessary (otherwise Python can't find __future__ ???)
 export PYTHONHOME="$CONDA_PREFIX"
