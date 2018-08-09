@@ -62,8 +62,8 @@ $CONDA_PREFIX/bin/python -Qnew "$CCTBX_PREFIX/modules/cctbx_project/xfel/command
   dump_indexed=False \
   output.tmp_output_dir=$OUT_DIR/discovery/dials/$RUN_F/$TRIAL_F/tmp \
   input.reference_geometry=$IN_DIR/geom_ld91.json \
-  input.xtc_dir=$DATA_DIR \
-  max_events=$LIMIT # Hack (FIXME: This doesn't actually do anything in Legion mode)
+  input.xtc_dir=$DATA_DIR # \
+  # max_events=$LIMIT # Hack (FIXME: This doesn't actually do anything in Legion mode)
 
 END_XTC=$(date +"%s")
 ELAPSED=$((END_XTC-START_XTC))
