@@ -42,7 +42,6 @@ export LIBTBX_DISPATCHER_NAME="cctbx.xfel.xtc_process"
 
 ### Legion version:
 export PSANA_MODULE=xtc_process
-export PSANA_MAPPER=simple
 export PYTHONPATH="$CCTBX_PREFIX/modules/cctbx_project/xfel/command_line:$PYTHONPATH"
 
 ### Important: Put the EXTERNAL copy of psana_legion on path before the INTERNAL copy
@@ -53,7 +52,7 @@ export LD_LIBRARY_PATH="$external_psana_dir:$external_psana_dir/lib64:$LD_LIBRAR
 # FIXME: This seems to be necessary (otherwise Python can't find __future__ ???)
 export PYTHONHOME="$CONDA_PREFIX"
 
-$external_psana_dir/psana_legion -ll:py 1 -ll:io 1 -ll:csize 6000 \
+$external_psana_dir/psana_legion "${@:4}" \
   input.experiment=$EXP \
   input.run_num=$RUN \
   output.logging_dir=$OUT_DIR/discovery/dials/$RUN_F/$TRIAL_F/stdout \
@@ -63,8 +62,8 @@ $external_psana_dir/psana_legion -ll:py 1 -ll:io 1 -ll:csize 6000 \
   dump_indexed=False \
   output.tmp_output_dir=$OUT_DIR/discovery/dials/$RUN_F/$TRIAL_F/tmp \
   input.reference_geometry=$IN_DIR/geom_ld91.json \
-  input.xtc_dir=$DATA_DIR \
-  max_events=$LIMIT # Hack (FIXME: This doesn't actually do anything in Legion mode)
+  input.xtc_dir=$DATA_DIR # \
+  # max_events=$LIMIT # Hack (FIXME: This doesn't actually do anything in Legion mode)
 
 END_XTC=$(date +"%s")
 ELAPSED=$((END_XTC-START_XTC))
