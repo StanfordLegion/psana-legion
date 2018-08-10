@@ -13,8 +13,7 @@ cp /opt/cray/alps/6.4.1-6.0.4.0_7.2__g86d0f3d.ari/lib64/libalpslli.so.0 lib64/
 cp /opt/cray/alps/6.4.1-6.0.4.0_7.2__g86d0f3d.ari/lib64/libalpsutil.so.0 lib64/
 cp /opt/cray/udreg/2.3.2-6.0.4.0_12.2__g2f9c3ee.ari/lib64/libudreg.so.0 lib64/
 cp /opt/cray/wlm_detect/1.2.1-6.0.4.0_22.1__gd26a3dc.ari/lib64/libwlm_detect.so.0 lib64/
-cp /opt/cray/pe/gcc-libs/libgfortran.so.3 lib64/
-
+# cp /opt/cray/pe/gcc-libs/libgfortran.so.3 lib64/ # FIXME (Elliott): why is this needed?
 
 # Needed for CCTBX to be able to use MPI:
 cp /opt/cray/pe/lib64/libmpich_gnu_51.so.3 lib64
