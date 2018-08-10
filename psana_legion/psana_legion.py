@@ -248,12 +248,12 @@ def main_task():
 
     # Hack: Estimate bandwidth used
 
-    total_events = 75522 * repeat
-    total_size = 875 * repeat # GB
+    # total_events = 75522 * repeat
+    # total_size = 875 * repeat # GB
 
-    fraction_events = float(nevents)/total_events
-    bw = fraction_events * total_size / ((stop - start)/1e6)
-    print('Estimated bandwidth used: %e GB/s' % bw)
+    # fraction_events = float(nevents)/total_events
+    # bw = fraction_events * total_size / ((stop - start)/1e6)
+    # print('Estimated bandwidth used: %e GB/s' % bw)
 
     print('End of run')
     sys.stdout.flush()
