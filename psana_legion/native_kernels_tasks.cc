@@ -85,7 +85,7 @@ void register_native_kernels_tasks(int memory_bound_task_id,
 
 #ifdef USE_CUDA
   {
-    TaskVariantRegistrar registrar(gpu_sum_task_id, "sum_task");
+    TaskVariantRegistrar registrar(sum_task_id, "sum_task");
     registrar.add_constraint(ProcessorConstraint(Processor::TOC_PROC));
     Runtime::preregister_task_variant<int64_t, gpu_sum_task>(registrar, "sum_task");
   }
