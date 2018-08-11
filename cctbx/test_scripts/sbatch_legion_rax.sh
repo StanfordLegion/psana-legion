@@ -15,7 +15,19 @@
 
 # Host directory where Psana is located
 # (Needed for native Legion shared library)
-export HOST_PSANA_DIR=$HOME/psana_legion/psana-legion
+export ORIG_PSANA_DIR=$HOME/psana_legion/psana-legion/psana_legion
+# export HOST_PSANA_DIR=$HOME/psana_legion/psana-legion/psana_legion
+# export HOST_PSANA_DIR=$SCRATCH/psana_legion_mirror
+export HOST_PSANA_DIR=/tmp/psana_legion
+
+srun -n $SLURM_JOB_NUM_NODES --ntasks-per-node 1 mkdir -p $HOST_PSANA_DIR/scripts
+srun -n $SLURM_JOB_NUM_NODES --ntasks-per-node 1 mkdir -p $HOST_PSANA_DIR/lib64
+
+pushd $ORIG_PSANA_DIR
+for f in psana_legion *.so *.py scripts/*.sh lib64/*; do
+  sbcast -p ./$f $HOST_PSANA_DIR/$f
+done
+popd
 
 # Host directory where data is located
 # HOST_DATA_DIR=$SCRATCH/data/reg
@@ -57,7 +69,7 @@ for n in $SLURM_JOB_NUM_NODES; do
 
     echo "Running $(basename "$OUT_DIR")"
 
-    # $HOST_PSANA_DIR/psana_legion/scripts/make_nodelist.py $c > $OUT_DIR/nodelist.txt
+    # $HOST_PSANA_DIR/scripts/make_nodelist.py $c > $OUT_DIR/nodelist.txt
     # export SLURM_HOSTFILE=$OUT_DIR/nodelist.txt
 
     lmbsize=$(( 1024 * 32 * 32 / ( n * c ) )) # start shrinking at > 32 nodes * 32 ranks/node
