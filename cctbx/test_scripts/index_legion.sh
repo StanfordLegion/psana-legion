@@ -65,6 +65,19 @@ $external_psana_dir/psana_legion "${@:4}" \
   input.xtc_dir=$DATA_DIR # \
   # max_events=$LIMIT # Hack (FIXME: This doesn't actually do anything in Legion mode)
 
+# pid=$!
+# sleep 15m
+# pstree -u $(whoami) -p > "$OUT_DIR/backtrace/pstree_${SLURM_PROCID}_$(hostname).log"
+# sleep 15
+# (
+#     unset PYTHONHOME
+#     unset PYTHONPATH
+#     unset LD_LIBRARY_PATH
+#     export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+#     gdb -p $pid -batch -quiet -ex "thread apply all bt" 2>&1 > "$OUT_DIR/backtrace/bt_${SLURM_PROCID}_$(hostname)_$pid.log"
+# )
+# wait
+
 END_XTC=$(date +"%s")
 ELAPSED=$((END_XTC-START_XTC))
 echo TotalElapsed_OneCore $ELAPSED $START_XTC $END_XTC

@@ -74,6 +74,7 @@ for n in $SLURM_JOB_NUM_NODES; do
     # export OUT_DIR=$PWD/output_legion_"$SLURM_JOB_ID"_n${n}_c${c}
     export OUT_DIR=$SCRATCH/cori-cctbx/output_legion_"$SLURM_JOB_ID"_n${n}_c${c}
     mkdir -p $OUT_DIR
+    mkdir -p $OUT_DIR/backtrace
 
     echo "Running $(basename "$OUT_DIR")"
 
