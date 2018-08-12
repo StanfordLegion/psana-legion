@@ -20,9 +20,13 @@ export ORIG_PSANA_DIR=$HOME/psana_legion/psana-legion/psana_legion
 # export HOST_PSANA_DIR=$SCRATCH/psana_legion_mirror
 export HOST_PSANA_DIR=/tmp/psana_legion
 
+srun -n $SLURM_JOB_NUM_NODES --ntasks-per-node 1 mkdir -p /tmp/input
 srun -n $SLURM_JOB_NUM_NODES --ntasks-per-node 1 mkdir -p $HOST_PSANA_DIR/scripts
 srun -n $SLURM_JOB_NUM_NODES --ntasks-per-node 1 mkdir -p $HOST_PSANA_DIR/lib64
 
+for f in *.sh input/*; do
+  sbcast -p ./$f /tmp/$f
+done
 pushd $ORIG_PSANA_DIR
 for f in psana_legion *.so *.py scripts/*.sh lib64/*; do
   sbcast -p ./$f $HOST_PSANA_DIR/$f
@@ -37,7 +41,8 @@ HOST_DATA_DIR=$SCRATCH/demo_data/reg
 
 export SIT_PSDM_DATA=$HOST_DATA_DIR/d/psdm
 
-export IN_DIR=$PWD/input
+# export IN_DIR=$PWD/input
+export IN_DIR=/tmp/input
 
 export EAGER=1
 # export LIMIT=1024
@@ -54,6 +59,9 @@ export GASNET_BACKTRACE=1
 
 # setting from Chris to avoid intermittent failures in PMI_Init_threads on large numbers of nodes
 export PMI_MMAP_SYNC_WAIT_TIME=600 # seconds
+
+# fix to avoid crash on 1 and 2 cores/node
+export GASNET_USE_UDREG=0
 
 set -x
 
@@ -77,10 +85,15 @@ for n in $SLURM_JOB_NUM_NODES; do
         lmbsize=1024 # default is 1024 KB, don't go over default
     fi
 
+    csize=$(( 48000 / c ))
+    if [[ $csize -gt 12000 ]]; then
+        csize=12000
+    fi
+
     # srun -n $(( n * c + 1 )) -N $(( n + 1 )) --cpus-per-task $(( 256 / c )) --cpu_bind cores --distribution=arbitrary \
     srun -n $(( n * c )) -N $(( n )) --cpus-per-task $(( 256 / c )) --cpu_bind cores \
-      shifter ./index_legion.sh cxid9114 108 0 \
-        -ll:cpu 0 -ll:py 1 -ll:io 1 -ll:concurrent_io 1 -ll:csize $(( 48000 / c )) -ll:rsize 0 -ll:gsize 0 -ll:ib_rsize 0 -ll:lmbsize $lmbsize -lg:window 100 -level announce=2 -logfile "$OUT_DIR/ann_%.log"
+      shifter /tmp/index_legion.sh cxid9114 108 0 \
+        -ll:cpu 0 -ll:py 1 -ll:io 1 -ll:concurrent_io 1 -ll:csize $csize -ll:rsize 0 -ll:gsize 0 -ll:ib_rsize 0 -ll:lmbsize $lmbsize -lg:window 100 -level announce=2 -logfile "$OUT_DIR/ann_%.log"
     # -hl:prof $(( n * c )) -hl:prof_logfile "$OUT_DIR/prof_%.gz" 
   done
 done
