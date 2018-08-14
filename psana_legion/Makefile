@@ -58,9 +58,9 @@ else
 endif
 
 ifeq ($(shell uname), Darwin)
-	LD_FLAGS += -Wl,-force_load,liblegion.a
+	LD_FLAGS += -Wl,-force_load,liblegion.a -Wl,-force_load,librealm.a
 else
-	LD_FLAGS += -Wl,--whole-archive -llegion -Wl,--no-whole-archive
+	LD_FLAGS += -Wl,--whole-archive -llegion -lrealm -Wl,--no-whole-archive
 endif
 
 ifneq ($(CRAYPE_VERSION),)
@@ -68,6 +68,15 @@ ifneq ($(CRAYPE_VERSION),)
 	BIN_LD_FLAGS += ${CRAY_UGNI_POST_LINK_OPTS}
 	BIN_LD_FLAGS += ${CRAY_PMI_POST_LINK_OPTS}
 	BIN_LIBS += -lugni -lpmi -lhugetlbfs
+endif
+
+ifeq ($(strip $(USE_CUDA)),1)
+BIN_GPU_LD_FLAGS ?=
+ifeq ($(strip $(DARWIN)),1)
+	BIN_GPU_LD_FLAGS += -L$(CUDA)/lib -lcuda
+else
+	BIN_GPU_LD_FLAGS += -L$(CUDA)/lib64 -lcuda -Xlinker -rpath=$(CUDA)/lib64
+endif
 endif
 
 # Create core library that both Legion and MPI can link against
@@ -98,7 +107,7 @@ $(BIN_GEN_GPU_OBJ) : %.o : %.cu
 	$(NVCC) -o $@ -c $< $(NVCC_FLAGS) $(INC_FLAGS)
 $(BIN_OUTFILE) : $(BIN_GEN_OBJ) $(BIN_GEN_GPU_OBJ) $(OUTFILE) $(CORE_OUTFILE)
 	@echo "---> Linking objects into one binary: $(BIN_OUTFILE)"
-	$(CXX) -o $(BIN_OUTFILE) $(BIN_GEN_OBJ) $(BIN_GEN_COBJ) $(BIN_LD_FLAGS) -L. -lpsana_legion -lnative_kernels_core $(BIN_LIBS)
+	$(CXX) -o $(BIN_OUTFILE) $(BIN_GEN_OBJ) $(BIN_GEN_GPU_OBJ) $(BIN_LD_FLAGS) -L. -lpsana_legion $(BIN_GPU_LD_FLAGS) -lnative_kernels_core $(BIN_LIBS)
 
 .PHONY: pyext
 pyext: $(CORE_OUTFILE)
