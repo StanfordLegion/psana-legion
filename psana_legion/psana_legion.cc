@@ -22,7 +22,9 @@
 #include "simple_mapper.h"
 #include "lifeline_mapper.h"
 
+#ifdef USE_MPI
 #include "mpi.h"
+#endif
 
 using namespace Legion;
 
@@ -35,9 +37,11 @@ enum TaskIDs {
 
 int main(int argc, char **argv)
 {
+#ifdef USE_MPI
   // Call MPI_Init here so that it happens before gasnet_init
   // Needed to avoid conflict between MPI and GASNet on Cray systems
   MPI_Init(&argc, &argv);
+#endif
 
   // do this before any threads are spawned
 #ifndef PYTHON_MODULES_PATH
@@ -85,6 +89,8 @@ int main(int argc, char **argv)
 
   Runtime::start(argc, argv);
 
+#ifdef USE_MPI
   MPI_Finalize();
+#endif
   return 0;
 }
