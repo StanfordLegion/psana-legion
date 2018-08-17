@@ -86,9 +86,12 @@ def analyze(event):
     if kernel is not None:
         if kernel_uses_raw:
             raw = det.raw(event)
-            raw_region = legion.Region.create(raw.shape, {'x': (legion.Type(raw.dtype), 1)})
-            numpy.copyto(raw_region.x, raw, casting='no')
-            kernel(raw_region)
+            if raw is None:
+                print('WARNING: received event with no raw data')
+            else:
+                raw_region = legion.Region.create(raw.shape, {'x': (legion.int16, 1)})
+                numpy.copyto(raw_region.x, raw, casting='no')
+                kernel(raw_region)
         else:
             kernel()
     if small_data is not None:

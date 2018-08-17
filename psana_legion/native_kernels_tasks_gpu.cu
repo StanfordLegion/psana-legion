@@ -25,7 +25,7 @@ using namespace Legion;
 
 __global__
 void gpu_sum_kernel(Rect<3> rect,
-                    const FieldAccessor<READ_ONLY, int64_t, 3, coord_t, Realm::AffineAccessor<int64_t, 3, coord_t> > x,
+                    const FieldAccessor<READ_ONLY, int16_t, 3, coord_t, Realm::AffineAccessor<int16_t, 3, coord_t> > x,
                     unsigned long long *result)
 {
   const int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -49,7 +49,7 @@ int64_t gpu_sum_task(const Task *task,
 {
   assert(regions.size() == 1);
 
-  const FieldAccessor<READ_ONLY, int64_t, 3, coord_t, Realm::AffineAccessor<int64_t, 3, coord_t> > x(regions[0], X_FIELD_ID);
+  const FieldAccessor<READ_ONLY, int16_t, 3, coord_t, Realm::AffineAccessor<int16_t, 3, coord_t> > x(regions[0], X_FIELD_ID);
 
   Rect<3> rect = runtime->get_index_space_domain(ctx,
                   regions[0].get_logical_region().get_index_space());
