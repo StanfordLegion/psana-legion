@@ -22,7 +22,7 @@
 #include "simple_mapper.h"
 #include "lifeline_mapper.h"
 
-#ifdef USE_MPI
+#ifdef PSANA_USE_MPI
 #include "mpi.h"
 #endif
 

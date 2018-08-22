@@ -43,7 +43,7 @@ GASNET_FLAGS	?=
 LD_FLAGS	?=
 
 PSANA_USE_MPI ?= 0
-ifeq ($(strip $(AUGMENT_MODULES_PATH)),1)
+ifeq ($(strip $(PSANA_USE_MPI)),1)
 CC_FLAGS += -DPSANA_USE_MPI # used to make CCTBX happy
 endif
 
