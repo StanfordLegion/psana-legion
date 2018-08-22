@@ -111,7 +111,7 @@ def analyze_single(loc, calib):
     runtime = long(legion.ffi.cast("unsigned long long", legion._my.ctx.runtime_root))
     ctx = long(legion.ffi.cast("unsigned long long", legion._my.ctx.context_root))
 
-    event = _ds.jump(loc.filenames, loc.offsets, calib, runtime, ctx) # Fetches the data
+    event = _ds.jump(loc.filenames, loc.offsets, calib.get(), runtime, ctx) # Fetches the data
     _ds.config.analysis(event) # Performs user analysis
     if _ds.small_data is not None:
         return _ds.small_data.data
@@ -208,6 +208,7 @@ def main_task():
     file_buffer_length = 0
     
     for calib, calib_events in events:
+        calib = legion.Future(calib)
         for launch_events in chunk(chunk(calib_events, chunksize), launchsize):
             if nlaunch % 20 == 0:
                 print('Processing event %s' % nevents)
