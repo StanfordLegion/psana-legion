@@ -52,6 +52,14 @@ export LD_LIBRARY_PATH="$external_psana_dir:$external_psana_dir/lib64:$LD_LIBRAR
 # FIXME: This seems to be necessary (otherwise Python can't find __future__ ???)
 export PYTHONHOME="$CONDA_PREFIX"
 
+# IMPORTANT: Python searches the current directory by default, and this can get very, very slow at high node counts
+# Work around it by cd'ing to a known local directory before running
+# (Otherwise the current directory shouldn't matter)
+cd $external_psana_dir
+
+# Similarly, set HOME to be absolutely sure that nothing is touching the real home directory.
+export HOME=$external_psana_dir
+
 $external_psana_dir/psana_legion "${@:4}" \
   input.experiment=$EXP \
   input.run_num=$RUN \
