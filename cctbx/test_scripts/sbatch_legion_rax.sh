@@ -38,7 +38,7 @@ for f in psana_legion *.so *.py scripts/*.sh lib64/*; do
 done
 popd
 pushd $ORIG_LEGION_DIR
-for f in bindings/python/legion.py runtime/legion.h runtime/*.h; do
+for f in bindings/python/legion.py runtime/legion.h runtime/legion/*.h; do
   sbcast -p ./$f $HOST_LEGION_DIR/$f
 done
 popd
