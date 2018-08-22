@@ -37,16 +37,14 @@ enum TaskIDs {
 
 int main(int argc, char **argv)
 {
-#ifdef USE_MPI
+#ifdef PSANA_USE_MPI
   // Call MPI_Init here so that it happens before gasnet_init
   // Needed to avoid conflict between MPI and GASNet on Cray systems
   MPI_Init(&argc, &argv);
 #endif
 
   // do this before any threads are spawned
-#ifndef PYTHON_MODULES_PATH
-#error PYTHON_MODULES_PATH not available at compile time
-#endif
+#ifdef PYTHON_MODULES_PATH
   char *previous_python_path = getenv("PYTHONPATH");
   if (previous_python_path != 0) {
     size_t bufsize = 16 * 1024;
@@ -64,6 +62,7 @@ int main(int argc, char **argv)
   } else {
     setenv("PYTHONPATH", PYTHON_MODULES_PATH, true /*overwrite*/);
   }
+#endif
 
   const char *module = getenv("PSANA_MODULE");
   if (!module) {
@@ -89,7 +88,7 @@ int main(int argc, char **argv)
 
   Runtime::start(argc, argv);
 
-#ifdef USE_MPI
+#ifdef PSANA_USE_MPI
   MPI_Finalize();
 #endif
   return 0;

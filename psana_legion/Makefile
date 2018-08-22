@@ -42,7 +42,15 @@ NVCC_FLAGS	?=
 GASNET_FLAGS	?=
 LD_FLAGS	?=
 
+PSANA_USE_MPI ?= 0
+ifeq ($(strip $(AUGMENT_MODULES_PATH)),1)
+CC_FLAGS += -DPSANA_USE_MPI # used to make CCTBX happy
+endif
+
+AUGMENT_MODULES_PATH ?= 1
+ifeq ($(strip $(AUGMENT_MODULES_PATH)),1)
 CC_FLAGS += -DPYTHON_MODULES_PATH="\"$(LG_RT_DIR)/../bindings/python:$(dir $(abspath $(firstword $(MAKEFILE_LIST))))\""
+endif
 
 # These flags force GCC 5 to be compatible with GCC 4.9 and
 # earlier. Required to link against pre-build psana binaries.
