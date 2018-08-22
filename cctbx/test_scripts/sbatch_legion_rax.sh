@@ -27,7 +27,7 @@ srun -n $SLURM_JOB_NUM_NODES --ntasks-per-node 1 mkdir -p /tmp/input
 srun -n $SLURM_JOB_NUM_NODES --ntasks-per-node 1 mkdir -p $HOST_PSANA_DIR/scripts
 srun -n $SLURM_JOB_NUM_NODES --ntasks-per-node 1 mkdir -p $HOST_PSANA_DIR/lib64
 srun -n $SLURM_JOB_NUM_NODES --ntasks-per-node 1 mkdir -p $HOST_LEGION_DIR/bindings/python
-srun -n $SLURM_JOB_NUM_NODES --ntasks-per-node 1 mkdir -p $HOST_LEGION_DIR/runtime
+srun -n $SLURM_JOB_NUM_NODES --ntasks-per-node 1 mkdir -p $HOST_LEGION_DIR/runtime/legion
 
 for f in *.sh input/*; do
   sbcast -p ./$f /tmp/$f
