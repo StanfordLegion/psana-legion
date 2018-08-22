@@ -28,6 +28,7 @@ srun -n $SLURM_JOB_NUM_NODES --ntasks-per-node 1 mkdir -p $HOST_PSANA_DIR/script
 srun -n $SLURM_JOB_NUM_NODES --ntasks-per-node 1 mkdir -p $HOST_PSANA_DIR/lib64
 srun -n $SLURM_JOB_NUM_NODES --ntasks-per-node 1 mkdir -p $HOST_LEGION_DIR/bindings/python
 srun -n $SLURM_JOB_NUM_NODES --ntasks-per-node 1 mkdir -p $HOST_LEGION_DIR/runtime/legion
+srun -n $SLURM_JOB_NUM_NODES --ntasks-per-node 1 mkdir -p $HOST_LEGION_DIR/runtime/realm
 
 for f in *.sh input/*; do
   sbcast -p ./$f /tmp/$f
@@ -38,7 +39,7 @@ for f in psana_legion *.so *.py scripts/*.sh lib64/*; do
 done
 popd
 pushd $ORIG_LEGION_DIR
-for f in bindings/python/legion.py runtime/legion.h runtime/legion/*.h; do
+for f in bindings/python/legion.py runtime/legion.h runtime/legion/*.h runtime/realm/*.h; do
   sbcast -p ./$f $HOST_LEGION_DIR/$f
 done
 popd
