@@ -44,6 +44,9 @@ export LIBTBX_DISPATCHER_NAME="cctbx.xfel.xtc_process"
 export PSANA_MODULE=xtc_process
 export PYTHONPATH="$CCTBX_PREFIX/modules/cctbx_project/xfel/command_line:$PYTHONPATH"
 
+export LEGION_BINDINGS_DIR=$HOST_LEGION_DIR/bindings/python
+export PYTHONPATH="$LEGION_BINDINGS_DIR:$PYTHONPATH"
+
 ### Important: Put the EXTERNAL copy of psana_legion on path before the INTERNAL copy
 external_psana_dir=$PSANA_LEGION_DIR
 export PYTHONPATH="$external_psana_dir:$PYTHONPATH"

@@ -20,9 +20,14 @@ export ORIG_PSANA_DIR=$HOME/psana_legion/psana-legion/psana_legion
 # export HOST_PSANA_DIR=$SCRATCH/psana_legion_mirror
 export HOST_PSANA_DIR=/tmp/psana_legion
 
+export ORIG_LEGION_DIR=$HOME/psana_legion/legion
+export HOST_LEGION_DIR=/tmp/legion
+
 srun -n $SLURM_JOB_NUM_NODES --ntasks-per-node 1 mkdir -p /tmp/input
 srun -n $SLURM_JOB_NUM_NODES --ntasks-per-node 1 mkdir -p $HOST_PSANA_DIR/scripts
 srun -n $SLURM_JOB_NUM_NODES --ntasks-per-node 1 mkdir -p $HOST_PSANA_DIR/lib64
+srun -n $SLURM_JOB_NUM_NODES --ntasks-per-node 1 mkdir -p $HOST_LEGION_DIR/bindings/python
+srun -n $SLURM_JOB_NUM_NODES --ntasks-per-node 1 mkdir -p $HOST_LEGION_DIR/runtime
 
 for f in *.sh input/*; do
   sbcast -p ./$f /tmp/$f
@@ -30,6 +35,11 @@ done
 pushd $ORIG_PSANA_DIR
 for f in psana_legion *.so *.py scripts/*.sh lib64/*; do
   sbcast -p ./$f $HOST_PSANA_DIR/$f
+done
+popd
+pushd $ORIG_LEGION_DIR
+for f in bindings/python/legion.py runtime/legion.h runtime/*.h; do
+  sbcast -p ./$f $HOST_LEGION_DIR/$f
 done
 popd
 
