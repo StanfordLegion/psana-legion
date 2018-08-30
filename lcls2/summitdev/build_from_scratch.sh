@@ -4,7 +4,7 @@ set -e
 
 # Setup environment
 cat > env.sh <<EOF
-module load cmake/3.9.2
+module load cmake/3.11.3
 module load gcc/7.1.0
 export CC=gcc
 export CXX=g++
@@ -28,24 +28,19 @@ bash Miniconda3-latest-Linux-ppc64le.sh -b -p $CONDA_PREFIX
 rm Miniconda3-latest-Linux-ppc64le.sh
 conda update -y conda
 conda install -y conda-build # Must be installed in root environment
-conda create -y -p $REL_DIR python=3.5 cmake h5py ipython numpy
+conda create -y -p $REL_DIR python=3.6 cmake h5py ipython numpy
 source activate $REL_DIR
 # conda install -y --channel lcls-rhel7 cpsw yaml-cpp
 # conda install -y --channel lightsource2-tag epics-base
 
 # Install Legion
 git clone https://github.com/slac-lcls/relmanage.git
-conda build relmanage/recipes/legion/ --output-folder channels/external/
+conda build relmanage/recipes/legion/ --output-folder channels/external/ --python 3.6
 conda install -y legion -c file://`pwd`/channels/external --override-channels
 
 # Build
 git clone https://github.com/slac-lcls/lcls2.git
 pushd lcls2
-patch -p1 -i ../lcls2.patch
-mkdir build
-pushd build
-cmake -DPSANA_USE_LEGION=ON ..
-make -j8
-make test
-popd
+./build_python3_light.sh
+pytest psana/psana/tests
 popd
