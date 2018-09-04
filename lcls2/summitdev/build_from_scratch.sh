@@ -4,8 +4,7 @@ set -e
 
 # Setup environment
 cat > env.sh <<EOF
-module load cmake/3.11.3
-module load gcc/7.1.0
+module load gcc/7.1.1-20170802
 export CC=gcc
 export CXX=g++
 
@@ -28,8 +27,9 @@ bash Miniconda3-latest-Linux-ppc64le.sh -b -p $CONDA_PREFIX
 rm Miniconda3-latest-Linux-ppc64le.sh
 conda update -y conda
 conda install -y conda-build # Must be installed in root environment
-conda create -y -p $REL_DIR python=3.6 cmake h5py ipython numpy cffi curl cython rapidjson pytest
+conda create -y -p $REL_DIR python=3.6 cmake h5py ipython numpy cffi curl cython rapidjson pytest cmake
 source activate $REL_DIR
+pip install -v --no-binary mpi4py mpi4py
 # conda install -y --channel lcls-rhel7 cpsw yaml-cpp
 # conda install -y --channel lightsource2-tag epics-base
 
@@ -42,5 +42,6 @@ conda install -y legion -c file://`pwd`/channels/external # --override-channels
 git clone https://github.com/slac-lcls/lcls2.git
 pushd lcls2
 ./build_python3_light.sh
+export PYTHONPATH=$PWD/install/lib/python3.6/site-packages:$PYTHONPATH
 pytest psana/psana/tests
 popd
