@@ -10,7 +10,7 @@ export CXX=g++
 
 export CONDA_PREFIX=$PWD/conda
 export REL_DIR=\$CONDA_PREFIX/myrel
-export PATH=\$REL_DIR/bin:\$CONDA_PREFIX/bin:\$PATH
+export PATH=\$CONDA_PREFIX/bin:\$PATH
 EOF
 
 source env.sh
@@ -29,9 +29,7 @@ conda update -y conda
 conda install -y conda-build # Must be installed in root environment
 conda create -y -p $REL_DIR python=3.6 cmake h5py ipython numpy cffi curl cython rapidjson pytest cmake
 source activate $REL_DIR
-pip install -v --no-binary mpi4py mpi4py
-# conda install -y --channel lcls-rhel7 cpsw yaml-cpp
-# conda install -y --channel lightsource2-tag epics-base
+CC=$OMPI_CC MPICC=mpicc pip install -v --no-binary mpi4py mpi4py
 
 # Install Legion
 git clone https://github.com/slac-lcls/relmanage.git
