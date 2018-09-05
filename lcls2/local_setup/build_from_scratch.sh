@@ -33,15 +33,6 @@ rm -rf $LCLS2_PREFIX
 
 # Get recipes.
 git clone https://github.com/slac-lcls/relmanage.git
-sed -i 's@- file:///reg/g/psdm/sw/conda2/channels/external@@g' relmanage/env_create.yaml
-sed -i 's@- file:///reg/g/pcds/pyps/conda/channel@@g' relmanage/env_create.yaml
-sed -i 's@- legion@@g' relmanage/env_create.yaml
-sed -i 's@- cpsw@@g' relmanage/env_create.yaml
-sed -i 's@- procserv@@g' relmanage/env_create.yaml
-sed -i 's@- pyca@@g' relmanage/env_create.yaml
-sed -i 's@- libfabric@@g' relmanage/env_create.yaml
-sed -i 's@- psmon@@g' relmanage/env_create.yaml
-mkdir -p channels/external
 
 # Install Conda environment.
 wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
@@ -52,13 +43,10 @@ conda install -y conda-build # Must be installed in root environment
 # conda create -y -p $REL_PREFIX python=$PYVER cmake h5py ipython numpy cython nose
 conda env create -p $REL_PREFIX -f relmanage/env_create.yaml
 source activate $REL_PREFIX
-conda install libcurl
-# conda install -y --channel lcls-rhel7 cpsw yaml-cpp
-# conda install -y --channel lightsource2-tag epics-base
 
-# Install Legion.
-conda build relmanage/recipes/legion/ --output-folder channels/external/
-conda install -y legion -c file://`pwd`/channels/external # --override-channels
+# # Install Legion.
+# conda build relmanage/recipes/legion/ --output-folder channels/external/
+# conda install -y legion -c file://`pwd`/channels/external # --override-channels
 
 # Build psana.
 git clone https://github.com/slac-lcls/lcls2.git $LCLS2_PREFIX

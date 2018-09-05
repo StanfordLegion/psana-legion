@@ -3,9 +3,10 @@
 set -e
 
 source env.sh
+source activate $REL_PREFIX
 
-install_dir=$LCLS2_PREFIX/install
-rm -rf $install_dir
-rm -rf $LCLS2_PREFIX/xtcdata/build
-rm -rf $LCLS2_PREFIX/psalg/build
+pushd $LCLS2_PREFIX
+git clean -fxd
+popd
+
 ./dirty_rebuild.sh
