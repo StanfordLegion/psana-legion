@@ -27,7 +27,7 @@ bash Miniconda3-latest-Linux-ppc64le.sh -b -p $CONDA_PREFIX
 rm Miniconda3-latest-Linux-ppc64le.sh
 conda update -y conda
 conda install -y conda-build # Must be installed in root environment
-conda create -y -p $REL_DIR python=3.6 cmake h5py ipython numpy cffi curl cython rapidjson pytest cmake
+conda create -y -p $REL_DIR python=3.6 cmake h5py ipython numpy cffi curl cython rapidjson pytest
 source activate $REL_DIR
 CC=$OMPI_CC MPICC=mpicc pip install -v --no-binary mpi4py mpi4py
 
