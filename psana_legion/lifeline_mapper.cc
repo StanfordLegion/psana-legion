@@ -39,7 +39,7 @@ using namespace Legion::Mapping;
 #define _X {log_lifeline_mapper.debug("%s trace mappedRelocated %d", prolog(__FUNCTION__, __LINE__).c_str(), mappedRelocatedTaskCount);}
 
 static const char* ANALYSIS_TASK_NAMES[] = {
-  "psana_legion.analyze_single"
+  "sum_task"
 };
 
 static const int TASKS_PER_STEALABLE_SLICE = 1;
@@ -93,9 +93,11 @@ private:
   std::vector<Processor> steal_target_procs;
   std::vector<Processor> active_lifelines;
   Processor nearestLOCProc;
+  Processor nearestTOCProc;
   Processor nearestIOProc;
   Processor nearestPYProc;
   std::vector<Processor> neighborLOCProcs;
+  std::vector<Processor> neighborTOCProcs;
   std::vector<Processor> neighborIOProcs;
   std::vector<Processor> neighborPYProcs;
   std::random_device rd;     // only used once to initialise (seed) engine
@@ -412,7 +414,7 @@ bool LifelineMapper::maybeGetLocalTasks(MapperContext ctx)
 void LifelineMapper::stealTasks(MapperContext ctx, Processor target)
 //--------------------------------------------------------------------------
 {
-  if(local_proc.kind() == Processor::PY_PROC) {
+  if(local_proc.kind() == Processor::LOC_PROC || local_proc.kind() == Processor::TOC_PROC) {
     if (!stealRequestOutstanding) {
       if(target == Processor::NO_PROC) {
         target = steal_target_procs[uni(rng)];
@@ -433,7 +435,7 @@ void LifelineMapper::stealTasks(MapperContext ctx, Processor target)
 void LifelineMapper::maybeGetMoreTasks(MapperContext ctx, Processor target)
 //--------------------------------------------------------------------------
 {
-  if(local_proc.kind() == Processor::PY_PROC) {
+  if(local_proc.kind() == Processor::LOC_PROC || local_proc.kind() == Processor::TOC_PROC) {
     if(!quiesced) {
       int notRunning = MIN_RUNNING_TASKS - locallyRunningTaskCount();
       bool wantMoreTasks = notRunning > 0 && !isNodeZero();
@@ -759,6 +761,11 @@ void LifelineMapper::getStealAndNearestProcs(unsigned& localProcIndex)
           nearestLOCProc = processor;
         }
         break;
+      case TOC_PROC:
+        if(!nearestTOCProc.exists() || !sawLocalProc) {
+          nearestTOCProc = processor;
+        }
+        break;
       case IO_PROC:
         if(!nearestIOProc.exists() || !sawLocalProc) {
           nearestIOProc = processor;
@@ -942,7 +949,7 @@ void LifelineMapper::slice_task(const MapperContext      ctx,
   }
 #else
   if(isAnalysisTask(task)){
-    assert(local_proc.kind() == Processor::Kind::PY_PROC);
+    assert(local_proc.kind() == Processor::Kind::LOC_PROC || local_proc.kind() == Processor::Kind::TOC_PROC);
     sliceTaskCount++;
     Rect<1, coord_t> point_rect = input.domain;
     log_lifeline_mapper.debug("%s task %s target %s %s points %lu",
@@ -1352,8 +1359,11 @@ void LifelineMapper::map_task(const MapperContext      ctx,
                               MapTaskOutput&     output)
 //--------------------------------------------------------------------------
 {
+  Processor::Kind target_kind = task.target_proc.kind();
+  printf("mapper on %s got task with target_proc %s\n", processorKindString(local_proc.kind()), processorKindString(target_kind));
+  fflush(stdout);
   VariantInfo chosen = default_find_preferred_variant(task, ctx,
-                                                      true/*needs tight bound*/, false/*cache*/, Processor::NO_KIND);
+                                                      true/*needs tight bound*/, false/*cache*/, target_kind);
   output.chosen_variant = chosen.variant;
   output.task_priority = 0;
   output.postmap_task = false;
@@ -1361,6 +1371,9 @@ void LifelineMapper::map_task(const MapperContext      ctx,
   std::vector<Processor> procsToInsert;
   switch(local_proc.kind()) {
     case Processor::LOC_PROC:
+      procsToInsert = local_cpus;
+      break;
+    case Processor::TOC_PROC:
       procsToInsert = local_cpus;
       break;
     case Processor::IO_PROC:
@@ -1416,6 +1429,9 @@ Legion::Processor LifelineMapper::nearestProcessor(unsigned kind)
   switch(kind) {
     case LOC_PROC:
       return nearestLOCProc;
+      break;
+    case TOC_PROC:
+      return nearestTOCProc;
       break;
     case IO_PROC:
       return nearestIOProc;
@@ -1539,7 +1555,8 @@ static void create_mappers(Machine machine, HighLevelRuntime *runtime, const std
   new std::map<Memory, std::vector<Processor> >();
   std::map<Processor, Memory>* proc_sysmems = new std::map<Processor, Memory>();
   std::map<Processor, Memory>* proc_regmems = new std::map<Processor, Memory>();
-  
+  std::map<Processor, Memory>* proc_fbmems = new std::map<Processor, Memory>();
+
   std::vector<Machine::ProcessorMemoryAffinity> proc_mem_affinities;
   machine.get_proc_mem_affinity(proc_mem_affinities);
   
@@ -1556,12 +1573,22 @@ static void create_mappers(Machine machine, HighLevelRuntime *runtime, const std
       else if (affinity.m.kind() == Memory::REGDMA_MEM)
         (*proc_regmems)[affinity.p] = affinity.m;
     }
+    if (affinity.p.kind() == Processor::TOC_PROC) {
+      if (affinity.m.kind() == Memory::GPU_FB_MEM) {
+        (*proc_fbmems)[affinity.p] = affinity.m;
+      }
+    }
   }
   
   for (std::map<Processor, Memory>::iterator it = proc_sysmems->begin();
        it != proc_sysmems->end(); ++it) {
     procs_list->push_back(it->first);
     (*sysmem_local_procs)[it->second].push_back(it->first);
+  }
+
+  for (std::map<Processor, Memory>::iterator it = proc_fbmems->begin();
+       it != proc_fbmems->end(); ++it) {
+    procs_list->push_back(it->first);
   }
   
   for (std::map<Memory, std::vector<Processor> >::iterator it =
