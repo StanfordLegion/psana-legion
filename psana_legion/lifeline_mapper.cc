@@ -177,7 +177,6 @@ private:
   void select_steal_targets(const MapperContext         ctx,
                             const SelectStealingInput&  input,
                             SelectStealingOutput& output);
-  Memory get_associated_sysmem(Processor proc);
   void map_task_array(const MapperContext ctx,
                       LogicalRegion region,
                       Memory target,
@@ -1271,24 +1270,6 @@ void LifelineMapper::select_steal_targets(const MapperContext         ctx,
   maybeGetMoreTasks(ctx);
 }
 
-
-//------------------------------------------------------------------------------
-Memory LifelineMapper::get_associated_sysmem(Processor proc)
-//------------------------------------------------------------------------------
-{
-  std::map<Processor,Memory>::const_iterator finder =
-  proc_sysmems.find(proc);
-  if (finder != proc_sysmems.end())
-    return finder->second;
-  Machine::MemoryQuery sysmem_query(machine);
-  sysmem_query.same_address_space_as(proc);
-  sysmem_query.only_kind(Memory::SYSTEM_MEM);
-  Memory result = sysmem_query.first();
-  assert(result.exists());
-  proc_sysmems[proc] = result;
-  return result;
-}
-
 //--------------------------------------------------------------------------
 void LifelineMapper::map_task_array(const MapperContext ctx,
                                     LogicalRegion region,
@@ -1374,7 +1355,7 @@ void LifelineMapper::map_task(const MapperContext      ctx,
       procsToInsert = local_cpus;
       break;
     case Processor::TOC_PROC:
-      procsToInsert = local_cpus;
+      procsToInsert.push_back(task.target_proc); // Can't make a processor group with GPUs
       break;
     case Processor::IO_PROC:
       procsToInsert = local_ios;
@@ -1384,8 +1365,9 @@ void LifelineMapper::map_task(const MapperContext      ctx,
       break;
     default: log_lifeline_mapper.fatal("mapping a task onto processor type %d", local_proc.kind());
   }
+  output.target_procs.clear();
   output.target_procs.insert(output.target_procs.end(), procsToInsert.begin(), procsToInsert.end());
-  
+
   if(task.orig_proc.id == local_proc.id) {
     
     mappedSelfGeneratedTaskCount++;
@@ -1413,7 +1395,9 @@ void LifelineMapper::map_task(const MapperContext      ctx,
   for (unsigned idx = 0; idx < task.regions.size(); idx++) {
     if (task.regions[idx].privilege == NO_ACCESS)
       continue;
-    Memory target_mem = get_associated_sysmem(task.target_proc);
+    Memory target_mem = default_policy_select_target_memory(ctx,
+                                                            task.target_proc,
+                                                            task.regions[idx]);
     map_task_array(ctx, task.regions[idx].region, target_mem,
                    output.chosen_instances[idx]);
   }
