@@ -39,7 +39,7 @@ conda install -y legion -c file://`pwd`/channels/external # --override-channels
 # Build
 git clone https://github.com/slac-lcls/lcls2.git
 pushd lcls2
-./build_python3_light.sh
+./build_all.sh -d -p install
 export PYTHONPATH=$PWD/install/lib/python3.6/site-packages:$PYTHONPATH
 pytest psana/psana/tests
 popd
