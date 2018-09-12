@@ -11,6 +11,13 @@ export CXX=g++
 export CONDA_PREFIX=$PWD/conda
 export REL_DIR=\$CONDA_PREFIX/myrel
 export PATH=\$CONDA_PREFIX/bin:\$PATH
+
+if [[ -d \$REL_DIR ]]; then
+  source activate \$REL_DIR
+fi
+
+export LCLS2_DIR=$PWD/lcls2
+export PYTHONPATH=\$LCLS2_DIR/install/lib/python3.6/site-packages:\$PYTHONPATH
 EOF
 
 source env.sh
@@ -37,9 +44,8 @@ conda build relmanage/recipes/legion/ --output-folder channels/external/ --pytho
 conda install -y legion -c file://`pwd`/channels/external # --override-channels
 
 # Build
-git clone https://github.com/slac-lcls/lcls2.git
-pushd lcls2
+git clone https://github.com/slac-lcls/lcls2.git "$LCLS2_DIR"
+pushd "$LCLS2_DIR"
 ./build_all.sh -d -p install
-export PYTHONPATH=$PWD/install/lib/python3.6/site-packages:$PYTHONPATH
 pytest psana/psana/tests
 popd
