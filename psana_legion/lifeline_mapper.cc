@@ -511,7 +511,7 @@ void LifelineMapper::handleOneStealRequest(const MapperContext ctx,
   while(r.numTasks > 0 && it != worker_ready_queue.end()) {
     const Task* task = *it;
     
-    if(task->target_proc.kind() == r.thiefProc.kind() && isAnalysisTask(*task)) {
+    if(isAnalysisTask(*task)) {
       tasks.push_back(task);
       relocated_tasks.insert(task);
       r.numTasks--;
@@ -830,11 +830,12 @@ void LifelineMapper::identifyRelatedProcs()
   unsigned localProcIndex;
   getStealAndNearestProcs(localProcIndex);
   
-#if 1
-  if(steal_target_procs.size() > 0) {
-#else
-  if(steal_target_procs.size() > 1) {
-#endif
+  if(steal_target_procs.size() == 1) {
+    lifeline_neighbor_procs.push_back(steal_target_procs[0]);
+    log_lifeline_mapper.info("%s lifeline to %s",
+                             prolog(__FUNCTION__, __LINE__).c_str(),
+                             describeProcId(steal_target_procs[0].id).c_str());
+  } else if(steal_target_procs.size() > 1) {
     unsigned maxProcId = pow(2.0, (unsigned)log2(steal_target_procs.size() - 1) + 1);
     unsigned numIdBits = (unsigned)log2(maxProcId);
     
