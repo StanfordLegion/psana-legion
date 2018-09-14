@@ -19,6 +19,7 @@
 
 #include <stdint.h>
 #include <inttypes.h>
+#include <unistd.h>
 
 using namespace Legion;
 
@@ -79,5 +80,6 @@ int64_t gpu_sum_task(const Task *task,
 
   int64_t sum = result;
   printf("gpu sum is %" PRId64 "\n", sum);
+  sleep(0.1);
   return sum;
 }
