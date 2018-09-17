@@ -264,8 +264,9 @@ proc_sysmems(*_proc_sysmems)
 // proc_regmems(*_proc_regmems)
 //--------------------------------------------------------------------------
 {
-  log_lifeline_mapper.debug("%s proc_sysmems.size %ld",
+  log_lifeline_mapper.debug("%s pid %d proc_sysmems.size %ld",
                              prolog(__FUNCTION__, __LINE__).c_str(),
+                             getpid(),
                              proc_sysmems.size());
 
   identifyRelatedProcs();
@@ -772,46 +773,54 @@ void LifelineMapper::getStealAndNearestProcs(unsigned& localProcIndex)
   for(std::vector<Processor>::iterator it = procs_list.begin();
       it != procs_list.end(); it++) {
     Processor processor = *it;
+    unsigned nodeId = (processor.id >> 40) & 0xffff;
     
-    switch(processor.kind()) {
-      case LOC_PROC:
-        if(!nearestLOCProc.exists() || !sawLocalProc) {
-          nearestLOCProc = processor;
-        }
-        break;
-      case TOC_PROC:
-        if(!nearestTOCProc.exists() || !sawLocalProc) {
-          nearestTOCProc = processor;
-        }
-        break;
-      case IO_PROC:
-        if(!nearestIOProc.exists() || !sawLocalProc) {
-          nearestIOProc = processor;
-        }
-        break;
-      case PY_PROC:
-        if(!nearestPYProc.exists() || !sawLocalProc) {
-          nearestPYProc = processor;
-        }
-        break;
-      default: assert(false);
-    }
+    if(nodeId > 0 || total_nodes == 1) {
 
-    bool isStealTarget = true;
-    if(local_proc.kind() == Processor::PY_PROC) {
-      isStealTarget = processor.kind() == local_proc.kind();
-    } else if(local_proc.kind() == Processor::LOC_PROC) {
-      isStealTarget = processor.kind() == Processor::TOC_PROC;
-    } else if(local_proc.kind() == Processor::TOC_PROC) {
-      isStealTarget = processor.kind() == Processor::LOC_PROC;
-    }
-
-    if(isStealTarget) {
-      if(processor == local_proc) {
-        localProcIndex = (unsigned)steal_target_procs.size();
-        sawLocalProc = true;
+log_lifeline_mapper.debug("%s nodeId %d total nodes %d nearest proc %s", prolog(__FUNCTION__, __LINE__).c_str(), nodeId, total_nodes, describeProcId(processor.id).c_str());
+      switch(processor.kind()) {
+        case LOC_PROC:
+          if(!nearestLOCProc.exists() || !sawLocalProc) {
+            nearestLOCProc = processor;
+          }
+          break;
+        case TOC_PROC:
+          if(!nearestTOCProc.exists() || !sawLocalProc) {
+            nearestTOCProc = processor;
+          }
+          break;
+        case IO_PROC:
+          if(!nearestIOProc.exists() || !sawLocalProc) {
+            nearestIOProc = processor;
+          }
+          break;
+        case PY_PROC:
+          if(!nearestPYProc.exists() || !sawLocalProc) {
+            nearestPYProc = processor;
+          }
+          break;
+        default: assert(false);
       }
-      steal_target_procs.push_back(processor);
+    }
+
+    if(!isNodeZero()) {
+
+      bool isStealTarget = true;
+      if(local_proc.kind() == Processor::PY_PROC) {
+        isStealTarget = processor.kind() == local_proc.kind();
+      } else if(local_proc.kind() == Processor::LOC_PROC) {
+        isStealTarget = processor.kind() == Processor::TOC_PROC;
+      } else if(local_proc.kind() == Processor::TOC_PROC) {
+        isStealTarget = processor.kind() == Processor::LOC_PROC;
+      }
+
+      if(isStealTarget) {
+        if(processor == local_proc) {
+          localProcIndex = (unsigned)steal_target_procs.size();
+          sawLocalProc = true;
+        }
+        steal_target_procs.push_back(processor);
+      }
     }
   }
   
@@ -1224,8 +1233,8 @@ void LifelineMapper::processNewReadyTasks(const SelectMappingInput&    input,
     const Task* task = *it;
     if(!alreadyQueued(task)) {
       bool mapHereNow = false;
+log_lifeline_mapper.debug("%s mapping herenow ? locallyRunningTaskCount %d isNodeZero %d", prolog(__FUNCTION__, __LINE__).c_str(), locallyRunningTaskCount(), isNodeZero());
       if(locallyRunningTaskCount() < minRunningTasks() && !isNodeZero()) {
-log_lifeline_mapper.debug("%s mapping because locallyRunningTaskCount %d isNodeZero %d", prolog(__FUNCTION__, __LINE__).c_str(), locallyRunningTaskCount(), isNodeZero());
         mapHereNow = true;
       } else if(!isAnalysisTask(*task)) {
         mapHereNow = true;
