@@ -152,6 +152,8 @@ private:
   bool isAnalysisTask(const Legion::Task& task);
   int minRunningTasks() const;
   bool isNodeZero() const;
+  static unsigned nodeId(long long procId);
+  static std::string describeProcId(long long procId);
 
   void configure_context(const MapperContext         ctx,
                          const Task&                 task,
@@ -243,13 +245,12 @@ private:
 };
 
 //--------------------------------------------------------------------------
-static std::string describeProcId(long long procId)
+std::string LifelineMapper::describeProcId(long long procId)
 //--------------------------------------------------------------------------
 {
   char buffer[128];
-  unsigned nodeId = procId >> 40;
   unsigned pId = procId & 0xffffffffff;
-  sprintf(buffer, "node %x proc %x", nodeId, pId);
+  sprintf(buffer, "node %x proc %x", nodeId(procId), pId);
   return std::string(buffer);
 }
 
@@ -309,14 +310,23 @@ proc_sysmems(*_proc_sysmems)
 
 
 //--------------------------------------------------------------------------
+unsigned LifelineMapper::nodeId(long long procId)
+//--------------------------------------------------------------------------
+{
+  unsigned nodeId = (procId >> 40) & 0xffff;
+  return nodeId;
+}
+
+
+//--------------------------------------------------------------------------
 void LifelineMapper::getNearestProcs(Processor processor, bool sawLocalProc)
 //--------------------------------------------------------------------------
 {
-  unsigned nodeId = (processor.id >> 40) & 0xffff;
   
-  if(nodeId > 0 || total_nodes == 1) {
+  if(nodeId(processor.id) > 0 || total_nodes == 1) {
     
-    log_lifeline_mapper.debug("%s nodeId %d total nodes %d nearest proc %s", prolog(__FUNCTION__, __LINE__).c_str(), nodeId, total_nodes, describeProcId(processor.id).c_str());
+    log_lifeline_mapper.debug("%s nodeId %d total nodes %d nearest proc %s", prolog(__FUNCTION__, __LINE__).c_str(), nodeId(processor.id), total_nodes, describeProcId(processor.id).c_str());
+    
     switch(processor.kind()) {
       case LOC_PROC:
         LOCProcs.push_back(processor);
@@ -354,12 +364,19 @@ void LifelineMapper::getStealProcs(Processor processor, bool& sawLocalProc, unsi
   if(!isNodeZero()) {
     
     bool isStealTarget = true;
+    // python procs can steal from each other
+    // LOC and TOC procs can steal from each other
     if(local_proc.kind() == Processor::PY_PROC) {
       isStealTarget = processor.kind() == local_proc.kind();
     } else if(local_proc.kind() == Processor::LOC_PROC) {
       isStealTarget = processor.kind() == Processor::TOC_PROC;
     } else if(local_proc.kind() == Processor::TOC_PROC) {
       isStealTarget = processor.kind() == Processor::LOC_PROC;
+    }
+    
+    // when running multi-node ignore node zero for stealing purposes
+    if(!isNodeZero() && nodeId(processor.id) == 0) {
+      isStealTarget = false;
     }
     
     if(isStealTarget) {
