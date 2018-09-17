@@ -91,6 +91,8 @@ private:
   std::vector<Processor> lifeline_neighbor_procs;
   std::vector<Processor> steal_target_procs;
   std::vector<Processor> active_lifelines;
+  std::vector<Processor> LOCProcs;
+  std::vector<Processor> TOCProcs;
   Processor nearestLOCProc;
   Processor nearestTOCProc;
   Processor nearestIOProc;
@@ -102,6 +104,8 @@ private:
   std::random_device rd;     // only used once to initialise (seed) engine
   std::mt19937 rng;
   std::uniform_int_distribution<int> uni;
+  std::uniform_int_distribution<int> uniLOC;
+  std::uniform_int_distribution<int> uniTOC;
   std::map<std::pair<LogicalRegion,Memory>,PhysicalInstance> local_instances;
   typedef long long Timestamp;
   
@@ -137,8 +141,11 @@ private:
   std::string workloadState() const;
   Timestamp timeNow() const;
   void getStealAndNearestProcs(unsigned& localProcIndex);
+  void getNearestProcs(Processor processor, bool sawLocalProc);
+  void getStealProcs(Processor processor, bool& sawLocalProc, unsigned& localProcIndex);
   void identifyRelatedProcs();
   Processor nearestProcessor(unsigned kind);
+  Processor randomProcessor(unsigned kind);
   std::string taskDescription(const Legion::Task& task);
   std::string prolog(const char* function, int line) const;
   char* processorKindString(unsigned kind) const;
@@ -273,6 +280,8 @@ proc_sysmems(*_proc_sysmems)
   
   rng = std::mt19937(rd());    // random-number engine used (Mersenne-Twister in this case)
   uni = std::uniform_int_distribution<int>(0, (int)steal_target_procs.size() - 1); // guaranteed unbiased
+  uniLOC = std::uniform_int_distribution<int>(0, (int)LOCProcs.size() - 1);
+  uniTOC = std::uniform_int_distribution<int>(0, (int)TOCProcs.size() - 1);
   runtime = rt;
   numUniqueIds = 0;
   stealRequestOutstanding = false;
@@ -297,6 +306,139 @@ proc_sysmems(*_proc_sysmems)
     sscanf("%d", env_p, &MIN_RUNNING_ANALYSIS_TASKS);
   }
 }
+
+
+//--------------------------------------------------------------------------
+void LifelineMapper::getNearestProcs(Processor processor, bool sawLocalProc)
+//--------------------------------------------------------------------------
+{
+  unsigned nodeId = (processor.id >> 40) & 0xffff;
+  
+  if(nodeId > 0 || total_nodes == 1) {
+    
+    log_lifeline_mapper.debug("%s nodeId %d total nodes %d nearest proc %s", prolog(__FUNCTION__, __LINE__).c_str(), nodeId, total_nodes, describeProcId(processor.id).c_str());
+    switch(processor.kind()) {
+      case LOC_PROC:
+        LOCProcs.push_back(processor);
+        if(!nearestLOCProc.exists() || !sawLocalProc) {
+          nearestLOCProc = processor;
+        }
+        break;
+      case TOC_PROC:
+        TOCProcs.push_back(processor);
+        if(!nearestTOCProc.exists() || !sawLocalProc) {
+          nearestTOCProc = processor;
+        }
+        break;
+      case IO_PROC:
+        if(!nearestIOProc.exists() || !sawLocalProc) {
+          nearestIOProc = processor;
+        }
+        break;
+      case PY_PROC:
+        if(!nearestPYProc.exists() || !sawLocalProc) {
+          nearestPYProc = processor;
+        }
+        break;
+      default: assert(false);
+    }
+  }
+
+}
+
+
+//--------------------------------------------------------------------------
+void LifelineMapper::getStealProcs(Processor processor, bool& sawLocalProc, unsigned& localProcIndex)
+//--------------------------------------------------------------------------
+{
+  if(!isNodeZero()) {
+    
+    bool isStealTarget = true;
+    if(local_proc.kind() == Processor::PY_PROC) {
+      isStealTarget = processor.kind() == local_proc.kind();
+    } else if(local_proc.kind() == Processor::LOC_PROC) {
+      isStealTarget = processor.kind() == Processor::TOC_PROC;
+    } else if(local_proc.kind() == Processor::TOC_PROC) {
+      isStealTarget = processor.kind() == Processor::LOC_PROC;
+    }
+    
+    if(isStealTarget) {
+      if(processor == local_proc) {
+        localProcIndex = (unsigned)steal_target_procs.size();
+        sawLocalProc = true;
+      }
+      steal_target_procs.push_back(processor);
+    }
+  }
+}
+
+//--------------------------------------------------------------------------
+void LifelineMapper::getStealAndNearestProcs(unsigned& localProcIndex)
+//--------------------------------------------------------------------------
+{
+  nearestLOCProc = Processor::NO_PROC;
+  nearestIOProc = Processor::NO_PROC;
+  nearestPYProc = Processor::NO_PROC;
+  bool sawLocalProc = false;
+  
+  log_lifeline_mapper.debug("%s procs_list.size %ld",
+                            prolog(__FUNCTION__, __LINE__).c_str(),
+                            procs_list.size());
+  
+  for(std::vector<Processor>::iterator it = procs_list.begin();
+      it != procs_list.end(); it++) {
+    Processor processor = *it;
+    getNearestProcs(processor, sawLocalProc);
+    getStealProcs(processor, sawLocalProc, localProcIndex);
+  }
+  
+  for(std::vector<Processor>::iterator it = steal_target_procs.begin();
+      it != steal_target_procs.end(); ++it) {
+    log_lifeline_mapper.debug("%s steal target %s",
+                              prolog(__FUNCTION__, __LINE__).c_str(),
+                              describeProcId(it->id).c_str());
+  }
+}
+
+//--------------------------------------------------------------------------
+void LifelineMapper::identifyRelatedProcs()
+//--------------------------------------------------------------------------
+{
+  unsigned localProcIndex;
+  getStealAndNearestProcs(localProcIndex);
+  
+  if(steal_target_procs.size() == 1) {
+    lifeline_neighbor_procs.push_back(steal_target_procs[0]);
+    log_lifeline_mapper.info("%s lifeline to %s",
+                             prolog(__FUNCTION__, __LINE__).c_str(),
+                             describeProcId(steal_target_procs[0].id).c_str());
+  } else if(steal_target_procs.size() > 1) {
+    unsigned maxProcId = pow(2.0, (unsigned)log2(steal_target_procs.size() - 1) + 1);
+    unsigned numIdBits = (unsigned)log2(maxProcId);
+    
+    log_lifeline_mapper.debug("%s maxProcId %u numIdBits %u steal_targets.size %ld",
+                              prolog(__FUNCTION__, __LINE__).c_str(),
+                              maxProcId, numIdBits, steal_target_procs.size());
+    
+    for(unsigned bit = 0; bit < numIdBits; bit++) {
+      unsigned mask = 1 << bit;
+      unsigned sourceBit = localProcIndex & mask;
+      unsigned modifiedBit = (!(sourceBit >> bit)) << bit;
+      unsigned localProcIndexNoBit = (localProcIndex & ~mask) & (maxProcId - 1);
+      unsigned targetProcIndex = localProcIndexNoBit | modifiedBit;
+      
+      if(targetProcIndex < steal_target_procs.size()) {
+        lifeline_neighbor_procs.push_back(steal_target_procs[targetProcIndex]);
+        
+        log_lifeline_mapper.info("%s lifeline to %s",
+                                 prolog(__FUNCTION__, __LINE__).c_str(),
+                                 describeProcId(steal_target_procs[targetProcIndex].id).c_str());
+      }
+    }
+  }
+}
+
+
 
 //--------------------------------------------------------------------------
 void LifelineMapper::configure_context(const MapperContext         ctx,
@@ -756,119 +898,6 @@ LifelineMapper::Timestamp LifelineMapper::timeNow() const
   return Realm::Clock::current_time_in_nanoseconds();
 }
 
-
-//--------------------------------------------------------------------------
-void LifelineMapper::getStealAndNearestProcs(unsigned& localProcIndex)
-//--------------------------------------------------------------------------
-{
-  nearestLOCProc = Processor::NO_PROC;
-  nearestIOProc = Processor::NO_PROC;
-  nearestPYProc = Processor::NO_PROC;
-  bool sawLocalProc = false;
-  
-  log_lifeline_mapper.debug("%s procs_list.size %ld",
-                            prolog(__FUNCTION__, __LINE__).c_str(),
-                            procs_list.size());
-  
-  for(std::vector<Processor>::iterator it = procs_list.begin();
-      it != procs_list.end(); it++) {
-    Processor processor = *it;
-    unsigned nodeId = (processor.id >> 40) & 0xffff;
-    
-    if(nodeId > 0 || total_nodes == 1) {
-
-log_lifeline_mapper.debug("%s nodeId %d total nodes %d nearest proc %s", prolog(__FUNCTION__, __LINE__).c_str(), nodeId, total_nodes, describeProcId(processor.id).c_str());
-      switch(processor.kind()) {
-        case LOC_PROC:
-          if(!nearestLOCProc.exists() || !sawLocalProc) {
-            nearestLOCProc = processor;
-          }
-          break;
-        case TOC_PROC:
-          if(!nearestTOCProc.exists() || !sawLocalProc) {
-            nearestTOCProc = processor;
-          }
-          break;
-        case IO_PROC:
-          if(!nearestIOProc.exists() || !sawLocalProc) {
-            nearestIOProc = processor;
-          }
-          break;
-        case PY_PROC:
-          if(!nearestPYProc.exists() || !sawLocalProc) {
-            nearestPYProc = processor;
-          }
-          break;
-        default: assert(false);
-      }
-    }
-
-    if(!isNodeZero()) {
-
-      bool isStealTarget = true;
-      if(local_proc.kind() == Processor::PY_PROC) {
-        isStealTarget = processor.kind() == local_proc.kind();
-      } else if(local_proc.kind() == Processor::LOC_PROC) {
-        isStealTarget = processor.kind() == Processor::TOC_PROC;
-      } else if(local_proc.kind() == Processor::TOC_PROC) {
-        isStealTarget = processor.kind() == Processor::LOC_PROC;
-      }
-
-      if(isStealTarget) {
-        if(processor == local_proc) {
-          localProcIndex = (unsigned)steal_target_procs.size();
-          sawLocalProc = true;
-        }
-        steal_target_procs.push_back(processor);
-      }
-    }
-  }
-  
-  for(std::vector<Processor>::iterator it = steal_target_procs.begin();
-      it != steal_target_procs.end(); ++it) {
-    log_lifeline_mapper.debug("%s steal target %s",
-                              prolog(__FUNCTION__, __LINE__).c_str(),
-                              describeProcId(it->id).c_str());
-  }
-}
-
-//--------------------------------------------------------------------------
-void LifelineMapper::identifyRelatedProcs()
-//--------------------------------------------------------------------------
-{
-  unsigned localProcIndex;
-  getStealAndNearestProcs(localProcIndex);
-  
-  if(steal_target_procs.size() == 1) {
-    lifeline_neighbor_procs.push_back(steal_target_procs[0]);
-    log_lifeline_mapper.info("%s lifeline to %s",
-                             prolog(__FUNCTION__, __LINE__).c_str(),
-                             describeProcId(steal_target_procs[0].id).c_str());
-  } else if(steal_target_procs.size() > 1) {
-    unsigned maxProcId = pow(2.0, (unsigned)log2(steal_target_procs.size() - 1) + 1);
-    unsigned numIdBits = (unsigned)log2(maxProcId);
-    
-    log_lifeline_mapper.debug("%s maxProcId %u numIdBits %u steal_targets.size %ld",
-                              prolog(__FUNCTION__, __LINE__).c_str(),
-                              maxProcId, numIdBits, steal_target_procs.size());
-    
-    for(unsigned bit = 0; bit < numIdBits; bit++) {
-      unsigned mask = 1 << bit;
-      unsigned sourceBit = localProcIndex & mask;
-      unsigned modifiedBit = (!(sourceBit >> bit)) << bit;
-      unsigned localProcIndexNoBit = (localProcIndex & ~mask) & (maxProcId - 1);
-      unsigned targetProcIndex = localProcIndexNoBit | modifiedBit;
-      
-      if(targetProcIndex < steal_target_procs.size()) {
-        lifeline_neighbor_procs.push_back(steal_target_procs[targetProcIndex]);
-        
-        log_lifeline_mapper.info("%s lifeline to %s",
-                                 prolog(__FUNCTION__, __LINE__).c_str(),
-                                 describeProcId(steal_target_procs[targetProcIndex].id).c_str());
-      }
-    }
-  }
-}
 
 //--------------------------------------------------------------------------
 std::string LifelineMapper::taskDescription(const Legion::Task& task)
@@ -1507,6 +1536,25 @@ Legion::Processor LifelineMapper::nearestProcessor(unsigned kind)
 }
 //--------------------------------------------------------------------------
 
+//--------------------------------------------------------------------------
+Legion::Processor LifelineMapper::randomProcessor(unsigned kind)
+//--------------------------------------------------------------------------
+{
+  
+  switch(kind) {
+    case LOC_PROC:
+      return LOCProcs[uniLOC(rng)];
+      break;
+    case TOC_PROC:
+      return TOCProcs[uniTOC(rng)];
+      break;
+    case PY_PROC:
+      return nearestProcessor(kind);
+      break;
+    default: assert(false);
+  }
+  
+}
 
 //--------------------------------------------------------------------------
 void LifelineMapper::assignTaskId(const MapperContext    ctx,
@@ -1539,7 +1587,7 @@ void LifelineMapper::select_task_options(const MapperContext    ctx,
     selfGeneratedTaskCount++;
   } else {
     sendRelocateTaskInfo = true;
-    initial_proc = nearestProcessor(variantInfo.proc_kind);
+    initial_proc = randomProcessor(variantInfo.proc_kind);
   }
   
   assert(initial_proc.exists());
