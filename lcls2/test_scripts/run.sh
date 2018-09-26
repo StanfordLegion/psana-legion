@@ -6,6 +6,8 @@ root_dir="$(dirname "${BASH_SOURCE[0]}")"
 export PYTHONPATH="$PYTHONPATH:$root_dir"
 export PS_PARALLEL=legion
 
+export LIMIT=10
+
 if [[ ! -d .tmp ]]; then
     echo "The .tmp directory does not exist. Please run:"
     echo

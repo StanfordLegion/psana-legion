@@ -21,14 +21,16 @@ import os
 import psana
 from psana import DataSource
 
-def filter(evt):
-    return True
+limit = int(os.environ['LIMIT']) if 'LIMIT' in os.environ else None
 
 # To test on 'real' bigdata:
 # xtc_dir = "/reg/d/psdm/xpp/xpptut15/scratch/mona/test"
 xtc_dir = os.path.join(os.getcwd(),'.tmp')
-print(xtc_dir)
-ds = DataSource('exp=xpptut13:run=1:dir=%s'%(xtc_dir), filter=filter, max_events=10, det_name='xppcspad')
+ds = DataSource('exp=xpptut13:run=1:dir=%s'%(xtc_dir), max_events=limit, det_name='xppcspad')
+
+# FIXME: For some reason we need this loop, even though we're not going to do any analysis inside.
+for run in ds.runs():
+    det = ds.Detector(ds.det_name)
 
 def event_fn(event):
     print('Analyzing event', event)
