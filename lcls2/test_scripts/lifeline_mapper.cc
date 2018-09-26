@@ -579,6 +579,8 @@ bool LifelineMapper::maybeGetLocalTasks(MapperContext ctx)
 Processor LifelineMapper::stealTargetProcessor()
 //--------------------------------------------------------------------------
 {
+  if (steal_target_procs.empty())
+    return Processor::NO_PROC;
   Processor target = steal_target_procs[uni(rng)];
   while(target.id == local_proc.id) {
     target = steal_target_procs[uni(rng)];
@@ -597,7 +599,9 @@ void LifelineMapper::stealTasks(MapperContext ctx, Processor target)
       if(target == Processor::NO_PROC) {
         target = stealTargetProcessor();
       }
-      sendStealRequest(ctx, target);
+      if(target != Processor::NO_PROC) {
+	sendStealRequest(ctx, target);
+      }
     } else {
       log_lifeline_mapper.debug("%s not stealing because request outstanding",
                                 prolog(__FUNCTION__, __LINE__).c_str());
@@ -1673,7 +1677,7 @@ void LifelineMapper::premap_task(const MapperContext      ctx,
 
 
 
-static void create_mappers(Machine machine, HighLevelRuntime *runtime, const std::set<Processor> &local_procs)
+static void create_mappers(Machine machine, Runtime *runtime, const std::set<Processor> &local_procs)
 {
   std::vector<Processor>* procs_list = new std::vector<Processor>();
   std::vector<Memory>* sysmems_list = new std::vector<Memory>();
@@ -1735,8 +1739,24 @@ static void create_mappers(Machine machine, HighLevelRuntime *runtime, const std
   }
 }
 
-void register_lifeline_mapper()
+void preregister_lifeline_mapper()
 {
-  HighLevelRuntime::add_registration_callback(create_mappers);
+  Runtime::add_registration_callback(create_mappers);
 }
 
+void register_lifeline_mapper()
+{
+  Runtime *runtime = Runtime::get_runtime();
+  Machine machine = Machine::get_machine();
+  Machine::ProcessorQuery query(machine);
+  query.local_address_space();
+  std::set<Processor> local_procs(query.begin(), query.end());
+  for(auto it = local_procs.begin(); it != local_procs.end(); ) {
+    if (it->kind() == Processor::UTIL_PROC) {
+      it = local_procs.erase(it);
+    } else {
+      ++it;
+    }
+  }
+  create_mappers(machine, runtime, local_procs);
+}

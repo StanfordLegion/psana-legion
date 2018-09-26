@@ -22,7 +22,9 @@
 extern "C" {
 #endif
   
-  void register_lifeline_mapper();
+void preregister_lifeline_mapper();
+
+void register_lifeline_mapper();
   
 #ifdef __cplusplus
 }
