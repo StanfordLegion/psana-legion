@@ -13,9 +13,11 @@
  * limitations under the License.
  */
 
-#include "legion.h"
+#include "native_kernels_tasks.h"
 
 #include "native_kernels.h"
+
+#include "legion.h"
 
 #include <cstdint>
 #include <cinttypes>
@@ -61,7 +63,7 @@ int64_t gpu_sum_task(const Task *task,
                      Context ctx, Runtime *runtime);
 #endif
 
-void register_native_kernels_tasks(int memory_bound_task_id,
+void preregister_native_kernels_tasks(int memory_bound_task_id,
                                    int cache_bound_task_id,
                                    int sum_task_id)
 {
@@ -88,6 +90,42 @@ void register_native_kernels_tasks(int memory_bound_task_id,
     TaskVariantRegistrar registrar(sum_task_id, "sum_task");
     registrar.add_constraint(ProcessorConstraint(Processor::TOC_PROC));
     Runtime::preregister_task_variant<int64_t, gpu_sum_task>(registrar, "sum_task");
+  }
+#endif
+}
+
+void register_native_kernels_tasks(int memory_bound_task_id,
+                                   int cache_bound_task_id,
+                                   int sum_task_id)
+{
+  Runtime *runtime = Runtime::get_runtime();
+
+  {
+    TaskVariantRegistrar registrar(memory_bound_task_id, "memory_bound_task");
+    registrar.add_constraint(ProcessorConstraint(Processor::LOC_PROC));
+    runtime->register_task_variant<memory_bound_task>(registrar);
+    runtime->attach_name(memory_bound_task_id, "memory_bound_task");
+  }
+
+  {
+    TaskVariantRegistrar registrar(cache_bound_task_id, "cache_bound_task");
+    registrar.add_constraint(ProcessorConstraint(Processor::LOC_PROC));
+    runtime->register_task_variant<cache_bound_task>(registrar);
+    runtime->attach_name(cache_bound_task_id, "cache_bound_task");
+  }
+
+  {
+    TaskVariantRegistrar registrar(sum_task_id, "sum_task");
+    registrar.add_constraint(ProcessorConstraint(Processor::LOC_PROC));
+    runtime->register_task_variant<int64_t, sum_task>(registrar);
+    runtime->attach_name(sum_task_id, "sum_task");
+  }
+
+#ifdef USE_CUDA
+  {
+    TaskVariantRegistrar registrar(sum_task_id, "sum_task");
+    registrar.add_constraint(ProcessorConstraint(Processor::TOC_PROC));
+    runtime->register_task_variant<int64_t, gpu_sum_task>(registrar);
   }
 #endif
 }

@@ -16,8 +16,20 @@
 #ifndef __NATIVE_KERNELS_TASKS_H__
 #define __NATIVE_KERNELS_TASKS_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+void preregister_native_kernels_tasks(int memory_bound_task_id,
+				      int cache_bound_task_id,
+				      int sum_task_id);
+
 void register_native_kernels_tasks(int memory_bound_task_id,
                                    int cache_bound_task_id,
                                    int sum_task_id);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // __NATIVE_KERNELS_TASKS_H__

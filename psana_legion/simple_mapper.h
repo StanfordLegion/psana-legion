@@ -16,6 +16,8 @@
 #ifndef __SIMPLE_MAPPER_H__
 #define __SIMPLE_MAPPER_H__
 
+void preregister_simple_mapper();
+
 void register_simple_mapper();
 
 #endif // __SIMPLE_MAPPER_H__
