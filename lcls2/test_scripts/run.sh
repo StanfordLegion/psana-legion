@@ -4,6 +4,7 @@ set -e
 
 root_dir="$(dirname "${BASH_SOURCE[0]}")"
 export PYTHONPATH="$PYTHONPATH:$root_dir"
+export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$root_dir/build"
 export PS_PARALLEL=legion
 
 export LIMIT=10

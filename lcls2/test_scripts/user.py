@@ -17,9 +17,32 @@
 
 from __future__ import print_function
 
+import cffi
+import legion
 import os
-import psana
+import subprocess
+
 from psana import DataSource
+
+root_dir = os.path.dirname(os.path.realpath(__file__))
+native_kernels_h_path = os.path.join(root_dir, 'native_kernels_tasks.h')
+native_kernels_so_path = os.path.join(root_dir, 'build', 'libnative_kernels.so')
+header = subprocess.check_output(['gcc', '-E', '-P', native_kernels_h_path]).decode('utf-8')
+
+ffi = cffi.FFI()
+ffi.cdef(header)
+c = ffi.dlopen(native_kernels_so_path)
+
+memory_bound_task_id = 101
+cache_bound_task_id = 102
+sum_task_id = 103
+c.register_native_kernels_tasks(memory_bound_task_id,
+                                cache_bound_task_id,
+                                sum_task_id)
+
+memory_bound_task = legion.extern_task(task_id=memory_bound_task_id)
+cache_bound_task = legion.extern_task(task_id=cache_bound_task_id)
+sum_task = legion.extern_task(task_id=sum_task_id)
 
 limit = int(os.environ['LIMIT']) if 'LIMIT' in os.environ else None
 
@@ -34,4 +57,5 @@ for run in ds.runs():
 
 def event_fn(event):
     print('Analyzing event', event)
+    memory_bound_task()
 ds.analyze(event_fn=event_fn)
