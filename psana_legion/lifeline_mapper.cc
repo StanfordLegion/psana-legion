@@ -579,6 +579,8 @@ bool LifelineMapper::maybeGetLocalTasks(MapperContext ctx)
 Processor LifelineMapper::stealTargetProcessor()
 //--------------------------------------------------------------------------
 {
+  if (steal_target_procs.empty())
+    return Processor::NO_PROC;
   Processor target = steal_target_procs[uni(rng)];
   while(target.id == local_proc.id) {
     target = steal_target_procs[uni(rng)];
@@ -597,7 +599,9 @@ void LifelineMapper::stealTasks(MapperContext ctx, Processor target)
       if(target == Processor::NO_PROC) {
         target = stealTargetProcessor();
       }
-      sendStealRequest(ctx, target);
+      if(target != Processor::NO_PROC) {
+	sendStealRequest(ctx, target);
+      }
     } else {
       log_lifeline_mapper.debug("%s not stealing because request outstanding",
                                 prolog(__FUNCTION__, __LINE__).c_str());
