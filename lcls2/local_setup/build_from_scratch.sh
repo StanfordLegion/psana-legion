@@ -41,12 +41,14 @@ rm Miniconda3-latest-Linux-x86_64.sh
 conda update -y conda
 conda install -y conda-build # Must be installed in root environment
 # conda create -y -p $REL_PREFIX python=$PYVER cmake h5py ipython numpy cython nose
-conda env create -p $REL_PREFIX -f relmanage/env_create.yaml
+sed s/PYTHONVER/$PYVER/ relmanage/env_create.yaml > temp_env_create.yaml
+conda env create -p $REL_PREFIX -f temp_env_create.yaml
 source activate $REL_PREFIX
 
-# # Install Legion.
-# conda build relmanage/recipes/legion/ --output-folder channels/external/
-# conda install -y legion -c file://`pwd`/channels/external # --override-channels
+# Install Legion.
+conda build relmanage/recipes/legion/ --output-folder channels/external/
+conda remove -y legion
+conda install -y legion -c file://`pwd`/channels/external --override-channels
 
 # Build psana.
 git clone https://github.com/slac-lcls/lcls2.git $LCLS2_PREFIX
