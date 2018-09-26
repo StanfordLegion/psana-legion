@@ -1531,7 +1531,7 @@ void LifelineMapper::premap_task(const MapperContext      ctx,
 
 
 
-static void create_mappers(Machine machine, HighLevelRuntime *runtime, const std::set<Processor> &local_procs)
+static void create_mappers(Machine machine, Runtime *runtime, const std::set<Processor> &local_procs)
 {
   std::vector<Processor>* procs_list = new std::vector<Processor>();
   std::vector<Memory>* sysmems_list = new std::vector<Memory>();
@@ -1582,8 +1582,24 @@ static void create_mappers(Machine machine, HighLevelRuntime *runtime, const std
   }
 }
 
-void register_lifeline_mapper()
+void preregister_lifeline_mapper()
 {
-  HighLevelRuntime::add_registration_callback(create_mappers);
+  Runtime::add_registration_callback(create_mappers);
 }
 
+void register_lifeline_mapper()
+{
+  Runtime *runtime = Runtime::get_runtime();
+  Machine machine = Machine::get_machine();
+  Machine::ProcessorQuery query(machine);
+  query.local_address_space();
+  std::set<Processor> local_procs(query.begin(), query.end());
+  for(auto it = local_procs.begin(); it != local_procs.end(); ) {
+    if (it->kind() == Processor::UTIL_PROC) {
+      it = local_procs.erase(it);
+    } else {
+      ++it;
+    }
+  }
+  create_mappers(machine, runtime, local_procs);
+}
