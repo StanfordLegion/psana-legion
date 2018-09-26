@@ -25,7 +25,7 @@ import subprocess
 from psana import DataSource
 
 root_dir = os.path.dirname(os.path.realpath(__file__))
-native_kernels_h_path = os.path.join(root_dir, 'native_kernels_tasks.h')
+native_kernels_h_path = os.path.join(os.path.dirname(os.path.dirname(root_dir)), 'psana_legion', 'native_kernels_tasks.h')
 native_kernels_so_path = os.path.join(root_dir, 'build', 'libnative_kernels.so')
 header = subprocess.check_output(['gcc', '-E', '-P', native_kernels_h_path]).decode('utf-8')
 
