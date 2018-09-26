@@ -46,7 +46,7 @@ conda env create -p $REL_PREFIX -f temp_env_create.yaml
 source activate $REL_PREFIX
 
 # Install Legion.
-conda build relmanage/recipes/legion/ --output-folder channels/external/
+conda build relmanage/recipes/legion/ --output-folder channels/external/ --python $PYVER
 conda remove -y legion
 conda install -y legion -c file://`pwd`/channels/external --override-channels
 
