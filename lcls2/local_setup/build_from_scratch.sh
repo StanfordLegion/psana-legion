@@ -2,8 +2,8 @@
 
 set -e
 
-if [[ -z $CC || -z $CXX || ! $($CC --version) = *" 7."* || ! $($CXX --version) = *" 7."* ]]; then
-    echo "GCC 7 is required to build"
+if [[ -z $CC || -z $CXX || ! $($CC --version) = *" 6."* || ! $($CXX --version) = *" 6."* ]]; then
+    echo "GCC 6x is required to build"
     echo "Please set CC/CXX to the right version and run again"
     exit 1
 fi
