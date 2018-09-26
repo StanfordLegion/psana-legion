@@ -20,6 +20,10 @@
 extern "C" {
 #endif
 
+void preregister_native_kernels_tasks(int memory_bound_task_id,
+				      int cache_bound_task_id,
+				      int sum_task_id);
+
 void register_native_kernels_tasks(int memory_bound_task_id,
                                    int cache_bound_task_id,
                                    int sum_task_id);
