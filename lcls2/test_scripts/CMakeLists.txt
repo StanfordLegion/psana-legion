@@ -9,5 +9,10 @@ list(APPEND NATIVE_KERNELS_SRC
   ../../psana_legion/native_kernels_tasks.cc  ../../psana_legion/native_kernels_tasks.h
 )
 
+# FIXME: Lifeline mapper is replicated locally for now.
+list(APPEND NATIVE_KERNELS_SRC
+  lifeline_mapper.cc lifeline_mapper.h
+)
+
 add_library(native_kernels SHARED ${NATIVE_KERNELS_SRC})
 target_link_libraries(native_kernels Legion::Legion)

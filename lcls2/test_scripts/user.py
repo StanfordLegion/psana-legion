@@ -26,11 +26,14 @@ from psana import DataSource
 
 root_dir = os.path.dirname(os.path.realpath(__file__))
 native_kernels_h_path = os.path.join(os.path.dirname(os.path.dirname(root_dir)), 'psana_legion', 'native_kernels_tasks.h')
+lifeline_mapper_h_path = os.path.join('lifeline_mapper.h')
 native_kernels_so_path = os.path.join(root_dir, 'build', 'libnative_kernels.so')
-header = subprocess.check_output(['gcc', '-E', '-P', native_kernels_h_path]).decode('utf-8')
+native_kernels_header = subprocess.check_output(['gcc', '-E', '-P', native_kernels_h_path]).decode('utf-8')
+lifeline_mapper_header = subprocess.check_output(['gcc', '-E', '-P', lifeline_mapper_h_path]).decode('utf-8')
 
 ffi = cffi.FFI()
-ffi.cdef(header)
+ffi.cdef(native_kernels_header)
+ffi.cdef(lifeline_mapper_header)
 c = ffi.dlopen(native_kernels_so_path)
 
 memory_bound_task_id = 101
@@ -43,6 +46,8 @@ c.register_native_kernels_tasks(memory_bound_task_id,
 memory_bound_task = legion.extern_task(task_id=memory_bound_task_id)
 cache_bound_task = legion.extern_task(task_id=cache_bound_task_id)
 sum_task = legion.extern_task(task_id=sum_task_id)
+
+c.register_lifeline_mapper()
 
 limit = int(os.environ['LIMIT']) if 'LIMIT' in os.environ else None
 
