@@ -3,8 +3,14 @@
 set -e
 
 if [[ -z $CC || -z $CXX || ! $($CC --version) = *" 6."* || ! $($CXX --version) = *" 6."* ]]; then
-    echo "GCC 6x is required to build"
+    echo "GCC 6.x is required to build"
     echo "Please set CC/CXX to the right version and run again"
+    exit 1
+fi
+
+
+if [[ -z $USE_CUDA ]]; then
+    echo "Please set USE_CUDA and run again"
     exit 1
 fi
 
@@ -12,6 +18,9 @@ fi
 cat > env.sh <<EOF
 export CC=$CC
 export CXX=$CXX
+
+export USE_CUDA=$USE_CUDA
+export USE_GASNET=0
 
 export CONDA_PREFIX=$PWD/conda
 export REL_PREFIX=\$CONDA_PREFIX/myrel
