@@ -5,6 +5,7 @@ set -e
 # Setup environment
 cat > env.sh <<EOF
 module load gcc/7.1.1-20170802
+module load cuda/9.0.69
 export CC=gcc
 export CXX=g++
 
