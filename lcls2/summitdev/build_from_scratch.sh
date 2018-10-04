@@ -25,13 +25,13 @@ export LCLS2_DIR=$PWD/lcls2
 export PYTHONPATH=\$LCLS2_DIR/install/lib/python3.6/site-packages:\$PYTHONPATH
 EOF
 
-source env.sh
-
 # Clean up any previous installs
-rm -rf $CONDA_PREFIX
+rm -rf conda
 rm -rf channels
 rm -rf relmanage
 rm -rf lcls2
+
+source env.sh
 
 # Install Conda environment
 wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-ppc64le.sh
