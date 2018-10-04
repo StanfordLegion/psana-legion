@@ -9,7 +9,7 @@ module load cuda/9.0.69
 export CC=gcc
 export CXX=g++
 
-export USE_GASNET=0
+export USE_GASNET=1
 export USE_CUDA=1
 export CONDUIT=ibv
 export GASNET_NUM_QPS=1 # FIXME: https://upc-bugs.lbl.gov/bugzilla/show_bug.cgi?id=3447
