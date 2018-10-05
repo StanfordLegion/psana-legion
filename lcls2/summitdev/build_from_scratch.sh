@@ -5,8 +5,14 @@ set -e
 # Setup environment
 cat > env.sh <<EOF
 module load gcc/7.1.1-20170802
+module load cuda/9.0.69
 export CC=gcc
 export CXX=g++
+
+export USE_GASNET=1
+export USE_CUDA=1
+export CONDUIT=ibv
+export GASNET_NUM_QPS=1 # FIXME: https://upc-bugs.lbl.gov/bugzilla/show_bug.cgi?id=3447
 
 export CONDA_PREFIX=$PWD/conda
 export REL_DIR=\$CONDA_PREFIX/myrel
@@ -20,13 +26,13 @@ export LCLS2_DIR=$PWD/lcls2
 export PYTHONPATH=\$LCLS2_DIR/install/lib/python3.6/site-packages:\$PYTHONPATH
 EOF
 
-source env.sh
-
 # Clean up any previous installs
-rm -rf $CONDA_PREFIX
+rm -rf conda
 rm -rf channels
 rm -rf relmanage
 rm -rf lcls2
+
+source env.sh
 
 # Install Conda environment
 wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-ppc64le.sh
