@@ -21,7 +21,9 @@
 // This is separated into its own file so that the compiler doesn't
 // inline it and optimize away the computation.
 
+#if defined(__AVX__) || defined(__AVX2__) || defined(__AVX512F__)
 __attribute__((target_clones("arch=knl","arch=haswell","default")))
+#endif
 void memory_bound_helper(float * RESTRICT buffer, size_t count)
 {
   for (size_t i = 0; i < count; i++) {
