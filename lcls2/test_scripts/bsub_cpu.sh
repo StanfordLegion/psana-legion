@@ -6,7 +6,7 @@
 #BSUB -e lsf-%J.err
 #BSUB -N
 
-root_dir="$(dirname "${BASH_SOURCE[0]}")"
+root_dir="$PWD"
 export PYTHONPATH="$PYTHONPATH:$root_dir"
 export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$root_dir/build"
 export PS_PARALLEL=legion
