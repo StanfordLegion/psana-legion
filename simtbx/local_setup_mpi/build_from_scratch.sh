@@ -82,8 +82,13 @@ pushd $CCTBX_PREFIX
   python bootstrap.py update --builder=dials
   pushd $CCTBX_PREFIX/modules
     git clone https://github.com/nksauter/LS49.git
-    cp $LS49_BIG_DATA/nanoBraggCUDA.cu $CCTBX_PREFIX/modules/cctbx_project/simtbx/nanoBragg
   popd
+  pushd $CCTBX_PREFIX/modules/cctbx_project
+    git remote add elliott https://github.com/elliottslaughter/cctbx_project.git
+    git fetch elliott
+    git checkout simtbx-cuda-workaround
+  popd
+  cp $LS49_BIG_DATA/nanoBraggCUDA.cu $CCTBX_PREFIX/modules/cctbx_project/simtbx/nanoBragg
   mkdir $CCTBX_PREFIX/build
   pushd $CCTBX_PREFIX/build
     python $CCTBX_PREFIX/modules/cctbx_project/libtbx/configure.py --enable_openmp_if_possible=True --enable_cuda LS49 prime iota
