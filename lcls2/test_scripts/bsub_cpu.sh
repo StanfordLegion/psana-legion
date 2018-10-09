@@ -9,6 +9,8 @@
 root_dir="$PWD"
 export PYTHONPATH="$PYTHONPATH:$root_dir"
 export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$root_dir/build"
+# uncomment this line when building Legion outside of conda build
+# export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$REL_DIR/lib"
 export PS_PARALLEL=legion
 
 export LIMIT=10
