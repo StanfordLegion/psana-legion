@@ -13,6 +13,9 @@ fi
 
 # Setup environment.
 cat > env.sh <<EOF
+module load gcc/6.3.1-20170301
+module load cuda/9.0.69
+
 # variables needed for conda
 export CONDA_PREFIX=$PWD/conda
 
@@ -49,10 +52,9 @@ bash Miniconda2-latest-Linux-ppc64le.sh -b -p $CONDA_PREFIX
 rm Miniconda2-latest-Linux-ppc64le.sh
 source $CONDA_PREFIX/etc/profile.d/conda.sh
 
-curl -O https://raw.githubusercontent.com/nksauter/LS49/master/tests/dials_env.txt
 conda create -y --name myenv --file dials_env.txt --channel cctbx --channel conda-forge --channel defaults --channel bioconda --override-channels
-rm dials_env.txt
 conda activate myenv
+python -m pip install orderedset
 python -m pip install procrunner
 
 # Build CCTBX.
