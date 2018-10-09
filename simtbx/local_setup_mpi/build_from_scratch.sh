@@ -34,7 +34,7 @@ export LS49_BIG_DATA=$LS49_BIG_DATA
 
 # variables needed to run CCTBX
 if [[ -d \$CONDA_PREFIX ]]; then
-  source $CONDA_PREFIX/etc/profile.d/conda.sh
+  source \$CONDA_PREFIX/etc/profile.d/conda.sh
   conda activate myenv
 fi
 if [[ -e \$CCTBX_PREFIX/build/setpaths.sh ]]; then
@@ -78,7 +78,7 @@ python -m pip install procrunner
 mkdir $CCTBX_PREFIX
 pushd $CCTBX_PREFIX
   curl -O https://raw.githubusercontent.com/cctbx/cctbx_project/master/libtbx/auto_build/bootstrap.py
-  python bootstrap.py hot --builder=xfel
+  python bootstrap.py hot --builder=dials
   python bootstrap.py update --builder=dials
   pushd $CCTBX_PREFIX/modules
     git clone https://github.com/nksauter/LS49.git
@@ -88,9 +88,8 @@ pushd $CCTBX_PREFIX
   pushd $CCTBX_PREFIX/build
     python $CCTBX_PREFIX/modules/cctbx_project/libtbx/configure.py --enable_openmp_if_possible=True --enable_cuda LS49 prime iota
     source $CCTBX_PREFIX/build/setpaths.sh
-    make -j$(nproc --all)
+    make
   popd
-  mkdir $CCTBX_PREFIX/test
 popd
 
 echo
