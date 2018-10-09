@@ -4,13 +4,13 @@ set -e
 
 # Setup environment
 cat > env.sh <<EOF
-module load gcc/7.1.1-20170802
+module load gcc/6.3.1-20170301
 module load cuda/9.0.69
 export CC=gcc
 export CXX=g++
 
 export USE_GASNET=0
-export USE_CUDA=0
+export USE_CUDA=1
 export CONDUIT=ibv
 export GASNET_NUM_QPS=1 # FIXME: https://upc-bugs.lbl.gov/bugzilla/show_bug.cgi?id=3447
 
@@ -62,6 +62,8 @@ cmake -DBUILD_SHARED_LIBS=ON \
     -DCMAKE_INSTALL_PREFIX="$REL_DIR" \
     -DCMAKE_INSTALL_LIBDIR="$REL_DIR/lib" \
     ..
+make -j
+make install
 
 # Build
 git clone https://github.com/slac-lcls/lcls2.git "$LCLS2_DIR"
