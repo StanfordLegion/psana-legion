@@ -10,6 +10,7 @@ core
 *.swp
 *.log
 *.gz
+*.tgz
 *.out
 
 # CCTBX output files
