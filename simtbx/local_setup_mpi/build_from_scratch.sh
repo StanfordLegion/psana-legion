@@ -34,6 +34,7 @@ export LS49_BIG_DATA=$LS49_BIG_DATA
 
 # variables needed to run CCTBX
 if [[ -d \$CONDA_PREFIX ]]; then
+  source $CONDA_PREFIX/etc/profile.d/conda.sh
   conda activate myenv
 fi
 if [[ -e \$CCTBX_PREFIX/build/setpaths.sh ]]; then
@@ -54,9 +55,11 @@ source env.sh
 wget https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh
 bash Miniconda2-latest-Linux-x86_64.sh -b -p $CONDA_PREFIX
 rm Miniconda2-latest-Linux-x86_64.sh
+source $CONDA_PREFIX/etc/profile.d/conda.sh
 
 curl -O https://raw.githubusercontent.com/nksauter/LS49/master/tests/dials_env.txt
-conda create -y --name myenv --file dials_env.txt --channel cctbx --channel conda-forge --channel defaults --channel bioconda
+conda create -y --name myenv --file dials_env.txt --channel cctbx --channel conda-forge --channel defaults --channel bioconda --override-channels
+rm dials_env.txt
 conda activate myenv
 python -m pip install procrunner
 
@@ -74,7 +77,6 @@ python -m pip install procrunner
 # Build CCTBX.
 mkdir $CCTBX_PREFIX
 pushd $CCTBX_PREFIX
-  tar xfzv $root_dir/phenix-installer.tar.gz --strip 1 --wildcards '*/modules/labelit'
   curl -O https://raw.githubusercontent.com/cctbx/cctbx_project/master/libtbx/auto_build/bootstrap.py
   python bootstrap.py hot --builder=xfel
   python bootstrap.py update --builder=dials
