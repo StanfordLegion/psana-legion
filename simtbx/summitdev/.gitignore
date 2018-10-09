@@ -1,0 +1,5 @@
+/cctbx
+/conda
+/env.sh
+/test
+.pytest_cache
