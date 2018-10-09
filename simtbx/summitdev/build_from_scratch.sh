@@ -44,9 +44,9 @@ rm -rf cctbx
 source env.sh
 
 # Install Conda environment.
-wget https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh
-bash Miniconda2-latest-Linux-x86_64.sh -b -p $CONDA_PREFIX
-rm Miniconda2-latest-Linux-x86_64.sh
+wget https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-ppc64le.sh
+bash Miniconda2-latest-Linux-ppc64le.sh -b -p $CONDA_PREFIX
+rm Miniconda2-latest-Linux-ppc64le.sh
 source $CONDA_PREFIX/etc/profile.d/conda.sh
 
 curl -O https://raw.githubusercontent.com/nksauter/LS49/master/tests/dials_env.txt
