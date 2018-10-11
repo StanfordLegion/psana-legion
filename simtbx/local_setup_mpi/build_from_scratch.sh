@@ -94,7 +94,11 @@ pushd $CCTBX_PREFIX
   python bootstrap.py hot --builder=dials
   python bootstrap.py update --builder=dials
   pushd $CCTBX_PREFIX/modules
-    git clone https://github.com/nksauter/LS49.git
+    if [[ $USE_BYFL -eq 1 ]]; then
+      git clone -b byfl https://github.com/elliottslaughter/LS49.git
+    else
+      git clone https://github.com/nksauter/LS49.git
+    fi
   popd
   pushd $CCTBX_PREFIX/modules/cctbx_project
     git remote add elliott https://github.com/elliottslaughter/cctbx_project.git
