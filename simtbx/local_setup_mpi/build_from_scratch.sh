@@ -122,7 +122,7 @@ pushd $CCTBX_PREFIX
     if [[ $USE_BYFL -eq 1 ]]; then
       (
         export BF_OPTS="-bf-by-func -bf-call-stack"
-        rm simtbx/nanoBragg/*.o
+        rm simtbx/nanoBragg/nanoBragg.o
         make
       )
     fi
