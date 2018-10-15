@@ -21,4 +21,4 @@ export http_proxy=http://proxy.ccs.ornl.gov:3128/
 export https_proxy=https://proxy.ccs.ornl.gov:3128/
 export no_proxy='localhost,127.0.0.0/8,*.ccs.ornl.gov,*.ncrc.gov'
 
-jsrun -n 1 legion_python user -ll:py 1 -ll:cpu 1
+jsrun -n 1 -g 1 legion_python user -ll:py 1 -ll:cpu 0 -ll:gpu 1
