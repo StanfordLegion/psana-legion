@@ -59,6 +59,7 @@ cmake -DBUILD_SHARED_LIBS=ON \
     -DLegion_ENABLE_TLS=ON \
     -DLegion_USE_Python=ON \
     -DPYTHON_EXECUTABLE="$(which python)" \
+    -DLegion_USE_CUDA=ON \
     -DCMAKE_INSTALL_PREFIX="$REL_DIR" \
     -DCMAKE_INSTALL_LIBDIR="$REL_DIR/lib" \
     ..
