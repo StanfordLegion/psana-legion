@@ -121,7 +121,7 @@ pushd $CCTBX_PREFIX
     # Now rebuild with Byfl enabled.
     if [[ $USE_BYFL -eq 1 ]]; then
       (
-        export BF_OPTS="-bf-by-func -bf-call-stack"
+        export BF_OPTS="-bf-by-func"
         rm simtbx/nanoBragg/nanoBragg.o
         make
       )
