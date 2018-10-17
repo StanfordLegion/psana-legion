@@ -9,7 +9,7 @@ module load cuda/9.0.69
 export CC=gcc
 export CXX=g++
 
-export USE_GASNET=0
+export USE_GASNET=1
 export USE_CUDA=1
 export CONDUIT=ibv
 export GASNET_NUM_QPS=1 # FIXME: https://upc-bugs.lbl.gov/bugzilla/show_bug.cgi?id=3447
@@ -49,9 +49,15 @@ CC=$OMPI_CC MPICC=mpicc pip install -v --no-binary mpi4py mpi4py
 # conda build relmanage/recipes/legion/ --output-folder channels/external/ --python 3.6
 # conda install -y legion -c file://`pwd`/channels/external # --override-channels
 
+rm -rf gasnet
+git clone https://github.com/StanfordLegion/gasnet.git
+pushd gasnet
+make -j80
+popd
+
 rm -rf legion
 git clone -b cmake-gasnet-private-dependency git@gitlab.com:StanfordLegion/legion.git
-cd legion
+pushd legion
 mkdir build
 cd build
 cmake -DBUILD_SHARED_LIBS=ON \
@@ -60,11 +66,15 @@ cmake -DBUILD_SHARED_LIBS=ON \
     -DLegion_USE_Python=ON \
     -DPYTHON_EXECUTABLE="$(which python)" \
     -DLegion_USE_CUDA=ON \
+    -DLegion_USE_GASNet=ON \
+    -DGASNet_ROOT_DIR="$PWD/../../gasnet/release" \
+    -DGASNet_CONDUITS=$CONDUIT \
     -DCMAKE_INSTALL_PREFIX="$REL_DIR" \
     -DCMAKE_INSTALL_LIBDIR="$REL_DIR/lib" \
     ..
-make -j
+make -j80
 make install
+popd
 
 # Build
 git clone https://github.com/slac-lcls/lcls2.git "$LCLS2_DIR"
