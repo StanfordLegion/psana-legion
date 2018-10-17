@@ -68,4 +68,5 @@ def event_fn(event):
         raw_region = legion.Region.create(raw.shape, {'x': (legion.uint8, 1)})
         numpy.copyto(raw_region.x, raw, casting='no')
         sum_task(raw_region)
+        raw_region.destroy()
 ds.analyze(event_fn=event_fn)
