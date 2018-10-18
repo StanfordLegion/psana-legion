@@ -89,7 +89,8 @@ make install
 popd
 
 # Build psana.
-git clone https://github.com/slac-lcls/lcls2.git $LCLS2_DIR
+# git clone https://github.com/slac-lcls/lcls2.git $LCLS2_DIR
+git clone -b more_events https://github.com/elliottslaughter/lcls2.git $LCLS2_DIR
 ./clean_rebuild.sh
 
 echo
