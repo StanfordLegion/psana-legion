@@ -56,7 +56,7 @@ source activate $REL_DIR
 
 # # Install Legion.
 # conda build relmanage/recipes/legion/ --output-folder channels/external/ --python $PYVER
-# conda remove -y legion
+conda remove -y legion
 # conda install -y legion -c file://`pwd`/channels/external --override-channels
 
 if [[ $GASNET_ROOT == $PWD/gasnet/release ]]; then
