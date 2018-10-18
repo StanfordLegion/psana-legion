@@ -19,6 +19,7 @@ from __future__ import print_function
 
 import cffi
 import legion
+import numpy
 import os
 import subprocess
 
@@ -45,7 +46,7 @@ c.register_native_kernels_tasks(memory_bound_task_id,
 
 memory_bound_task = legion.extern_task(task_id=memory_bound_task_id)
 cache_bound_task = legion.extern_task(task_id=cache_bound_task_id)
-sum_task = legion.extern_task(task_id=sum_task_id)
+sum_task = legion.extern_task(task_id=sum_task_id, privileges=[legion.RO])
 
 c.register_lifeline_mapper()
 
@@ -62,5 +63,10 @@ for run in ds.runs():
 
 def event_fn(event):
     print('Analyzing event', event)
-    memory_bound_task()
+    for dgram in event:
+        raw = dgram.xppcspad.raw.arrayRaw
+        raw_region = legion.Region.create(raw.shape, {'x': (legion.uint8, 1)})
+        numpy.copyto(raw_region.x, raw, casting='no')
+        sum_task(raw_region)
+        raw_region.destroy()
 ds.analyze(event_fn=event_fn)
