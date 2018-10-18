@@ -27,3 +27,6 @@ else()
   add_library(native_kernels SHARED ${NATIVE_KERNELS_SRC})
 endif()
 target_link_libraries(native_kernels Legion::Legion)
+
+set_property(TARGET native_kernels PROPERTY CXX_STANDARD 11)
+set_property(TARGET native_kernels PROPERTY CXX_STANDARD_REQUIRED ON)
