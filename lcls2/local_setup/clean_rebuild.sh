@@ -3,9 +3,8 @@
 set -e
 
 source env.sh
-source activate $REL_PREFIX
 
-pushd $LCLS2_PREFIX
+pushd $LCLS2_DIR
 git clean -fxd
 popd
 

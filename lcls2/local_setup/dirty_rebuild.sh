@@ -3,9 +3,8 @@
 set -e
 
 source env.sh
-source activate $REL_PREFIX
 
-pushd $LCLS2_PREFIX
+pushd $LCLS2_DIR
 ./build_all.sh -d -p install
 pytest psana/psana/tests
 popd
