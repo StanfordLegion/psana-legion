@@ -47,8 +47,8 @@ cmake -DBUILD_SHARED_LIBS=ON \
     -DLegion_ENABLE_TLS=ON \
     -DLegion_USE_Python=ON \
     -DPYTHON_EXECUTABLE="$(which python)" \
-    -DCMAKE_INSTALL_PREFIX="$REL_DIR" \
-    -DCMAKE_INSTALL_LIBDIR="$REL_DIR/lib" \
+    -DCMAKE_INSTALL_PREFIX="$PWD/../install" \
+    -DCMAKE_INSTALL_LIBDIR="$PWD/../install/lib" \
     ..
 make -j8
 make install
