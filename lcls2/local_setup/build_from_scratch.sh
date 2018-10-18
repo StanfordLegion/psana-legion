@@ -15,6 +15,8 @@ export CXX=$CXX
 
 export USE_CUDA=${USE_CUDA:-0}
 export USE_GASNET=${USE_GASNET:-0}
+export CONDUIT=${CONDUIT:-mpi}
+export GASNET_ROOT=${GASNET_ROOT:-$PWD/gasnet/release}
 
 export CONDA_PREFIX=$PWD/conda
 export REL_DIR=\$CONDA_PREFIX/myrel
@@ -57,11 +59,13 @@ source activate $REL_DIR
 # conda remove -y legion
 # conda install -y legion -c file://`pwd`/channels/external --override-channels
 
-rm -rf gasnet
-git clone https://github.com/StanfordLegion/gasnet.git
-pushd gasnet
-make -j80
-popd
+if [[ $GASNET_ROOT == $PWD/gasnet/release ]]; then
+    rm -rf gasnet
+    git clone https://github.com/StanfordLegion/gasnet.git
+    pushd gasnet
+    make -j8
+    popd
+fi
 
 rm -rf legion
 git clone -b cmake-gasnet-private-dependency git@gitlab.com:StanfordLegion/legion.git
@@ -75,12 +79,12 @@ cmake -DBUILD_SHARED_LIBS=ON \
     -DPYTHON_EXECUTABLE="$(which python)" \
     -DLegion_USE_CUDA=ON \
     -DLegion_USE_GASNet=ON \
-    -DGASNet_ROOT_DIR="$PWD/../../gasnet/release" \
+    -DGASNet_ROOT_DIR="$GASNET_ROOT" \
     -DGASNet_CONDUITS=$CONDUIT \
     -DCMAKE_INSTALL_PREFIX="$REL_DIR" \
     -DCMAKE_INSTALL_LIBDIR="$REL_DIR/lib" \
     ..
-make -j80
+make -j8
 make install
 popd
 
