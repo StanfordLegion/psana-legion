@@ -24,7 +24,7 @@ export REL_DIR=\$CONDA_PREFIX/myrel
 export PYVER=3.6
 export LCLS2_DIR=$PWD/lcls2
 
-export PATH=\$LCLS2_PREFIX/install/bin:\$CONDA_PREFIX/bin:\$PATH
+export PATH=\$LCLS2_DIR/install/bin:\$CONDA_PREFIX/bin:\$PATH
 export PYTHONPATH=\$LCLS2_DIR/install/lib/python\$PYVER/site-packages:\$PYTHONPATH
 
 if [[ -d \$REL_DIR ]]; then
