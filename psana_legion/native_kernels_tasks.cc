@@ -44,13 +44,13 @@ int64_t sum_task(const Task *task,
 {
   assert(regions.size() == 1);
 
-  const FieldAccessor<READ_ONLY, int8_t, 1> x(regions[0], X_FIELD_ID);
+  const FieldAccessor<READ_ONLY, int16_t, 3> x(regions[0], X_FIELD_ID);
 
-  Rect<1> rect = runtime->get_index_space_domain(ctx,
+  Rect<3> rect = runtime->get_index_space_domain(ctx,
                   regions[0].get_logical_region().get_index_space());
 
   int64_t sum = 0;
-  for (PointInRectIterator<1> p(rect); p(); p++) {
+  for (PointInRectIterator<3> p(rect); p(); p++) {
     sum += x[*p];
   }
   printf("sum is %" PRId64 "\n", sum);

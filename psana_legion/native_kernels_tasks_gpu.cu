@@ -24,12 +24,14 @@ using namespace Legion;
 
 
 __global__
-void gpu_sum_kernel(Rect<1> rect,
-                    const FieldAccessor<READ_ONLY, int8_t, 1, coord_t, Realm::AffineAccessor<int8_t, 1, coord_t> > x,
+void gpu_sum_kernel(Rect<3> rect,
+                    const FieldAccessor<READ_ONLY, int16_t, 3, coord_t, Realm::AffineAccessor<int16_t, 3, coord_t> > x,
                     unsigned long long *result)
 {
   const int idx = blockIdx.x * blockDim.x + threadIdx.x;
-  const Point<1> p(rect.lo.x + idx);
+  const int idy = blockIdx.y * blockDim.y + threadIdx.y;
+  const int idz = blockIdx.z * blockDim.z + threadIdx.z;
+  const Point<3> p(rect.lo.x + idx, rect.lo.y + idy, rect.lo.z + idz);
 
   // WARNING: This kernel is really, really inefficient. Please don't
   // use this in any context where performance is important!!!
@@ -47,13 +49,16 @@ int64_t gpu_sum_task(const Task *task,
 {
   assert(regions.size() == 1);
 
-  const FieldAccessor<READ_ONLY, int8_t, 1, coord_t, Realm::AffineAccessor<int8_t, 1, coord_t> > x(regions[0], X_FIELD_ID);
+  const FieldAccessor<READ_ONLY, int16_t, 3, coord_t, Realm::AffineAccessor<int16_t, 3, coord_t> > x(regions[0], X_FIELD_ID);
 
-  Rect<1> rect = runtime->get_index_space_domain(ctx,
+  Rect<3> rect = runtime->get_index_space_domain(ctx,
                   regions[0].get_logical_region().get_index_space());
 
-  const dim3 block(256, 1, 1);
-  const dim3 grid(((rect.hi.x - rect.lo.x + 1) + (block.x-1)) / block.x, 1, 1);
+  const dim3 block(8, 8, 4);
+  const dim3 grid(
+    ((rect.hi.x - rect.lo.x + 1) + (block.x-1)) / block.x,
+    ((rect.hi.y - rect.lo.y + 1) + (block.y-1)) / block.y,
+    ((rect.hi.z - rect.lo.z + 1) + (block.z-1)) / block.z);
 
   unsigned long long result = 0;
 
