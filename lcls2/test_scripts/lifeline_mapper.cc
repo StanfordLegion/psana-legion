@@ -151,7 +151,7 @@ private:
   char* processorKindString(unsigned kind) const;
   bool isAnalysisTask(const Legion::Task& task);
   int minRunningTasks() const;
-  bool isNodeZero() const;
+  bool isNodeZeroOfN() const;
   static unsigned nodeId(long long procId);
   static std::string describeProcId(long long procId);
 
@@ -361,7 +361,7 @@ void LifelineMapper::getNearestProcs(Processor processor, bool sawLocalProc)
 void LifelineMapper::getStealProcs(Processor processor, bool& sawLocalProc, unsigned& localProcIndex)
 //--------------------------------------------------------------------------
 {
-  if(!isNodeZero()) {
+  if(!isNodeZeroOfN()) {
     
     bool isStealTarget = true;
     // python procs can steal from each other
@@ -375,7 +375,7 @@ void LifelineMapper::getStealProcs(Processor processor, bool& sawLocalProc, unsi
     }
     
     // when running multi-node ignore node zero for stealing purposes
-    if(!isNodeZero() && nodeId(processor.id) == 0) {
+    if(total_nodes > 1 && nodeId(processor.id) == 0) {
       isStealTarget = false;
     }
     
@@ -585,6 +585,9 @@ Processor LifelineMapper::stealTargetProcessor()
   while(target.id == local_proc.id) {
     target = steal_target_procs[uni(rng)];
   }
+  log_lifeline_mapper.debug("%s target %s",
+                            prolog(__FUNCTION__, __LINE__).c_str(),
+                            describeProcId(target.id).c_str());
   return target;
 }
 
@@ -617,7 +620,7 @@ void LifelineMapper::maybeGetMoreTasks(MapperContext ctx, Processor target)
   if(local_proc.kind() == Processor::LOC_PROC || local_proc.kind() == Processor::TOC_PROC || local_proc.kind() == Processor::PY_PROC) {
     if(!quiesced) {
       int notRunning = minRunningTasks() - locallyRunningTaskCount();
-      bool wantMoreTasks = notRunning > 0 && !isNodeZero();
+      bool wantMoreTasks = notRunning > 0 && !isNodeZeroOfN();
       bool havePendingTasks = totalPendingWorkload() >= notRunning;
       log_lifeline_mapper.debug("%s wantMore %d havePending %d stealOutstanding %d %s",
                                 prolog(__FUNCTION__, __LINE__).c_str(),
@@ -647,7 +650,8 @@ void LifelineMapper::triggerSelectTasksToMap(const MapperContext ctx)
                             defer_select_tasks_to_map.exists());
   if(defer_select_tasks_to_map.exists()){
     MapperEvent temp_event = defer_select_tasks_to_map;
-    defer_select_tasks_to_map = MapperEvent();
+    //defer_select_tasks_to_map = MapperEvent();
+    defer_select_tasks_to_map = runtime->create_mapper_event(ctx);
     runtime->trigger_mapper_event(ctx, temp_event);
   }
 }
@@ -957,7 +961,7 @@ bool LifelineMapper::isAnalysisTask(const Legion::Task& task)
 
 
 //--------------------------------------------------------------------------
-bool LifelineMapper::isNodeZero() const
+bool LifelineMapper::isNodeZeroOfN() const
 //--------------------------------------------------------------------------
 {
 ///DEBUG
@@ -1283,8 +1287,8 @@ void LifelineMapper::processNewReadyTasks(const SelectMappingInput&    input,
     const Task* task = *it;
     if(!alreadyQueued(task)) {
       bool mapHereNow = false;
-log_lifeline_mapper.debug("%s mapping herenow ? locallyRunningTaskCount %d isNodeZero %d", prolog(__FUNCTION__, __LINE__).c_str(), locallyRunningTaskCount(), isNodeZero());
-      if(locallyRunningTaskCount() < minRunningTasks() && !isNodeZero()) {
+log_lifeline_mapper.debug("%s mapping herenow ? locallyRunningTaskCount %d isNodeZeroOfN %d", prolog(__FUNCTION__, __LINE__).c_str(), locallyRunningTaskCount(), isNodeZeroOfN());
+      if(locallyRunningTaskCount() < minRunningTasks() && !isNodeZeroOfN()) {
         mapHereNow = true;
       } else if(!isAnalysisTask(*task)) {
         mapHereNow = true;
@@ -1331,9 +1335,10 @@ void LifelineMapper::select_tasks_to_map(const MapperContext          ctx,
                             prolog(__FUNCTION__, __LINE__).c_str(),
                             workloadState().c_str());
   
-  if(defer_select_tasks_to_map.exists()) {
-    triggerSelectTasksToMap(ctx);
-  }
+  // why is this here???
+  //if(defer_select_tasks_to_map.exists()) {
+    //triggerSelectTasksToMap(ctx);
+  //}
   bool mappedOrRelocated = false;
   bool sawWorkerReadyTasks = false;
   
