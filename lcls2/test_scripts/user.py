@@ -63,10 +63,9 @@ for run in ds.runs():
 
 def event_fn(event):
     print('Analyzing event', event)
-    for dgram in event:
-        raw = dgram.xppcspad.raw.arrayRaw
-        raw_region = legion.Region.create(raw.shape, {'x': (legion.uint8, 1)})
-        numpy.copyto(raw_region.x, raw, casting='no')
-        sum_task(raw_region)
-        raw_region.destroy()
+    raw = det.raw(event)
+    raw_region = legion.Region.create(raw.shape, {'x': (legion.int16, 1)})
+    numpy.copyto(raw_region.x, raw, casting='no')
+    sum_task(raw_region)
+    raw_region.destroy()
 ds.analyze(event_fn=event_fn)
