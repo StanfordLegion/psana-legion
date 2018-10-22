@@ -7,6 +7,7 @@ export PYTHONPATH="$PYTHONPATH:$root_dir"
 export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$root_dir/build"
 export PS_PARALLEL=legion
 
+export KERNEL_KIND=sum
 export LIMIT=10
 
 if [[ ! -d .tmp ]]; then
