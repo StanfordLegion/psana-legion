@@ -50,6 +50,20 @@ sum_task = legion.extern_task(task_id=sum_task_id, privileges=[legion.RO])
 
 c.register_lifeline_mapper()
 
+kernel_kind = os.environ.get('KERNEL_KIND')
+kernel_uses_raw = False
+if kernel_kind == 'memory':
+    kernel = memory_bound_task
+elif kernel_kind == 'cachex':
+    kernel = cache_bound_task
+elif kernel_kind == 'sum':
+    kernel_uses_raw = True
+    kernel = sum_task
+elif kernel_kind is None:
+    kernel = None
+else:
+    raise Exception('Unrecognized kernel kind: %s' % kernel_kind)
+
 limit = int(os.environ['LIMIT']) if 'LIMIT' in os.environ else None
 
 # To test on 'real' bigdata:
@@ -62,10 +76,13 @@ for run in ds.runs():
     det = ds.Detector(ds.det_name)
 
 def event_fn(event):
-    print('Analyzing event', event)
-    raw = det.raw(event)
-    raw_region = legion.Region.create(raw.shape, {'x': (legion.int16, 1)})
-    numpy.copyto(raw_region.x, raw, casting='no')
-    sum_task(raw_region)
-    raw_region.destroy()
+    if kernel is not None:
+        if kernel_uses_raw:
+            raw = det.raw(event)
+            raw_region = legion.Region.create(raw.shape, {'x': (legion.int16, 1)})
+            numpy.copyto(raw_region.x, raw, casting='no')
+            kernel(raw_region)
+            raw_region.destroy()
+        else:
+            kernel()
 ds.analyze(event_fn=event_fn)
