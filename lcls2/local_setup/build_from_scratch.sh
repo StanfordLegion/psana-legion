@@ -18,6 +18,8 @@ export USE_GASNET=${USE_GASNET:-0}
 export CONDUIT=${CONDUIT:-mpi}
 export GASNET_ROOT=${GASNET_ROOT:-$PWD/gasnet/release}
 
+export LG_RT_DIR=${LG_RT_DIR:-$PWD/legion/runtime}
+
 export CONDA_PREFIX=$PWD/conda
 export REL_DIR=\$CONDA_PREFIX/myrel
 
@@ -68,26 +70,28 @@ if [[ $GASNET_ROOT == $PWD/gasnet/release ]]; then
     popd
 fi
 
-rm -rf legion
-git clone -b cmake-gasnet-private-dependency git@gitlab.com:StanfordLegion/legion.git
-pushd legion
-mkdir build
-cd build
-cmake -DBUILD_SHARED_LIBS=ON \
-    -DLegion_BUILD_BINDINGS=ON \
-    -DLegion_ENABLE_TLS=ON \
-    -DLegion_USE_Python=ON \
-    -DPYTHON_EXECUTABLE="$(which python)" \
-    -DLegion_USE_CUDA=$([ $USE_CUDA -eq 1 ] && echo ON || echo OFF) \
-    -DLegion_USE_GASNet=$([ $USE_GASNET -eq 1 ] && echo ON || echo OFF) \
-    -DGASNet_ROOT_DIR="$GASNET_ROOT" \
-    -DGASNet_CONDUITS=$CONDUIT \
-    -DCMAKE_INSTALL_PREFIX="$REL_DIR" \
-    -DCMAKE_INSTALL_LIBDIR="$REL_DIR/lib" \
-    ..
-make -j8
-make install
-popd
+if [[ $LG_RT_DIR == $PWD/legion/runtime ]]; then
+    rm -rf legion
+    git clone -b cmake-gasnet-private-dependency git@gitlab.com:StanfordLegion/legion.git
+    pushd legion
+    mkdir build
+    cd build
+    cmake -DBUILD_SHARED_LIBS=ON \
+        -DLegion_BUILD_BINDINGS=ON \
+        -DLegion_ENABLE_TLS=ON \
+        -DLegion_USE_Python=ON \
+        -DPYTHON_EXECUTABLE="$(which python)" \
+        -DLegion_USE_CUDA=$([ $USE_CUDA -eq 1 ] && echo ON || echo OFF) \
+        -DLegion_USE_GASNet=$([ $USE_GASNET -eq 1 ] && echo ON || echo OFF) \
+        -DGASNet_ROOT_DIR="$GASNET_ROOT" \
+        -DGASNet_CONDUITS=$CONDUIT \
+        -DCMAKE_INSTALL_PREFIX="$REL_DIR" \
+        -DCMAKE_INSTALL_LIBDIR="$REL_DIR/lib" \
+        ..
+    make -j8
+    make install
+    popd
+fi
 
 # Build psana.
 # git clone https://github.com/slac-lcls/lcls2.git $LCLS2_DIR
