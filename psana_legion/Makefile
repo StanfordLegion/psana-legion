@@ -93,7 +93,7 @@ CORE_GEN_OBJ ?= native_kernels.o native_kernels_helper.o
 
 # Create the real binary
 BIN_OUTFILE ?= psana_legion
-BIN_GEN_OBJ ?= psana_legion.o native_kernels_tasks.o simple_mapper.o lifeline_mapper.o
+BIN_GEN_OBJ ?= psana_legion.o native_kernels_tasks.o io_tasks.o simple_mapper.o lifeline_mapper.o
 ifeq ($(strip $(USE_CUDA)),1)
 BIN_GEN_GPU_OBJ ?= native_kernels_tasks_gpu.o
 else

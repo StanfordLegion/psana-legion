@@ -23,6 +23,7 @@
 #endif
 
 #include "native_kernels_tasks.h"
+#include "io_tasks.h"
 
 #include "simple_mapper.h"
 #include "lifeline_mapper.h"
@@ -84,6 +85,7 @@ int main(int argc, char **argv)
     preregister_native_kernels_tasks(MEMORY_BOUND_TASK_ID,
                                      CACHE_BOUND_TASK_ID,
                                      SUM_TASK_ID);
+    preregister_io_tasks();
   }
 
   char *mapper = getenv("PSANA_MAPPER");
