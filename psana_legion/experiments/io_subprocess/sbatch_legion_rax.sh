@@ -29,7 +29,7 @@ echo "HOST_DATA_DIR=$HOST_DATA_DIR"
 
 export EAGER=1
 export PSANA_MAPPER=simple
-export REPEAT=2
+export REPEAT=1
 
 PROFILE_DIR=$SCRATCH/profiles/$(basename $PWD)_slurm${SLURM_JOB_ID}
 
