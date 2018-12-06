@@ -45,7 +45,7 @@ RUN curl -O https://repo.continuum.io/miniconda/Miniconda2-4.3.21-Linux-x86_64.s
     conda install -y numpy=1.13.3 && \
     conda install -y --no-deps --channel lcls-rhel7 psana-conda && \
     python -m pip install procrunner && \
-    git clone -b python https://gitlab.com/StanfordLegion/legion.git /legion && \
+    git clone -b subprocess https://gitlab.com/StanfordLegion/legion.git /legion && \
     git clone https://github.com/StanfordLegion/psana-legion.git /psana-legion && \
     ORIGINAL_DIR=$PWD && \
     cd "$PSANA_LEGION_DIR" && \

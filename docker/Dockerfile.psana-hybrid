@@ -36,7 +36,7 @@ ENV PSANA_LEGION_DIR /psana-legion/psana_legion
 RUN export PATH="$REL_PATH:$PATH" && \
     export LD_LIBRARY_PATH="$REL_LD_LIBRARY_PATH:$LD_LIBRARY_PATH" && \
     export PYTHONPATH="$REL_PYTHONPATH:$PYTHONPATH" && \
-    git clone -b python https://gitlab.com/StanfordLegion/legion.git /legion && \
+    git clone -b subprocess https://gitlab.com/StanfordLegion/legion.git /legion && \
     git clone https://github.com/StanfordLegion/psana-legion.git /psana-legion && \
     ORIGINAL_DIR=$PWD && \
     cd "$PSANA_LEGION_DIR" && \
