@@ -34,6 +34,7 @@ export REPEAT=1
 PROFILE_DIR=$SCRATCH/profiles/$(basename $PWD)_slurm${SLURM_JOB_ID}
 
 for n in $(( SLURM_JOB_NUM_NODES - 1 )); do
+  export LIMIT=$(( n * 2048 ))
   for shard in 2 4; do
     for py in 4 8 16; do
       ./make_nodelist.py $shard > nodelist.txt
