@@ -38,7 +38,7 @@ for n in $(( SLURM_JOB_NUM_NODES - 1 )); do
     for py in 4 8 16; do
       ./make_nodelist.py $ranks > nodelist.txt
       export SLURM_HOSTFILE=$PWD/nodelist.txt
-      export MAX_TASKS_IN_FLIGHT=$(( 1280 / c ))
+      export MAX_TASKS_IN_FLIGHT=$(( 1280 / shard ))
       export PSANA_LEGION_MIN_RUNNING_TASKS=$MAX_TASKS_IN_FLIGHT
       for io in 1 2 4 8 16 32 64; do
         if [[ ! -e rax_n${n}_shard${shard}_py${py}_io${io}.log ]]; then
