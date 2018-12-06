@@ -36,7 +36,7 @@ PROFILE_DIR=$SCRATCH/profiles/$(basename $PWD)_slurm${SLURM_JOB_ID}
 for n in $(( SLURM_JOB_NUM_NODES - 1 )); do
   for shard in 2 4; do
     for py in 4 8 16; do
-      ./make_nodelist.py $ranks > nodelist.txt
+      ./make_nodelist.py $shard > nodelist.txt
       export SLURM_HOSTFILE=$PWD/nodelist.txt
       export MAX_TASKS_IN_FLIGHT=$(( 1280 / shard ))
       export PSANA_LEGION_MIN_RUNNING_TASKS=$MAX_TASKS_IN_FLIGHT
