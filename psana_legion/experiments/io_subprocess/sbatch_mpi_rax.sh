@@ -25,7 +25,7 @@ export EAGER=1
 export REPEAT=1
 
 for n in $(( SLURM_JOB_NUM_NODES - 1 )); do
-  export LIMIT=$(( n * 2048 ))
+  export LIMIT=$(( n * 4096 ))
   for shard in 256 128 64 32; do
     ./make_nodelist.py $shard > nodelist.txt
     export SLURM_HOSTFILE=$PWD/nodelist.txt
