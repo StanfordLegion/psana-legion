@@ -183,10 +183,11 @@ def main_task():
     overcommit = int(os.environ['OVERCOMMIT']) if 'OVERCOMMIT' in os.environ else 1
 
     # Number of Python processors
-    nprocs = legion.Tunable.select(legion.Tunable.GLOBAL_PYS).get()
+    global_procs = legion.Tunable.select(legion.Tunable.GLOBAL_PYS).get()
+    local_procs = legion.Tunable.select(legion.Tunable.LOCAL_PYS).get()
 
     # Number of tasks per launch
-    launchsize = (max(nprocs - 1, 1)) * overcommit
+    launchsize = (max(global_procs - local_procs, local_procs)) * overcommit
 
     print('Chunk size %s' % chunksize)
     print('Launch size %s' % launchsize)
@@ -238,7 +239,7 @@ def main_task():
 
     if _ds.config.teardown is not None:
         # FIXME: Should be a must-epoch launch
-        for idx in legion.IndexLaunch([nprocs]):
+        for idx in legion.IndexLaunch([global_procs]):
             teardown()
 
     print('Elapsed time: %e seconds' % ((stop - start)/1e6))
