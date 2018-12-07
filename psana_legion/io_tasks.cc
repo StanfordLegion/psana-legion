@@ -110,7 +110,6 @@ public:
   static bool jump_task(const Legion::Task *task,
             const std::vector<Legion::PhysicalRegion> &regions,
             Legion::Context ctx, Legion::HighLevelRuntime *runtime) {
-    ENTER_C_API;
     // Unpack arguments.
     assert(task->arglen >= sizeof(Args));
     size_t count;
@@ -140,16 +139,25 @@ public:
     }
 
     // Fetch destination pointer out of region argument.
-    LegionRuntime::Arrays::Rect<1> rect = runtime->get_index_space_domain(
-      regions[0].get_logical_region().get_index_space()).get_rect<1>();
+    LegionRuntime::Arrays::Rect<1> rect;
+    {
+      ENTER_C_API;
+      rect = runtime->get_index_space_domain(
+        regions[0].get_logical_region().get_index_space()).get_rect<1>();
+    }
     LegionRuntime::Arrays::Rect<1> subrect;
     LegionRuntime::Accessor::ByteOffset stride;
 
+
     bool ok = true;
     for (size_t i = 0; i < count; i++) {
-      LegionRuntime::Accessor::RegionAccessor<LegionRuntime::Accessor::AccessorType::Generic> accessor =
-        regions[0].get_field_accessor(fid_base+i);
-      void *base_ptr = accessor.raw_rect_ptr<1>(rect, subrect, &stride);
+      void *base_ptr;
+      {
+        ENTER_C_API;
+        LegionRuntime::Accessor::RegionAccessor<LegionRuntime::Accessor::AccessorType::Generic> accessor =
+          regions[0].get_field_accessor(fid_base+i);
+        base_ptr = accessor.raw_rect_ptr<1>(rect, subrect, &stride);
+      }
       assert(base_ptr);
       assert(subrect == rect);
       assert(rect.lo == LegionRuntime::Arrays::Point<1>::ZEROES());
