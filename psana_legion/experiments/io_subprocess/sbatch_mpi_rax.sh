@@ -29,8 +29,8 @@ for n in $(( SLURM_JOB_NUM_NODES - 1 )); do
   for shard in 256 128 64 32; do
     ./make_nodelist.py $shard > nodelist.txt
     export SLURM_HOSTFILE=$PWD/nodelist.txt
-    if [[ ! -e rax_n${n}_shard${shard}.log ]]; then
-      srun -n $(( n * shard + 1 )) -N $(( n + 1 )) --cpus-per-task $(( 256 / shard )) --cpu_bind threads --distribution=arbitrary --output rax_n${n}_shard${shard}.log \
+    if [[ ! -e rax_n_${n}_shard${shard}.log ]]; then
+      srun -n $(( n * shard + 1 )) -N $(( n + 1 )) --cpus-per-task $(( 256 / shard )) --cpu_bind threads --distribution=arbitrary --output rax_n_${n}_shard${shard}.log \
         shifter \
           $HOST_PSANA_DIR/psana_legion/scripts/psana_mpi.sh $HOST_PSANA_DIR/psana_legion/mpi_rax.py
     fi

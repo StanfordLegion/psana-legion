@@ -44,12 +44,12 @@ for n in $(( SLURM_JOB_NUM_NODES - 1 )); do
       export PSANA_LEGION_MIN_RUNNING_TASKS=$MAX_TASKS_IN_FLIGHT
       for io in 64 32 16 8 4; do
         if (( shard * py >= 8 && shard * py <= 32 && shard * io >= 16 && shard * io <= 128 )); then
-          if [[ ! -e rax_n${n}_shard_${shard}_py_${py}_io_${io}.log ]]; then
-            srun -n $(( n * shard + 1 )) -N $(( n + 1 )) --cpus-per-task $(( 256 / shard )) --cpu_bind cores --distribution=arbitrary --output rax_n${n}_shard_${shard}_py_${py}_io_${io}.log \
+          if [[ ! -e rax_n_${n}_shard_${shard}_py_${py}_io_${io}.log ]]; then
+            srun -n $(( n * shard + 1 )) -N $(( n + 1 )) --cpus-per-task $(( 256 / shard )) --cpu_bind cores --distribution=arbitrary --output rax_n_${n}_shard_${shard}_py_${py}_io_${io}.log \
               shifter \
                 $HOST_PSANA_DIR/psana_legion/scripts/psana_legion.sh \
                   -ll:cpu 0 -ll:py $py -ll:isolate_procs -ll:realm_heap_default -ll:io 1 -ll:concurrent_io $io -ll:csize $(( 48000 / shard )) -ll:rsize 0 -ll:gsize 0 -ll:ib_rsize 0 -lg:window 100
-                  # -lg:prof $(( n * shard + 1 )) -lg:prof_logfile $PROFILE_DIR/prof_n${n}_shard_${shard}_py_${py}_io_${io}_%.gz
+                  # -lg:prof $(( n * shard + 1 )) -lg:prof_logfile $PROFILE_DIR/prof_n_${n}_shard_${shard}_py_${py}_io_${io}_%.gz
           fi
         fi
       done
