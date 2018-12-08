@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH --job-name=psana_legion
 #SBATCH --dependency=singleton
-#SBATCH --time=02:00:00
-#SBATCH --qos=regular
+#SBATCH --time=00:30:00
+#SBATCH --qos=debug
 #SBATCH --constraint=knl,quad,cache
 #SBATCH --core-spec=4
 #SBATCH --image=docker:stanfordlegion/psana-legion:elliott
@@ -36,14 +36,14 @@ export REPEAT=1
 
 for n in $(( SLURM_JOB_NUM_NODES - 1 )); do
   export LIMIT=$(( n * 4096 ))
-  for shard in 8 4 2 1; do
+  for shard in 4; do
     for py in 16 8 4 2; do
       ./make_nodelist.py $shard > nodelist.txt
       export SLURM_HOSTFILE=$PWD/nodelist.txt
       export MAX_TASKS_IN_FLIGHT=$(( 640 / shard / py ))
       export PSANA_LEGION_MIN_RUNNING_TASKS=$MAX_TASKS_IN_FLIGHT
       for io in 64 32 16 8 4; do
-        if (( shard * py >= 8 && shard * py <= 32 && shard * io >= 16 && shard * io <= 128 )); then
+        if (( shard * py >= 8 && shard * py <= 32 && shard * io >= 128 && shard * io <= 128 )); then
           if [[ ! -e rax_n_${n}_shard_${shard}_py_${py}_io_${io}.log ]]; then
             srun -n $(( n * shard + 1 )) -N $(( n + 1 )) --cpus-per-task $(( 256 / shard )) --cpu_bind cores --distribution=arbitrary --output rax_n_${n}_shard_${shard}_py_${py}_io_${io}.log \
               shifter \
