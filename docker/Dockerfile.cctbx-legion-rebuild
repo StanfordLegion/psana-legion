@@ -1,0 +1,26 @@
+FROM stanfordlegion/cctbx-legion:latest
+MAINTAINER Elliott Slaughter <slaughter@cs.stanford.edu>
+
+# For rebuilding CCTBX image without pulling down entirely new versions of
+# CCTBX dependencies, because CCTBX does not pin dependency versions and if
+# you rebuild after a long time you're likely to see bitrot.
+
+RUN conda update -y conda && \
+    conda install -y --channel lcls-rhel7 psana-conda ndarray && \
+    conda install -y numpy=1.13.3 && \
+    conda install -y --no-deps --channel lcls-rhel7 psana-conda && \
+    git clone -b subprocess https://gitlab.com/StanfordLegion/legion.git /legion && \
+    ORIGINAL_DIR=$PWD && \
+    cd "$PSANA_LEGION_DIR" && \
+      DEBUG=0 make -j 8 && \
+    cd "$ORIGINAL_DIR" && \
+    cd "$REL_PREFIX" && \
+      git -C PSXtcInput pull && \
+      rm -rf build && \
+      scons && \
+    cd "$ORIGINAL_DIR" && \
+    cd "$PSANA_LEGION_DIR" && \
+      make clean && \
+    cd "$ORIGINAL_DIR" && \
+    conda uninstall --force mpich mpich2 && \
+    rm -rf /legion
