@@ -17,6 +17,9 @@ RUN conda update -y conda && \
     cd "$REL_PREFIX" && \
       git -C PSXtcInput pull && \
       rm -rf build && \
+      export SIT_RELEASE=$(conda list | grep psana-conda | tr -s ' ' | cut -f1-2 -d' ' | tr ' ' '-') && \
+      export SIT_REPOS="$CONDA_PREFIX/data/anarelinfo" && \
+      export SIT_USE_CONDA=1 && \
       scons && \
     cd "$ORIGINAL_DIR" && \
     cd "$PSANA_LEGION_DIR" && \
