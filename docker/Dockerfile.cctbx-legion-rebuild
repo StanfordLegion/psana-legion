@@ -5,10 +5,8 @@ MAINTAINER Elliott Slaughter <slaughter@cs.stanford.edu>
 # CCTBX dependencies, because CCTBX does not pin dependency versions and if
 # you rebuild after a long time you're likely to see bitrot.
 
-RUN conda update -y conda && \
-    conda install -y --channel lcls-rhel7 psana-conda ndarray && \
-    conda install -y numpy=1.13.3 && \
-    conda install -y --no-deps --channel lcls-rhel7 psana-conda && \
+RUN conda install -y --no-deps mpich2=1.4.1p1-0 && \
+    conda install -y --no-deps --channel conda-forge mpich=3.2.1=h26a2512_7 && \
     git clone -b subprocess https://gitlab.com/StanfordLegion/legion.git /legion && \
     ORIGINAL_DIR=$PWD && \
     cd "$PSANA_LEGION_DIR" && \
