@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH --time=00:30:00
-#SBATCH --partition=debug # regular
+#SBATCH --time=01:00:00
+#SBATCH --partition=regular
 #SBATCH --constraint=knl,quad,cache
 #SBATCH --core-spec=4
 #SBATCH --image=docker:stanfordlegion/cctbx-legion:subprocess
@@ -79,14 +79,13 @@ export GASNET_MAX_SEGSIZE='1536M/P'
 set -x
 
 for n in $SLURM_JOB_NUM_NODES; do
-  for shard in 4; do
-    for py in 4; do
+  for shard in ${NSHARD:-4}; do
+    for py in ${NPY:-4}; do
       export LIMIT=$(( 16 * n * shard * py ))
 
       export MAX_TASKS_IN_FLIGHT=$(( 1280 / shard / py ))
 
-      # export OUT_DIR=$PWD/output_legion_"$SLURM_JOB_ID"_n${n}_shard${shard}
-      export OUT_DIR=$SCRATCH/cori-cctbx.subprocess/output_legion_"$SLURM_JOB_ID"_n${n}_shard${shard}
+      export OUT_DIR=$SCRATCH/cori-cctbx.subprocess/output_legion_"$SLURM_JOB_ID"_n_${n}_shard_${shard}_py_${py}_io_1
       mkdir -p $OUT_DIR
       mkdir -p $OUT_DIR/backtrace
 
