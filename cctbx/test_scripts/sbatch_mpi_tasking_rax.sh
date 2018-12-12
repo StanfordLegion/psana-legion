@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --time=00:30:00
-#SBATCH --partition=debug # regular
+#SBATCH --partition=regular
 #SBATCH --constraint=knl,quad,cache
 #SBATCH --core-spec=4
 #SBATCH --image=docker:stanfordlegion/cctbx-mpi-tasking:latest
@@ -49,20 +49,19 @@ export PSANA_FRAMEWORK=mpi
 export PMI_MMAP_SYNC_WAIT_TIME=600 # seconds
 
 for n in $SLURM_JOB_NUM_NODES; do
-  for c in 4; do
-    export LIMIT=$(( 16 * n * c ))
+  for shard in ${NSHARD:-4}; do
+    export LIMIT=$(( 16 * n * shard ))
 
-    # export OUT_DIR=$PWD/output_mpi_tasking_"$SLURM_JOB_ID"_n${n}_c${c}
-    export OUT_DIR=$SCRATCH/cori-cctbx/output_mpi_tasking_"$SLURM_JOB_ID"_n${n}_c${c}
+    export OUT_DIR=$SCRATCH/cori-cctbx.subprocess/output_mpi_tasking_"$SLURM_JOB_ID"_n${n}_shard_${shard}_py__io_
     mkdir -p $OUT_DIR
 
     echo "Running $(basename "$OUT_DIR")"
 
-    # $HOST_PSANA_DIR/scripts/make_nodelist.py $c > $OUT_DIR/nodelist.txt
+    # $HOST_PSANA_DIR/scripts/make_nodelist.py $shard > $OUT_DIR/nodelist.txt
     # export SLURM_HOSTFILE=$OUT_DIR/nodelist.txt
 
-    # srun -n $(( n * c + 1 )) -N $(( n + 1 )) --cpus-per-task $(( 256 / c )) --cpu_bind cores --distribution=arbitrary \
-    srun -n $(( n * c )) -N $(( n )) --cpus-per-task $(( 256 / c )) --cpu_bind cores \
+    # srun -n $(( n * shard + 1 )) -N $(( n + 1 )) --cpus-per-task $(( 256 / shard )) --cpu_bind cores --distribution=arbitrary \
+    srun -n $(( n * shard )) -N $(( n )) --cpus-per-task $(( 256 / shard )) --cpu_bind cores \
       shifter ./index_mpi_tasking.sh cxid9114 108 0 # 95 89 lustre
   done
 done
