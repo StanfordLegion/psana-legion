@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --time=00:30:00
-#SBATCH --partition=regular
+#SBATCH --partition=debug
 #SBATCH --constraint=knl,quad,cache
 #SBATCH --core-spec=4
 #SBATCH --image=docker:stanfordlegion/cctbx-mpi-tasking:latest
@@ -48,7 +48,7 @@ export PSANA_FRAMEWORK=mpi
 # setting from Chris to avoid intermittent failures in PMI_Init_threads on large numbers of nodes
 export PMI_MMAP_SYNC_WAIT_TIME=600 # seconds
 
-for n in $SLURM_JOB_NUM_NODES; do
+for n in $(( SLURM_JOB_NUM_NODES - 1 )); do
   for shard in ${NSHARD:-4}; do
     export LIMIT=$(( 16 * n * shard ))
 
@@ -57,11 +57,11 @@ for n in $SLURM_JOB_NUM_NODES; do
 
     echo "Running $(basename "$OUT_DIR")"
 
-    # $HOST_PSANA_DIR/scripts/make_nodelist.py $shard > $OUT_DIR/nodelist.txt
-    # export SLURM_HOSTFILE=$OUT_DIR/nodelist.txt
+    $ORIG_PSANA_DIR/scripts/make_nodelist.py $shard > $OUT_DIR/nodelist.txt
+    export SLURM_HOSTFILE=$OUT_DIR/nodelist.txt
 
-    # srun -n $(( n * shard + 1 )) -N $(( n + 1 )) --cpus-per-task $(( 256 / shard )) --cpu_bind cores --distribution=arbitrary \
-    srun -n $(( n * shard )) -N $(( n )) --cpus-per-task $(( 256 / shard )) --cpu_bind cores \
+    # srun -n $(( n * shard )) -N $(( n )) --cpus-per-task $(( 256 / shard )) --cpu_bind cores \
+    srun -n $(( n * shard + 1 )) -N $(( n + 1 )) --cpus-per-task $(( 256 / shard )) --cpu_bind cores --distribution=arbitrary \
       shifter ./index_mpi_tasking.sh cxid9114 108 0 # 95 89 lustre
   done
 done
