@@ -78,7 +78,7 @@ export GASNET_MAX_SEGSIZE='1536M/P'
 
 set -x
 
-for n in $SLURM_JOB_NUM_NODES; do
+for n in $(( SLURM_JOB_NUM_NODES - 1 )); do
   for shard in ${NSHARD:-4}; do
     for py in ${NPY:-4}; do
       export LIMIT=$(( 16 * n * shard * py ))
@@ -91,8 +91,8 @@ for n in $SLURM_JOB_NUM_NODES; do
 
       echo "Running $(basename "$OUT_DIR")"
 
-      # $HOST_PSANA_DIR/scripts/make_nodelist.py $shard > $OUT_DIR/nodelist.txt
-      # export SLURM_HOSTFILE=$OUT_DIR/nodelist.txt
+      $ORIG_PSANA_DIR/scripts/make_nodelist.py $shard > $OUT_DIR/nodelist.txt
+      export SLURM_HOSTFILE=$OUT_DIR/nodelist.txt
 
       lmbsize=$(( 512 * 32 * 32 * 32 / ( n * shard * shard ) )) # start shrinking at >= 32 nodes * 32 ranks/node
       if [[ $lmbsize -gt 1024 ]]; then
@@ -104,12 +104,13 @@ for n in $SLURM_JOB_NUM_NODES; do
           csize=8000
       fi
 
-      # srun -n $(( n * shard + 1 )) -N $(( n + 1 )) --cpus-per-task $(( 256 / shard )) --cpu_bind cores --distribution=arbitrary \
-      srun -n $(( n * shard )) -N $(( n )) --cpus-per-task $(( 256 / shard )) --cpu_bind cores \
+      # srun -n $(( n * shard )) -N $(( n )) --cpus-per-task $(( 256 / shard )) --cpu_bind cores --output "$OUT_DIR/out_%J_%t.log" \
+      srun -n $(( n * shard + 1 )) -N $(( n + 1 )) --cpus-per-task $(( 256 / shard )) --cpu_bind cores --distribution=arbitrary --output "$OUT_DIR/out_%J_%t.log" \
         shifter /tmp/index_legion.sh cxid9114 108 0 \
           -ll:cpu 0 -ll:py $py -ll:isolate_procs -ll:realm_heap_default -ll:io 1 -ll:concurrent_io 1 -ll:csize $csize -ll:rsize 0 -ll:gsize 0 -ll:ib_rsize 0 -ll:lmbsize $lmbsize -lg:window 100
-          # -level announce=2,activemsg=2,allocation=2 -logfile "$OUT_DIR/ann_%.log"
+          # -ll:show_rsrv \
           # -hl:prof $(( n * shard )) -hl:prof_logfile "$OUT_DIR/prof_%.gz"
+          # -level announce=2,activemsg=2,allocation=2 -logfile "$OUT_DIR/ann_%.log"
     done
   done
 done
