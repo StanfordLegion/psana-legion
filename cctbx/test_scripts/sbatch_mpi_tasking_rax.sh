@@ -52,7 +52,7 @@ for n in $SLURM_JOB_NUM_NODES; do
   for shard in ${NSHARD:-4}; do
     export LIMIT=$(( 16 * n * shard ))
 
-    export OUT_DIR=$SCRATCH/cori-cctbx.subprocess/output_mpi_tasking_"$SLURM_JOB_ID"_n${n}_shard_${shard}_py__io_
+    export OUT_DIR=$SCRATCH/cori-cctbx.subprocess/output_mpi_"$SLURM_JOB_ID"_n_${n}_shard_${shard}_py__io_
     mkdir -p $OUT_DIR
 
     echo "Running $(basename "$OUT_DIR")"
