@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# Forceably set PATH to avoid references to home directory that can cause slowdowns.
+echo "Before PATH=$PATH"
+export PATH=/conda/myrel/arch/x86_64-rhel7-gcc48-opt/bin:/conda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/udiImage/bin
+echo "After PATH=$PATH"
+
 START_XTC=$(date +"%s")
 EXP=$1
 RUN=$2
@@ -62,6 +67,12 @@ cd $external_psana_dir
 
 # Similarly, set HOME to be absolutely sure that nothing is touching the real home directory.
 export HOME=$external_psana_dir
+
+# Even more variables that Cori seems to have set by default...
+export PYTHONNOUSERSITE=
+unset PYTHONUSERBASE
+unset BASH_ENV
+unset INPUTRC
 
 $external_psana_dir/psana_legion "${@:4}" \
   input.experiment=$EXP \
