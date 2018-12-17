@@ -22,26 +22,22 @@ export HOST_PSANA_DIR=/tmp/psana_legion
 export ORIG_LEGION_DIR=$HOME/psana_legion/legion
 export HOST_LEGION_DIR=/tmp/legion
 
-srun -n $SLURM_JOB_NUM_NODES --ntasks-per-node 1 mkdir -p /tmp/input
-srun -n $SLURM_JOB_NUM_NODES --ntasks-per-node 1 mkdir -p $HOST_PSANA_DIR/scripts
-srun -n $SLURM_JOB_NUM_NODES --ntasks-per-node 1 mkdir -p $HOST_PSANA_DIR/lib64
-srun -n $SLURM_JOB_NUM_NODES --ntasks-per-node 1 mkdir -p $HOST_LEGION_DIR/bindings/python
-srun -n $SLURM_JOB_NUM_NODES --ntasks-per-node 1 mkdir -p $HOST_LEGION_DIR/runtime/legion
-srun -n $SLURM_JOB_NUM_NODES --ntasks-per-node 1 mkdir -p $HOST_LEGION_DIR/runtime/realm
+INPUT_TAR=$PWD/input_$SLURM_JOB_ID.tar
+PSANA_TAR=$PWD/psana_$SLURM_JOB_ID.tar
+LEGION_TAR=$PWD/legion_$SLURM_JOB_ID.tar
 
-for f in *.sh input/*; do
-  sbcast -p ./$f /tmp/$f
-done
+tar cfv $INPUT_TAR *.sh input/*
 pushd $ORIG_PSANA_DIR
-for f in psana_legion *.so *.py scripts/*.sh lib64/*; do
-  sbcast -p ./$f $HOST_PSANA_DIR/$f
-done
+tar cfv $PSANA_TAR --transform 's#^#psana_legion/#' --show-transformed-names psana_legion *.so *.py scripts/*.sh lib64/*
 popd
 pushd $ORIG_LEGION_DIR
-for f in bindings/python/legion.py runtime/legion.h runtime/legion/*.h runtime/realm/*.h; do
-  sbcast -p ./$f $HOST_LEGION_DIR/$f
-done
+tar cfv $LEGION_TAR --transform 's#^#legion/#' --show-transformed-names bindings/python/legion.py runtime/legion.h runtime/legion/*.h runtime/realm/*.h
 popd
+
+sbcast -f $INPUT_TAR /tmp/input.tar
+sbcast -f $PSANA_TAR /tmp/psana.tar
+sbcast -f $LEGION_TAR /tmp/legion.tar
+srun -n $SLURM_JOB_NUM_NODES --ntasks-per-node 1 bash -c "tar xf /tmp/input.tar -C /tmp && tar xf /tmp/psana.tar -C /tmp && tar xf /tmp/legion.tar -C /tmp"
 
 # Host directory where data is located
 HOST_DATA_DIR=$SCRATCH/demo_data/reg
