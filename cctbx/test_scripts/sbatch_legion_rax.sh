@@ -22,9 +22,11 @@ export HOST_PSANA_DIR=/tmp/psana_legion
 export ORIG_LEGION_DIR=$HOME/psana_legion/legion
 export HOST_LEGION_DIR=/tmp/legion
 
-INPUT_TAR=$PWD/input_$SLURM_JOB_ID.tar
-PSANA_TAR=$PWD/psana_$SLURM_JOB_ID.tar
-LEGION_TAR=$PWD/legion_$SLURM_JOB_ID.tar
+TMP_DIR=$SCRATCH/tmp
+mkdir -p $TMP_DIR
+INPUT_TAR=$TMP_DIR/input_$SLURM_JOB_ID.tar
+PSANA_TAR=$TMP_DIR/psana_$SLURM_JOB_ID.tar
+LEGION_TAR=$TMP_DIR/legion_$SLURM_JOB_ID.tar
 
 tar cfv $INPUT_TAR *.sh input/*
 pushd $ORIG_PSANA_DIR
@@ -100,10 +102,15 @@ for n in $(( SLURM_JOB_NUM_NODES - 1 )); do
           csize=8000
       fi
 
+      pyflags=
+      if [[ $py -gt 1 ]]; then
+          pyflags="-ll:isolate_procs -ll:realm_heap_default"
+      fi
+
       # srun -n $(( n * shard )) -N $(( n )) --cpus-per-task $(( 256 / shard )) --cpu_bind cores --output "$OUT_DIR/out_%J_%t.log" \
       srun -n $(( n * shard + 1 )) -N $(( n + 1 )) --cpus-per-task $(( 256 / shard )) --cpu_bind cores --distribution=arbitrary --output "$OUT_DIR/out_%J_%t.log" \
         shifter /tmp/index_legion.sh cxid9114 108 0 \
-          -ll:cpu 0 -ll:py $py -ll:isolate_procs -ll:realm_heap_default -ll:io 1 -ll:concurrent_io 1 -ll:csize $csize -ll:rsize 0 -ll:gsize 0 -ll:ib_rsize 0 -ll:lmbsize $lmbsize -lg:window 100
+          -ll:cpu 0 -ll:py $py $pyflags -ll:io 1 -ll:concurrent_io 1 -ll:csize $csize -ll:rsize 0 -ll:gsize 0 -ll:ib_rsize 0 -ll:lmbsize $lmbsize -lg:window 100
           # -ll:show_rsrv \
           # -hl:prof $(( n * shard )) -hl:prof_logfile "$OUT_DIR/prof_%.gz"
           # -level announce=2,activemsg=2,allocation=2 -logfile "$OUT_DIR/ann_%.log"
