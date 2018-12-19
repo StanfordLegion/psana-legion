@@ -1,0 +1,27 @@
+FROM stanfordlegion/cctbx-legion:latest
+MAINTAINER Elliott Slaughter <slaughter@cs.stanford.edu>
+
+# For rebuilding CCTBX image without pulling down entirely new versions of
+# CCTBX dependencies, because CCTBX does not pin dependency versions and if
+# you rebuild after a long time you're likely to see bitrot.
+
+RUN conda install -y --no-deps mpich2=1.4.1p1-0 && \
+    conda install -y --no-deps --channel conda-forge mpich=3.2.1=h26a2512_7 && \
+    git clone -b master https://gitlab.com/StanfordLegion/legion.git /legion && \
+    ORIGINAL_DIR=$PWD && \
+    cd "$PSANA_LEGION_DIR" && \
+      DEBUG=0 make -j 8 && \
+    cd "$ORIGINAL_DIR" && \
+    cd "$REL_PREFIX" && \
+      git -C PSXtcInput pull && \
+      rm -rf build && \
+      export SIT_RELEASE=$(conda list | grep psana-conda | tr -s ' ' | cut -f1-2 -d' ' | tr ' ' '-') && \
+      export SIT_REPOS="$CONDA_PREFIX/data/anarelinfo" && \
+      export SIT_USE_CONDA=1 && \
+      scons && \
+    cd "$ORIGINAL_DIR" && \
+    cd "$PSANA_LEGION_DIR" && \
+      make clean && \
+    cd "$ORIGINAL_DIR" && \
+    conda uninstall --force mpich mpich2 && \
+    rm -rf /legion
