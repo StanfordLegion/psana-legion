@@ -13,8 +13,9 @@
  * limitations under the License.
  */
 
-#define PSANA_USE_LEGION
+#ifdef REALM_USE_SUBPROCESSES
 
+#define PSANA_USE_LEGION
 #ifdef PSANA_USE_LEGION
 
 #include "io_tasks.h"
@@ -206,3 +207,5 @@ std::map<std::string, int> PsanaRandomAccessXtcReader::_fd;
 #ifdef PSANA_USE_LEGION
 pthread_mutex_t PsanaRandomAccessXtcReader::_fd_mutex = PTHREAD_MUTEX_INITIALIZER;
 #endif
+
+#endif // REALM_USE_SUBPROCESSES

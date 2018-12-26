@@ -85,7 +85,9 @@ int main(int argc, char **argv)
     preregister_native_kernels_tasks(MEMORY_BOUND_TASK_ID,
                                      CACHE_BOUND_TASK_ID,
                                      SUM_TASK_ID);
+#ifdef REALM_USE_SUBPROCESSES
     preregister_io_tasks();
+#endif
   }
 
   char *mapper = getenv("PSANA_MAPPER");
