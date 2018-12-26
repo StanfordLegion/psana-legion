@@ -8,6 +8,7 @@ MAINTAINER Elliott Slaughter <slaughter@cs.stanford.edu>
 RUN conda install -y --no-deps mpich2=1.4.1p1-0 && \
     conda install -y --no-deps --channel conda-forge mpich=3.2.1=h26a2512_7 && \
     git clone -b master https://gitlab.com/StanfordLegion/legion.git /legion && \
+    git -C /legion reset --hard 62b24fd6cb012d863ac68618407db9b3cac3374b && \
     ORIGINAL_DIR=$PWD && \
     cd "$PSANA_LEGION_DIR" && \
       DEBUG=0 make -j 8 && \
