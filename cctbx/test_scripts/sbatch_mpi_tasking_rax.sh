@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH --time=00:30:00
-#SBATCH --partition=debug
+#SBATCH --time=01:00:00
+#SBATCH --partition=regular
 #SBATCH --constraint=knl,quad,cache
 #SBATCH --core-spec=4
 #SBATCH --image=docker:stanfordlegion/cctbx-mpi-tasking:latest
@@ -19,14 +19,19 @@ export ORIG_PSANA_DIR=$HOME/psana_legion/psana-legion/psana_legion
 # export HOST_PSANA_DIR=$SCRATCH/psana_legion_mirror
 export HOST_PSANA_DIR=/tmp/psana_legion
 
-srun -n $SLURM_JOB_NUM_NODES --ntasks-per-node 1 mkdir -p $HOST_PSANA_DIR/scripts
-srun -n $SLURM_JOB_NUM_NODES --ntasks-per-node 1 mkdir -p $HOST_PSANA_DIR/lib64
+TMP_DIR=$SCRATCH/tmp
+mkdir -p $TMP_DIR
+INPUT_TAR=$TMP_DIR/input_$SLURM_JOB_ID.tar
+PSANA_TAR=$TMP_DIR/psana_$SLURM_JOB_ID.tar
 
+tar cfv $INPUT_TAR *.sh input/*
 pushd $ORIG_PSANA_DIR
-for f in psana_legion *.so *.py scripts/*.sh lib64/*; do
-  sbcast -p ./$f $HOST_PSANA_DIR/$f
-done
+tar cfv $PSANA_TAR --transform 's#^#psana_legion/#' --show-transformed-names psana_legion *.so *.py scripts/*.sh lib64/*
 popd
+
+sbcast -f $INPUT_TAR /tmp/input.tar
+sbcast -f $PSANA_TAR /tmp/psana.tar
+srun -n $SLURM_JOB_NUM_NODES --ntasks-per-node 1 bash -c "tar xf /tmp/input.tar -C /tmp && tar xf /tmp/psana.tar -C /tmp"
 
 # Host directory where data is located
 # HOST_DATA_DIR=$SCRATCH/data/reg
@@ -36,7 +41,8 @@ HOST_DATA_DIR=$SCRATCH/demo_data/reg
 
 export SIT_PSDM_DATA=$HOST_DATA_DIR/d/psdm
 
-export IN_DIR=$PWD/input
+# export IN_DIR=$PWD/input
+export IN_DIR=/tmp/input
 
 export EAGER=1
 # export LIMIT=1024

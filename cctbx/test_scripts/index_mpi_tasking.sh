@@ -53,6 +53,20 @@ export PYTHONPATH="$external_psana_dir:$PYTHONPATH"
 # FIXME: This seems to be necessary (otherwise Python can't find __future__ ???)
 export PYTHONHOME="$CONDA_PREFIX"
 
+# IMPORTANT: Python searches the current directory by default, and this can get very, very slow at high node counts
+# Work around it by cd'ing to a known local directory before running
+# (Otherwise the current directory shouldn't matter)
+cd $external_psana_dir
+
+# Similarly, set HOME to be absolutely sure that nothing is touching the real home directory.
+export HOME=$external_psana_dir
+
+# Even more variables that Cori seems to have set by default...
+export PYTHONNOUSERSITE=
+unset PYTHONUSERBASE
+unset BASH_ENV
+unset INPUTRC
+
 $CONDA_PREFIX/bin/python -Qnew "$CCTBX_PREFIX/modules/cctbx_project/xfel/command_line/xtc_process.py" \
   input.experiment=$EXP \
   input.run_num=$RUN \
