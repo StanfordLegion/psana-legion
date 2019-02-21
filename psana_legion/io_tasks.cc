@@ -13,12 +13,12 @@
  * limitations under the License.
  */
 
+#include "io_tasks.h"
+
 #ifdef REALM_USE_SUBPROCESSES
 
 #define PSANA_USE_LEGION
 #ifdef PSANA_USE_LEGION
-
-#include "io_tasks.h"
 
 #include <fcntl.h>
 #include <pthread.h>
@@ -40,7 +40,7 @@
 #include "pdsdata_includes.h"
 #endif
 
-#endif
+#endif // PSANA_USE_LEGION
 
 class PsanaRandomAccessXtcReader {
 public:

@@ -16,6 +16,10 @@
 #ifndef __IO_TASKS_H__
 #define __IO_TASKS_H__
 
+#include "realm/realm_config.h" // for REALM_USE_SUBPROCESSES
+
+#ifdef REALM_USE_SUBPROCESSES
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -25,5 +29,7 @@ void preregister_io_tasks();
 #ifdef __cplusplus
 }
 #endif
+
+#endif // REALM_USE_SUBPROCESSES
 
 #endif // __IO_TASKS_H__
