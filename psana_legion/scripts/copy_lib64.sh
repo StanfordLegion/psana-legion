@@ -16,7 +16,7 @@ cp /opt/cray/wlm_detect/default/lib64/libwlm_detect.so.0 lib64/
 # cp /opt/cray/pe/gcc-libs/libgfortran.so.3 lib64/ # FIXME (Elliott): why is this needed?
 
 # Needed for CCTBX to be able to use MPI:
-cp /opt/cray/pe/lib64/libmpich_gnu_51.so.3 lib64
+cp /opt/cray/pe/lib64/libmpich_gnu_71.so.3 lib64
 cp /opt/cray/xpmem/default/lib64/libxpmem.so.0 lib64/
 
 ls -l lib64
