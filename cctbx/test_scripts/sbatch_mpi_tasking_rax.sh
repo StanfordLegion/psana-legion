@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --time=01:00:00
-#SBATCH --partition=regular
+#SBATCH --qos=regular
 #SBATCH --constraint=knl,quad,cache
 #SBATCH --core-spec=4
 #SBATCH --image=docker:stanfordlegion/cctbx-mpi-tasking:latest
