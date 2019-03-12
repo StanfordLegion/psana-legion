@@ -19,9 +19,10 @@
 
 #ifdef REALM_USE_SUBPROCESSES
 #include "realm/custom_malloc.h"
-#define ENTER_C_API Realm::ScopedAllocatorPush sap(0)
+#include "realm/runtime_impl.h"
+#define INSTALL_REALM_ALLOCATOR Realm::ScopedAllocatorPush sap(Realm::RuntimeImpl::realm_allocator)
 #else
-#define ENTER_C_API do {} while (0)
+#define INSTALL_REALM_ALLOCATOR do {} while (0)
 #endif
 
 #include "native_kernels_tasks.h"
@@ -81,7 +82,7 @@ int main(int argc, char **argv)
   Runtime::set_top_level_task_id(TOP_LEVEL_TASK_ID);
 
   {
-    ENTER_C_API;
+    INSTALL_REALM_ALLOCATOR;
     preregister_native_kernels_tasks(MEMORY_BOUND_TASK_ID,
                                      CACHE_BOUND_TASK_ID,
                                      SUM_TASK_ID);

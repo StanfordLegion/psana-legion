@@ -31,9 +31,10 @@
 
 #ifdef REALM_USE_SUBPROCESSES
 #include "realm/custom_malloc.h"
-#define ENTER_C_API Realm::ScopedAllocatorPush sap(0)
+#include "realm/runtime_impl.h"
+#define INSTALL_REALM_ALLOCATOR Realm::ScopedAllocatorPush sap(Realm::RuntimeImpl::realm_allocator)
 #else
-#define ENTER_C_API do {} while (0)
+#define INSTALL_REALM_ALLOCATOR do {} while (0)
 #endif
 
 #ifdef REALM_USE_SUBPROCESSES
@@ -142,7 +143,7 @@ public:
     // Fetch destination pointer out of region argument.
     LegionRuntime::Arrays::Rect<1> rect;
     {
-      ENTER_C_API;
+      INSTALL_REALM_ALLOCATOR;
       rect = runtime->get_index_space_domain(
         regions[0].get_logical_region().get_index_space()).get_rect<1>();
     }
@@ -154,7 +155,7 @@ public:
     for (size_t i = 0; i < count; i++) {
       void *base_ptr;
       {
-        ENTER_C_API;
+        INSTALL_REALM_ALLOCATOR;
         LegionRuntime::Accessor::RegionAccessor<LegionRuntime::Accessor::AccessorType::Generic> accessor =
           regions[0].get_field_accessor(fid_base+i);
         base_ptr = accessor.raw_rect_ptr<1>(rect, subrect, &stride);
@@ -172,7 +173,7 @@ public:
   }
 
   static Legion::TaskID preregister_jump_task() {
-    ENTER_C_API;
+    INSTALL_REALM_ALLOCATOR;
     static const char * const task_name = "jump";
     Legion::TaskVariantRegistrar registrar(task_id, task_name, false /* global */);
     registrar.add_constraint(Legion::ProcessorConstraint(Legion::Processor::IO_PROC));
