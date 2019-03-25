@@ -61,14 +61,35 @@ rm -rf lcls2
 source env.sh
 
 # Install Conda environment.
-wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-$(uname -p).sh -O conda.sh
-bash ./conda.sh -b -p $CONDA_PREFIX
-rm conda.sh
+wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-$(uname -p).sh -O conda-installer.sh
+bash ./conda-installer.sh -b -p $CONDA_PREFIX
+rm conda-installer.sh
 source $CONDA_PREFIX/etc/profile.d/conda.sh
 
-conda update -y conda
 # conda install -y conda-build # Must be installed in root environment
-conda create -y --name myenv python=3.6 cmake h5py ipython numpy cffi curl cython rapidjson pytest requests pymongo mongodb
+PACKAGE_LIST=(
+    # Stripped down from env_create.yaml:
+    python=$PYVER
+    cmake
+    numpy
+    cython
+    pytest
+    mongodb
+    pymongo
+    curl
+    rapidjson
+    ipython
+    requests
+
+    # Legion dependencies:
+    cffi
+)
+if [[ $(hostname --fqdn) != *"summit"* ]]; then
+    PACKAGE_LIST+=(
+        mpi4py
+    )
+fi
+conda create -y --name myenv "${PACKAGE_LIST[@]}"
 # FIXME: Can't do this on Summit since not all the packages are available....
 # git clone https://github.com/slac-lcls/relmanage.git
 # sed s/PYTHONVER/$PYVER/ relmanage/env_create.yaml > temp_env_create.yaml
@@ -82,7 +103,6 @@ fi
 
 # Install Legion.
 # conda build relmanage/recipes/legion/ --output-folder channels/external/ --python $PYVER
-conda remove -y legion
 # conda install -y legion -c file://`pwd`/channels/external --override-channels
 
 if [[ $GASNET_ROOT == $PWD/gasnet/release ]]; then

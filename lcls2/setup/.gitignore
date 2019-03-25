@@ -3,5 +3,8 @@
 /lcls2
 /relmanage
 
+/gasnet
+/legion
+
 /env.sh
 /temp_env_create.yaml
