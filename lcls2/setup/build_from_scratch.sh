@@ -23,8 +23,8 @@ else
         exit 1
     fi
     cat > env.sh <<EOF
-export CC=$CC
-export CXX=$CXX
+export CC="$CC"
+export CXX="$CXX"
 
 export USE_CUDA=${USE_CUDA:-0}
 export USE_GASNET=${USE_GASNET:-0}
@@ -33,22 +33,22 @@ EOF
 fi
 
 cat >> env.sh <<EOF
-export GASNET_ROOT=${GASNET_ROOT:-$PWD/gasnet/release}
+export GASNET_ROOT="${GASNET_ROOT:-$PWD/gasnet/release}"
 
-export LG_RT_DIR=${LG_RT_DIR:-$PWD/legion/runtime}
+export LG_RT_DIR="${LG_RT_DIR:-$PWD/legion/runtime}"
 
-export CONDA_PREFIX=$PWD/conda
+export CONDA_ROOT="$PWD/conda"
 
 export PYVER=3.6
-export LCLS2_DIR=$PWD/lcls2
+export LCLS2_DIR="$PWD/lcls2"
 
-# export PATH=\$CONDA_PREFIX/bin:\$PATH
-# export LD_LIBRARY_PATH=\$CONDA_PREFIX/lib:\$LD_LIBRARY_PATH
-export PYTHONPATH=\$LCLS2_DIR/install/lib/python\$PYVER/site-packages:\$PYTHONPATH
+export PATH="\$LCLS2_DIR/install/bin:\$PATH"
+export PYTHONPATH="\$LCLS2_DIR/install/lib/python\$PYVER/site-packages:\$PYTHONPATH"
 
-if [[ -d \$CONDA_PREFIX ]]; then
-  source \$CONDA_PREFIX/etc/profile.d/conda.sh
+if [[ -d \$CONDA_ROOT ]]; then
+  source "\$CONDA_ROOT/etc/profile.d/conda.sh"
   conda activate myenv
+  export LD_LIBRARY_PATH="\$CONDA_PREFIX/lib:\$LD_LIBRARY_PATH"
 fi
 EOF
 
@@ -62,9 +62,9 @@ source env.sh
 
 # Install Conda environment.
 wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-$(uname -p).sh -O conda-installer.sh
-bash ./conda-installer.sh -b -p $CONDA_PREFIX
+bash ./conda-installer.sh -b -p $CONDA_ROOT
 rm conda-installer.sh
-source $CONDA_PREFIX/etc/profile.d/conda.sh
+source $CONDA_ROOT/etc/profile.d/conda.sh
 
 # conda install -y conda-build # Must be installed in root environment
 PACKAGE_LIST=(
@@ -73,6 +73,7 @@ PACKAGE_LIST=(
     cmake
     numpy
     cython
+    matplotlib
     pytest
     mongodb
     pymongo
@@ -95,6 +96,7 @@ conda create -y --name myenv "${PACKAGE_LIST[@]}"
 # sed s/PYTHONVER/$PYVER/ relmanage/env_create.yaml > temp_env_create.yaml
 # conda env create --name myenv -f temp_env_create.yaml
 conda activate myenv
+export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:$LD_LIBRARY_PATH"
 
 # Workaround for mpi4py not being built with the right MPI.
 if [[ $(hostname --fqdn) = *"summit"* ]]; then
@@ -128,8 +130,8 @@ if [[ $LG_RT_DIR == $PWD/legion/runtime ]]; then
         -DLegion_USE_GASNet=$([ $USE_GASNET -eq 1 ] && echo ON || echo OFF) \
         -DGASNet_ROOT_DIR="$GASNET_ROOT" \
         -DGASNet_CONDUITS=$CONDUIT \
-        -DCMAKE_INSTALL_PREFIX="$CONDA_DEFAULT_ENV" \
-        -DCMAKE_INSTALL_LIBDIR="$CONDA_DEFAULT_ENV/lib" \
+        -DCMAKE_INSTALL_PREFIX="$CONDA_PREFIX" \
+        -DCMAKE_INSTALL_LIBDIR="$CONDA_PREFIX/lib" \
         ..
     make -j8
     make install
