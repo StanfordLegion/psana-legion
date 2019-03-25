@@ -3,6 +3,8 @@
 set -e
 
 root_dir="$(dirname "${BASH_SOURCE[0]}")"
+source "$root_dir"/../setup/env.sh
+
 export PYTHONPATH="$PYTHONPATH:$root_dir"
 export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$root_dir/build"
 export PS_PARALLEL=legion

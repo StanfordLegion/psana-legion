@@ -71,18 +71,17 @@ limit = int(os.environ['LIMIT']) if 'LIMIT' in os.environ else None
 xtc_dir = os.path.join(os.getcwd(),'.tmp')
 ds = DataSource('exp=xpptut13:run=1:dir=%s'%(xtc_dir), max_events=limit, det_name='xppcspad')
 
-# FIXME: For some reason we need this loop, even though we're not going to do any analysis inside.
-for run in ds.runs():
-    det = ds.Detector(ds.det_name)
-
-def event_fn(event):
+def event_fn(event, det):
     if kernel is not None:
         if kernel_uses_raw:
-            raw = det.raw(event)
-            raw_region = legion.Region.create(raw.shape, {'x': (legion.int16, 1)})
+            raw = det.raw.raw(event)
+            raw_region = legion.Region.create(raw.shape, {'x': (legion.uint16, 1)})
             numpy.copyto(raw_region.x, raw, casting='no')
             kernel(raw_region)
             raw_region.destroy()
         else:
             kernel()
-ds.analyze(event_fn=event_fn)
+
+for run in ds.runs():
+    det = run.Detector('xppcspad')
+    run.analyze(event_fn=event_fn, det=det)
