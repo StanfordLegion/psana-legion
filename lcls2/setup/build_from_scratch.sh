@@ -2,6 +2,9 @@
 
 set -e
 
+root_dir="$(dirname "${BASH_SOURCE[0]}")"
+cd "$root_dir"
+
 # Setup environment.
 if [[ $(hostname --fqdn) = *"summit"* ]]; then
     cat > env.sh <<EOF
