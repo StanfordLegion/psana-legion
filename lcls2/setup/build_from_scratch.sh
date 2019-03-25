@@ -5,8 +5,8 @@ set -e
 # Setup environment.
 if [[ $(hostname --fqdn) = *"summit"* ]]; then
     cat > env.sh <<EOF
-module load gcc/6.3.1-20170301
-module load cuda/9.0.69
+module load gcc/6.4.0
+module load cuda/9.2.148
 export CC=gcc
 export CXX=g++
 
