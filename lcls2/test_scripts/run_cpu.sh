@@ -24,4 +24,4 @@ if [[ ! -d .tmp ]]; then
     false
 fi
 
-legion_python user -ll:py 1 -ll:cpu 1
+legion_python user.py -ll:py 1 -ll:cpu 1
