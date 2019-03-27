@@ -39,7 +39,8 @@ using namespace Legion::Mapping;
 #define _X {log_lifeline_mapper.debug("%s trace mappedRelocated %d", prolog(__FUNCTION__, __LINE__).c_str(), mappedRelocatedTaskCount);}
 
 static const char* ANALYSIS_TASK_NAMES[] = {
-  "psana_legion.analyze_single"
+  "psana_legion.analyze_single", // psana 1
+  "psana.psexp.legion_node.run_bigdata_task", // psana 2
 };
 
 static const int TASKS_PER_STEALABLE_SLICE = 1;
