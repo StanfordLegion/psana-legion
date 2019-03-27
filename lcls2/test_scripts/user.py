@@ -73,7 +73,6 @@ if 'DATA_DIR' in os.environ:
     xtc_dir = os.environ['DATA_DIR']
 else:
     xtc_dir = os.path.join(os.getcwd(),'.tmp')
-ds = DataSource('exp=xpptut13:run=1:dir=%s'%(xtc_dir), max_events=limit, det_name='xppcspad')
 
 def event_fn(event, det):
     if kernel is not None:
@@ -86,6 +85,17 @@ def event_fn(event, det):
         else:
             kernel()
 
-for run in ds.runs():
-    det = run.Detector('xppcspad')
-    run.analyze(event_fn=event_fn, det=det)
+# Hack: On Summit Python doesn't seem to automatically print
+# backtraces, so we manually catch the exceptions and print them here.
+try:
+    ds = DataSource('exp=xpptut13:run=1:dir=%s'%(xtc_dir), max_events=limit, det_name='xppcspad')
+
+    for run in ds.runs():
+        det = run.Detector('xppcspad')
+        run.analyze(event_fn=event_fn, det=det)
+except:
+    import traceback
+    import sys
+    traceback.print_exc(file=sys.stderr)
+    sys.stderr.flush()
+    raise
