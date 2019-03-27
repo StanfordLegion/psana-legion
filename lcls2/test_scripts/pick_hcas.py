@@ -9,7 +9,7 @@ import sys
 
 # Retreive the list of HCAs on the current node.
 devinfo = subprocess.check_output(['ibv_devinfo'])
-hcas = re.findall(r'hca_id:\s+([A-Za-z0-9_]+)', devinfo)
+hcas = re.findall(br'hca_id:\s+([A-Za-z0-9_]+)', devinfo)
 assert(len(hcas) > 0)
 
 # Pick an HCA by round-robin over ranks.
