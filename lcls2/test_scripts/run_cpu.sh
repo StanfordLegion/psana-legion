@@ -12,16 +12,10 @@ export PS_PARALLEL=legion
 export KERNEL_KIND=sum
 export LIMIT=10
 
-if [[ ! -d .tmp ]]; then
-    echo "The .tmp directory does not exist. Please run:"
-    echo
-    echo "    pushd ../lcls2 # wherever you checked out lcls2 repo"
-    echo "    source setup_env.sh"
-    echo "    ./build_all.sh"
-    echo "    pytest psana/psana/tests"
-    echo "    popd"
-    echo "    cp -r ../lcls2/.tmp ."
+export DATA_DIR="${DATA_DIR:-/reg/d/psdm/xpp/xpptut15/scratch/mona/xtc2}"
+if [[ ! -d $DATA_DIR ]]; then
+    echo "DATA_DIR is not set or does not exist. Please check it and rerun."
     false
 fi
 
-legion_python user.py -ll:py 1 -ll:cpu 1
+legion_python user -ll:py 1 -ll:cpu 1

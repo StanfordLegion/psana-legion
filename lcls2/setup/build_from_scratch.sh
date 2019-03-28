@@ -17,6 +17,16 @@ export USE_CUDA=${USE_CUDA:-1}
 export USE_GASNET=${USE_GASNET:-1}
 export CONDUIT=${CONDUIT:-ibv}
 EOF
+elif [[ $(hostname) = "psbuild-"* ]]; then
+    cat > env.sh <<EOF
+export PATH="/opt/rh/devtoolset-7/root/usr/bin:$PATH"
+export CC=gcc
+export CXX=g++
+
+export USE_CUDA=${USE_CUDA:-0}
+export USE_GASNET=${USE_GASNET:-0}
+export CONDUIT=${CONDUIT:-mpi}
+EOF
 else
     if [[ -z $CC || -z $CXX || ! $($CC --version) = *" 6."* || ! $($CXX --version) = *" 6."* ]]; then
         echo "GCC 6.x is required to build."
@@ -41,6 +51,7 @@ export GASNET_ROOT="${GASNET_ROOT:-$PWD/gasnet/release}"
 export LG_RT_DIR="${LG_RT_DIR:-$PWD/legion/runtime}"
 
 export CONDA_ROOT="$PWD/conda"
+export CONDA_ENV_DIR="\$CONDA_ROOT/envs/myenv"
 
 export PYVER=3.6
 export LCLS2_DIR="$PWD/lcls2"
@@ -50,7 +61,7 @@ export PYTHONPATH="\$LCLS2_DIR/install/lib/python\$PYVER/site-packages:\$PYTHONP
 
 if [[ -d \$CONDA_ROOT ]]; then
   source "\$CONDA_ROOT/etc/profile.d/conda.sh"
-  conda activate myenv
+  conda activate "\$CONDA_ENV_DIR"
   export LD_LIBRARY_PATH="\$CONDA_PREFIX/lib:\$LD_LIBRARY_PATH"
 fi
 EOF
@@ -93,12 +104,12 @@ if [[ $(hostname --fqdn) != *"summit"* ]]; then
         mpi4py
     )
 fi
-conda create -y --name myenv "${PACKAGE_LIST[@]}"
+conda create -y -p "$CONDA_ENV_DIR" "${PACKAGE_LIST[@]}"
 # FIXME: Can't do this on Summit since not all the packages are available....
 # git clone https://github.com/slac-lcls/relmanage.git
 # sed s/PYTHONVER/$PYVER/ relmanage/env_create.yaml > temp_env_create.yaml
-# conda env create --name myenv -f temp_env_create.yaml
-conda activate myenv
+# conda env create -p "$CONDA_ENV_DIR" -f temp_env_create.yaml
+conda activate "$CONDA_ENV_DIR"
 export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:$LD_LIBRARY_PATH"
 
 # Workaround for mpi4py not being built with the right MPI.
