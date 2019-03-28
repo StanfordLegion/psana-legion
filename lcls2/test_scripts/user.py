@@ -48,10 +48,10 @@ memory_bound_task = legion.extern_task(task_id=memory_bound_task_id)
 cache_bound_task = legion.extern_task(task_id=cache_bound_task_id)
 sum_task = legion.extern_task(task_id=sum_task_id, privileges=[legion.RO])
 
-# if legion.is_script:
-#     print('WARNING: unable to set mapper in script mode')
-# else:
-#     c.register_lifeline_mapper()
+if legion.is_script:
+    print('WARNING: unable to set mapper in script mode')
+else:
+    c.register_lifeline_mapper()
 
 kernel_kind = os.environ.get('KERNEL_KIND')
 kernel_uses_raw = False

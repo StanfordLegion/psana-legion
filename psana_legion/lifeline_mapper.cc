@@ -831,6 +831,11 @@ std::string LifelineMapper::taskDescription(const Legion::Task& task)
 bool LifelineMapper::isAnalysisTask(const Legion::Task& task)
 //--------------------------------------------------------------------------
 {
+  // Hack to avoid deadlock on 1 node.
+  if (total_nodes <= 1) {
+    return false;
+  }
+
   int numAnalysisTasks = sizeof(ANALYSIS_TASK_NAMES) / sizeof(ANALYSIS_TASK_NAMES[0]);
   for(int i = 0; i < numAnalysisTasks; ++i) {
     if(!strcmp(task.get_task_name(), ANALYSIS_TASK_NAMES[i])) {
