@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright 2018 Stanford University
+# Copyright 2019 Stanford University
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,15 +17,16 @@
 
 from __future__ import print_function
 
-print('top of user.py', flush=True)
-
 import cffi
 import legion
+from legion import task, RW
 import numpy
 import os
 import subprocess
 
 from psana import DataSource
+
+import data_collector
 
 root_dir = os.path.dirname(os.path.realpath(__file__))
 native_kernels_h_path = os.path.join(os.path.dirname(os.path.dirname(root_dir)), 'psana_legion', 'native_kernels_tasks.h')
@@ -48,7 +49,7 @@ c.register_native_kernels_tasks(memory_bound_task_id,
 
 memory_bound_task = legion.extern_task(task_id=memory_bound_task_id)
 cache_bound_task = legion.extern_task(task_id=cache_bound_task_id)
-sum_task = legion.extern_task(task_id=sum_task_id, privileges=[legion.RO])
+sum_task = legion.extern_task(task_id=sum_task_id, privileges=[legion.RO], return_type=legion.int64)
 
 if legion.is_script:
     print('WARNING: unable to set mapper in script mode')
@@ -74,18 +75,42 @@ limit = int(os.environ['LIMIT']) if 'LIMIT' in os.environ else None
 xtc_dir = os.environ['DATA_DIR']
 ds = DataSource('exp=xpptut13:run=1:dir=%s'%(xtc_dir), max_events=limit, det_name='xppcspad')
 
-def event_fn(event, det):
-    print('event_fn', event, flush=True)
-    if kernel is not None:
-        if kernel_uses_raw:
-            raw = det.raw.raw(event)
-            raw_region = legion.Region.create(raw.shape, {'x': (legion.uint16, 1)})
-            numpy.copyto(raw_region.x, raw, casting='no')
-            kernel(raw_region)
-            raw_region.destroy()
-        else:
-            kernel()
+def preprocess(event, data, det):
+    raw = det.raw.raw(event)
+    raw_region = legion.Region.create(raw.shape, {'x': (legion.uint16, 1)})
+    legion.fill(raw_region, 'x', 0)
+    numpy.copyto(raw_region.x, raw, casting='no')
+    result = sum_task(raw_region)
+    for i in range(data.ispace.volume):
+        if not data.valid[i]:
+            data.sum[i] = result.get()
+            data.valid[i] = True
+            break
+
+@task(privileges=[RW])
+def solve_local(data):
+    return data.sum.sum()
+
+@task(privileges=[RW])
+def solve(data, part):
+    futures = []
+    for piece in part:
+        futures.append(solve_local(piece))
+    overall_answer = 0
+    for future in futures:
+        overall_answer += future.get()
+    return overall_answer
 
 for run in ds.runs():
     det = run.Detector('xppcspad')
-    run.analyze(event_fn=event_fn, det=det)
+    data = legion.Region.create([10000], {'sum': legion.int64, 'valid': legion.uint8})
+    legion.fill(data, 'sum', -1)
+    legion.fill(data, 'valid', 0)
+    part = legion.Partition.create_equal(data, [10])
+    data_collector.load_data(run, data, part, event_fn=preprocess, det=det)
+
+    result = solve(data, part)
+    print('result of solve is {}'.format(result.get()))
+
+# notes:
+# * what solves do we actually need

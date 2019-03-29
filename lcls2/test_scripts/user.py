@@ -73,13 +73,13 @@ xtc_dir = os.environ['DATA_DIR']
 ds = DataSource('exp=xpptut13:run=1:dir=%s'%(xtc_dir), max_events=limit, det_name='xppcspad')
 
 def event_fn(event, det):
+    print('event_fn', event, flush=True)
     if kernel is not None:
         if kernel_uses_raw:
             raw = det.raw.raw(event)
             raw_region = legion.Region.create(raw.shape, {'x': (legion.uint16, 1)})
             numpy.copyto(raw_region.x, raw, casting='no')
             kernel(raw_region)
-            raw_region.destroy()
         else:
             kernel()
 

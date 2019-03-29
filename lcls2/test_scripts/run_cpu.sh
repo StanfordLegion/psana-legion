@@ -1,6 +1,7 @@
 #!/bin/bash
 
 set -e
+set -x
 
 root_dir="$(dirname "${BASH_SOURCE[0]}")"
 source "$root_dir"/../setup/env.sh
@@ -18,4 +19,4 @@ if [[ ! -d $DATA_DIR ]]; then
     false
 fi
 
-legion_python user -ll:py 1 -ll:cpu 1
+mpirun -n 2 legion_python user -ll:py 1 -ll:cpu 1 -level announce=2

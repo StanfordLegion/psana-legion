@@ -53,7 +53,7 @@ int64_t sum_task(const Task *task,
   for (PointInRectIterator<3> p(rect); p(); p++) {
     sum += x[*p];
   }
-  printf("sum is %" PRId64 "\n", sum);
+  // printf("sum is %" PRId64 "\n", sum);
   return sum;
 }
 

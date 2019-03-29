@@ -78,6 +78,6 @@ int64_t gpu_sum_task(const Task *task,
   }
 
   int64_t sum = result;
-  printf("gpu sum is %" PRId64 "\n", sum);
+  // printf("gpu sum is %" PRId64 "\n", sum);
   return sum;
 }
