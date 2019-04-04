@@ -13,7 +13,7 @@ module load cuda/9.2.148
 export CC=gcc
 export CXX=g++
 
-export USE_CUDA=${USE_CUDA:-1}
+export USE_CUDA=${USE_CUDA:-0}
 export USE_GASNET=${USE_GASNET:-1}
 export CONDUIT=${CONDUIT:-ibv}
 EOF
