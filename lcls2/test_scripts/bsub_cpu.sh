@@ -26,4 +26,6 @@ export http_proxy=http://proxy.ccs.ornl.gov:3128/
 export https_proxy=https://proxy.ccs.ornl.gov:3128/
 export no_proxy='localhost,127.0.0.0/8,*.ccs.ornl.gov,*.ncrc.gov'
 
-jsrun -n 1 ./pick_hcas.py legion_python user -ll:py 1 -ll:cpu 1
+nodes=$(( ( LSB_MAX_NUM_PROCESSORS - 1 ) / 42 ))
+
+jsrun -n $(( nodes * 2 )) --rs_per_host 2 --tasks_per_rs 1 --cpu_per_rs 21 --gpu_per_rs 3 --bind rs ./pick_hcas.py legion_python user -ll:py 1 -ll:cpu 1 -ll:force_kthreads 1 # note: keep the argument to force_kthreads, otherwise legion.py can't parse it
