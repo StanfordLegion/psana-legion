@@ -9,7 +9,7 @@ rm -rf "$root_dir"/legion/build
 mkdir "$root_dir"/legion/build
 pushd "$root_dir"/legion/build
 
-cmake -DCMAKE_BUILD_TYPE=Release \
+cmake -DCMAKE_BUILD_TYPE=$([ $LEGION_DEBUG -eq 1 ] && echo Debug || echo Release) \
     -DBUILD_SHARED_LIBS=ON \
     -DLegion_BUILD_BINDINGS=ON \
     -DLegion_ENABLE_TLS=ON \
