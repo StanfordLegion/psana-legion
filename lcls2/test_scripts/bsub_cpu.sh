@@ -16,7 +16,8 @@ export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$root_dir/build"
 export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$REL_DIR/lib"
 export PS_PARALLEL=legion
 
-export DATA_DIR=$MEMBERWORK/chm137/mona_small_data
+# export DATA_DIR=$MEMBERWORK/chm137/mona_small_data
+export DATA_DIR=$WORLDWORK/chm137/mona_small_data
 
 export LIMIT=10
 
