@@ -7,13 +7,21 @@
 #BSUB -N
 
 root_dir="$PWD"
+
+source "$root_dir"/../setup/env.sh
+
 export PYTHONPATH="$PYTHONPATH:$root_dir"
 export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$root_dir/build"
 # uncomment this line when building Legion outside of conda build
 export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$REL_DIR/lib"
 export PS_PARALLEL=legion
 
+# export DATA_DIR=$MEMBERWORK/chm137/mona_small_data
+export DATA_DIR=$WORLDWORK/chm137/mona_small_data
+
 export LIMIT=10
+
+export IBV_FORK_SAFE=1 # workaround for https://upc-bugs.lbl.gov/bugzilla/show_bug.cgi?id=3908
 
 export all_proxy=socks://proxy.ccs.ornl.gov:3128/
 export ftp_proxy=ftp://proxy.ccs.ornl.gov:3128/

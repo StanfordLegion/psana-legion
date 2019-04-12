@@ -21,6 +21,8 @@ export DATA_DIR=$WORLDWORK/chm137/mona_small_data
 
 export LIMIT=10
 
+export IBV_FORK_SAFE=1 # workaround for https://upc-bugs.lbl.gov/bugzilla/show_bug.cgi?id=3908
+
 export all_proxy=socks://proxy.ccs.ornl.gov:3128/
 export ftp_proxy=ftp://proxy.ccs.ornl.gov:3128/
 export http_proxy=http://proxy.ccs.ornl.gov:3128/
@@ -29,4 +31,4 @@ export no_proxy='localhost,127.0.0.0/8,*.ccs.ornl.gov,*.ncrc.gov'
 
 nodes=$(( ( LSB_MAX_NUM_PROCESSORS - 1 ) / 42 ))
 
-jsrun -n $(( nodes * 2 )) --rs_per_host 2 --tasks_per_rs 1 --cpu_per_rs 21 --gpu_per_rs 3 --bind rs ./pick_hcas.py legion_python user -ll:py 1 -ll:cpu 1 -ll:force_kthreads 1 # note: keep the argument to force_kthreads, otherwise legion.py can't parse it
+jsrun -n $(( nodes * 2 )) --rs_per_host 2 --tasks_per_rs 1 --cpu_per_rs 21 --gpu_per_rs 3 --bind rs ./pick_hcas.py legion_python user -ll:py 1 -ll:cpu 1
