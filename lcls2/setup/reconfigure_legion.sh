@@ -19,6 +19,7 @@ cmake -DCMAKE_BUILD_TYPE=$([ $LEGION_DEBUG -eq 1 ] && echo Debug || echo Release
     -DLegion_USE_GASNet=$([ $USE_GASNET -eq 1 ] && echo ON || echo OFF) \
     -DGASNet_ROOT_DIR="$GASNET_ROOT" \
     -DGASNet_CONDUITS=$CONDUIT \
+    -DLegion_MAX_DIM=$MAX_DIM \
     -DCMAKE_INSTALL_PREFIX="$CONDA_PREFIX" \
     -DCMAKE_INSTALL_LIBDIR="$CONDA_PREFIX/lib" \
     ..

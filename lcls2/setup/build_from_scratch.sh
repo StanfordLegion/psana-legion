@@ -63,6 +63,7 @@ export GASNET_ROOT="${GASNET_ROOT:-$PWD/gasnet/release}"
 
 export LG_RT_DIR="${LG_RT_DIR:-$PWD/legion/runtime}"
 export LEGION_DEBUG=1
+export MAX_DIM=4
 
 export CONDA_ROOT="$PWD/conda"
 export CONDA_ENV_DIR="\$CONDA_ROOT/envs/myenv"
