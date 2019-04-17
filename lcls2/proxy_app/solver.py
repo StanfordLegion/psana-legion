@@ -34,7 +34,7 @@ def preprocess(data):
 def solve_step(data):
     return data.x.sum()
 
-@task(privileges=[RW])
+@task(privileges=[RW], replicable=True)
 def solve():
     global_procs = legion.Tunable.select(legion.Tunable.GLOBAL_PYS).get()
 
@@ -49,6 +49,7 @@ def solve():
     overall_answer = 0
     while overall_answer == 0:
         # Obtain the newest copy of the data.
+        # FIXME: must epoch launch
         for idx in range(global_procs): # legion.IndexLaunch([global_procs]): # FIXME: index launch
             data_collector.fill_data_region(part[idx])
 
