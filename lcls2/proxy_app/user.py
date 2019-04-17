@@ -19,14 +19,13 @@ from __future__ import print_function
 
 import cffi
 import legion
-from legion import task, RW
+from legion import task, R, RW
 import numpy
 import os
 import subprocess
+import threading
 
 from psana import DataSource
-
-import data_collector
 
 root_dir = os.path.dirname(os.path.realpath(__file__))
 native_kernels_h_path = os.path.join(os.path.dirname(os.path.dirname(root_dir)), 'psana_legion', 'native_kernels_tasks.h')
@@ -75,42 +74,90 @@ limit = int(os.environ['LIMIT']) if 'LIMIT' in os.environ else None
 xtc_dir = os.environ['DATA_DIR']
 ds = DataSource('exp=xpptut13:run=1:dir=%s'%(xtc_dir), max_events=limit, det_name='xppcspad')
 
-def preprocess(event, data, det):
+###
+### Data Loading
+###
+
+data_store = []
+n_events_ready = 0
+n_events_used = 0
+data_lock = threading.Lock()
+
+def load_event_data(event, det):
+    global n_events_ready
     raw = det.raw.raw(event)
-    raw_region = legion.Region.create(raw.shape, {'x': (legion.uint16, 1)})
-    legion.fill(raw_region, 'x', 0)
-    numpy.copyto(raw_region.x, raw, casting='no')
-    result = sum_task(raw_region)
-    for i in range(data.ispace.volume):
-        if not data.valid[i]:
-            data.sum[i] = result.get()
-            data.valid[i] = True
-            break
+    with data_lock:
+        data_store.append((event, raw))
+        n_events_ready += 1
+
+def load_run_data(run):
+    det = run.Detector('xppcspad')
+    run.analyze(event_fn=load_event_data, det=det)
+
+def reset_data():
+    global data_store, n_events_ready, n_events_used
+    with data_lock:
+        data_store = []
+        n_events_ready = 0
+        n_events_used = 0
+
+###
+### Solver
+###
 
 @task(privileges=[RW])
+def preprocess(data):
+    global data_store, n_events_used
+    with data_lock:
+        raw, used, ready = data_store, n_events_used, n_events_ready
+        data_store = []
+        n_events_used = ready
+
+    for idx in range(used, ready):
+        numpy.copyto(data.x[idx,:,:,:], raw[idx - used][1], casting='no')
+
+@task(privileges=[R])
 def solve_local(data):
-    return data.sum.sum()
+    return data.x.sum()
 
 @task(privileges=[RW])
-def solve(data, part):
-    futures = []
-    for piece in part:
-        futures.append(solve_local(piece))
+def solve():
+    global_procs = legion.Tunable.select(legion.Tunable.GLOBAL_PYS).get()
+
+    # Allocate data structures.
+    n_events_per_node = 1000
+    event_raw_shape = (2, 3, 6)
+    data = legion.Region.create((n_events_per_node,) + event_raw_shape, {'x': legion.uint16})
+    legion.fill(data, 'x', 0)
+    part = legion.Partition.create_equal(data, [global_procs])
+
+    iteration = 0
     overall_answer = 0
-    for future in futures:
-        overall_answer += future.get()
+    while overall_answer == 0:
+        # Obtain the newest copy of the data.
+        for idx in range(global_procs): # legion.IndexLaunch([global_procs]): # FIXME: index launch
+            preprocess(part[idx])
+
+        # Run solver.
+        futures = []
+        for idx in range(global_procs): # legion.IndexLaunch([global_procs]): # FIXME: index launch
+            futures.append(solve_local(part[idx]))
+        overall_answer = 0
+        for future in futures:
+            overall_answer += future.get()
+        print('iteration {} result of solve is {}'.format(iteration, overall_answer))
+        iteration += 1
     return overall_answer
 
 for run in ds.runs():
-    det = run.Detector('xppcspad')
-    data = legion.Region.create([10000], {'sum': legion.int64, 'valid': legion.uint8})
-    legion.fill(data, 'sum', -1)
-    legion.fill(data, 'valid', 0)
-    part = legion.Partition.create_equal(data, [10])
-    data_collector.load_data(run, data, part, event_fn=preprocess, det=det)
+    # FIXME: must epoch launch
+    load_run_data(run)
 
-    result = solve(data, part)
+    result = solve()
     print('result of solve is {}'.format(result.get()))
+
+    legion.execution_fence(block=True)
+    reset_data()
 
 # notes:
 # * what solves do we actually need
