@@ -148,7 +148,7 @@ fi
 
 if [[ $LG_RT_DIR == $PWD/legion/runtime ]]; then
     rm -rf legion
-    git clone -b cmake-gasnet-private-dependency-master git@gitlab.com:StanfordLegion/legion.git
+    git clone -b cmake-gasnet-private-dependency-master https://gitlab.com/StanfordLegion/legion.git
     ./reconfigure_legion.sh
     ./rebuild_legion.sh
 fi
