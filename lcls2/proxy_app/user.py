@@ -53,16 +53,22 @@ ds = DataSource('exp=xpptut13:run=1:dir=%s'%(xtc_dir), max_events=limit, det_nam
 for run in ds.runs():
     # FIXME: must epoch launch
     data_collector.load_run_data(run)
+    # Right now, we assume one run or a serie of runs with the same
+    # experimental configuration.
 
-    result_xpp = solver.solve_xpp()
-    results_gen = []
-    for i in range(n_gen_reconstructions):
-        results_gen.append(solver.solve_gen(i))
 
-    print('Result of XPP solve is {}'.format(result_xpp.get()))
-    for i, result in enumerate(results_gen):
-        print('Result of Gen solve #{} is {}'.format(
-            i, result.get()))
+global_procs = legion.Tunable.select(legion.Tunable.GLOBAL_PYS).get()
+n_procs_xpp = max(1, global_procs-n_gen_reconstructions)
 
-    legion.execution_fence(block=True)
-    data_collector.reset_data()
+result_xpp = solver.solve_xpp(n_procs_xpp)
+results_gen = []
+for i in range(n_gen_reconstructions):
+    results_gen.append(solver.solve_gen(i))
+
+print('Result of XPP solve is {}'.format(result_xpp.get()))
+for i, result in enumerate(results_gen):
+    print('Result of Gen solve #{} is {}'.format(
+        i, result.get()))
+
+legion.execution_fence(block=True)
+data_collector.reset_data()

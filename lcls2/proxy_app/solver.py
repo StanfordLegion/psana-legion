@@ -46,15 +46,13 @@ def solve_xpp_step(data):
 
 
 @task(privileges=[RW], replicable=True)
-def solve_xpp():
-    global_procs = legion.Tunable.select(legion.Tunable.GLOBAL_PYS).get()
-
+def solve_xpp(n_procs):
     # Allocate data structures.
     n_events_per_node = 1000
     event_raw_shape = (2, 3, 6)
     data = legion.Region.create((n_events_per_node,) + event_raw_shape, {'x': legion.uint16})
     legion.fill(data, 'x', 0)
-    part = legion.Partition.create_equal(data, [global_procs])
+    part = legion.Partition.create_equal(data, [n_procs])
 
     iteration = 0
     overall_answer = 0
@@ -66,16 +64,16 @@ def solve_xpp():
 
         # Obtain the newest copy of the data.
         # FIXME: must epoch launch
-        for idx in range(global_procs): # legion.IndexLaunch([global_procs]): # FIXME: index launch
+        for idx in range(n_procs): # legion.IndexLaunch([n_procs]): # FIXME: index launch
             data_collector.fill_xpp_data_region(part[idx])
 
         # Preprocess data.
-        for idx in range(global_procs): # legion.IndexLaunch([global_procs]): # FIXME: index launch
+        for idx in range(n_procs): # legion.IndexLaunch([n_procs]): # FIXME: index launch
             preprocess(part[idx])
 
         # Run solver.
         futures = []
-        for idx in range(global_procs): # legion.IndexLaunch([global_procs]): # FIXME: index launch
+        for idx in range(n_procs): # legion.IndexLaunch([n_procs]): # FIXME: index launch
             futures.append(solve_xpp_step(part[idx]))
         overall_answer = 0
         for future in futures:
@@ -98,33 +96,26 @@ def solve_gen(solve_idx=0):
     Since we might want to perform several reconstructions in parallel,
     the param solve_idx can be used to differentiate the reconstructions.
     """
-    global_procs = legion.Tunable.select(legion.Tunable.GLOBAL_PYS).get()
-
     # Allocate data structures.
     data_shape = (2*64 + 1,) * 3
     data = legion.Region.create(data_shape, {'magnitude': legion.float64})
     legion.fill(data, 'magnitude', 0)
-    part = legion.Partition.create_equal(data, [global_procs])
 
     iteration = 0
     overall_answer = 0
     while overall_answer == 0:
         # Obtain the newest copy of the data.
         # FIXME: must epoch launch
-        for idx in range(global_procs): # legion.IndexLaunch([global_procs]): # FIXME: index launch
-            data_collector.fill_gen_data_region(part[idx])
+        data_collector.fill_gen_data_region(data)
 
         # Preprocess data.
-        for idx in range(global_procs): # legion.IndexLaunch([global_procs]): # FIXME: index launch
-            preprocess(part[idx])
+        preprocess(data)
 
         # Run solver.
-        futures = []
-        for idx in range(global_procs): # legion.IndexLaunch([global_procs]): # FIXME: index launch
-            futures.append(solve_gen_step(part[idx]))
-        overall_answer = 0
-        for future in futures:
-            overall_answer += future.get()
+        future = solve_gen_step(data)
+
+        overall_answer = future.get()
+
         print('Gen-{}: iteration {} result of solve is {}'.format(
             solve_idx, iteration, overall_answer))
         iteration += 1
