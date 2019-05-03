@@ -20,6 +20,8 @@ from __future__ import print_function
 import legion
 from legion import task, RW
 import numpy
+from numpy import fft
+import os
 import threading
 
 from phaseret.generator3D import Projection
@@ -61,7 +63,7 @@ def reset_data():
 
 
 @task(privileges=[RW])
-def fill_data_region(data):
+def fill_xpp_data_region(data):
     global data_store, n_events_used
     with data_lock:
         raw, used, ready = data_store, n_events_used, n_events_ready
@@ -72,20 +74,21 @@ def fill_data_region(data):
         numpy.copyto(data.x[idx,:,:,:], raw[idx - used][1], casting='no')
 
 
-# def create_dataset():
-#     cutoff = 2
-#     n_points = 64
-#     spacing = np.linspace(-cutoff, cutoff, 2*n_points+1)
-#     step = cutoff / n_points
+@task(privileges=[RW])
+def fill_gen_data_region(data):
+    cutoff = 2
+    n_points = 64
+    spacing = numpy.linspace(-cutoff, cutoff, 2*n_points+1)
+    step = cutoff / n_points
 
-#     H, K, L = np.meshgrid(spacing, spacing, spacing)
+    H, K, L = numpy.meshgrid(spacing, spacing, spacing)
 
-#     caffeine_pbd = os.path.join("caffeine.pdb")
-#     caffeine = Projection.Molecule(caffeine_pbd)
+    caffeine_pbd = os.path.join("caffeine.pdb")
+    caffeine = Projection.Molecule(caffeine_pbd)
 
-#     caffeine_trans = Projection.moltrans(caffeine, H, K, L)
-#     caffeine_trans_ = fft.ifftshift(caffeine_trans)
+    caffeine_trans = Projection.moltrans(caffeine, H, K, L)
+    caffeine_trans_ = fft.ifftshift(caffeine_trans)
 
-#     magnitude = np.absolute(caffeine_trans)
+    magnitude = numpy.absolute(caffeine_trans)
 
-#     return magnitude
+    numpy.copyto(data.magnitude, magnitude)

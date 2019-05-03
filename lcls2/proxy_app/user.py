@@ -37,6 +37,12 @@ from numpy import fft
 #  - it generates some 3D data and applies a realistic phasing solve.
 
 
+# FIXME: this crashes if I don't define at least one task here....
+@task
+def dummy():
+    pass
+
+
 limit = int(os.environ['LIMIT']) if 'LIMIT' in os.environ else None
 
 
@@ -44,18 +50,15 @@ xtc_dir = os.environ['DATA_DIR']
 ds = DataSource('exp=xpptut13:run=1:dir=%s'%(xtc_dir), max_events=limit, det_name='xppcspad')
 
 
-# FIXME: this crashes if I don't define at least one task here....
-@task
-def dummy():
-    pass
-
-
 for run in ds.runs():
     # FIXME: must epoch launch
     data_collector.load_run_data(run)
 
-    result = solver.solve()
-    print('result of solve is {}'.format(result.get()))
+    result_xpp = solver.solve_xpp()
+    result_gen = solver.solve_gen()
+
+    print('Result of XPP solve is {}'.format(result_xpp.get()))
+    print('Result of Gen solve is {}'.format(result_gen.get()))
 
     legion.execution_fence(block=True)
     data_collector.reset_data()
