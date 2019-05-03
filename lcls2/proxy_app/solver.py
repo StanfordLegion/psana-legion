@@ -22,17 +22,26 @@ from legion import task, R, RW
 
 import data_collector
 
+from phaseret import InitialState, Phaser
+
 ###
 ### Solver
 ###
+
+# Oversimplified solve on realistic XPP data.
+# Somewhat realistic solve on the generated 3D data.
+# See user.py for details.
+
 
 @task(privileges=[RW])
 def preprocess(data):
     pass # do nothing in the preprocess phase for now
 
+
 @task(privileges=[R])
 def solve_step(data):
     return data.x.sum()
+
 
 @task(privileges=[RW], replicable=True)
 def solve():
@@ -67,3 +76,22 @@ def solve():
         print('iteration {} result of solve is {}'.format(iteration, overall_answer))
         iteration += 1
     return overall_answer
+
+
+# def solve(magnitude):
+#     magnitude_ = fft.ifftshift(magnitude)
+#     initial_state = InitialState(magnitude_, is_ifftshifted=True)
+
+#     phaser = Phaser(initial_state)
+#     for k_cycle in range(2):
+#         phaser.HIO_loop(10, .1)
+#         phaser.ER_loop(10)
+#         phaser.shrink_wrap(.01)
+
+#     print("Fourier errors:")
+#     print(phaser.get_Fourier_errs()[0])
+#     print(phaser.get_Fourier_errs()[-1])
+
+#     print("Real errors:")
+#     print(phaser.get_real_errs()[0])
+#     print(phaser.get_real_errs()[-1])
