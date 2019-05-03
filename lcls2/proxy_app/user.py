@@ -44,7 +44,7 @@ def dummy():
 
 
 limit = int(os.environ['LIMIT']) if 'LIMIT' in os.environ else None
-
+n_gen_reconstructions = 2
 
 xtc_dir = os.environ['DATA_DIR']
 ds = DataSource('exp=xpptut13:run=1:dir=%s'%(xtc_dir), max_events=limit, det_name='xppcspad')
@@ -55,10 +55,14 @@ for run in ds.runs():
     data_collector.load_run_data(run)
 
     result_xpp = solver.solve_xpp()
-    result_gen = solver.solve_gen()
+    results_gen = []
+    for i in range(n_gen_reconstructions):
+        results_gen.append(solver.solve_gen(i))
 
     print('Result of XPP solve is {}'.format(result_xpp.get()))
-    print('Result of Gen solve is {}'.format(result_gen.get()))
+    for i, result in enumerate(results_gen):
+        print('Result of Gen solve #{} is {}'.format(
+            i, result.get()))
 
     legion.execution_fence(block=True)
     data_collector.reset_data()

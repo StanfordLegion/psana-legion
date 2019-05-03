@@ -58,7 +58,12 @@ def solve_xpp():
 
     iteration = 0
     overall_answer = 0
-    while overall_answer == 0:
+    while iteration < 2:
+        # This used to be while overall_answer == 0,
+        # assuming that all (currently) 10 events would
+        # arrive at the same time but it happened to me once that
+        # 1 event got caught before the others.
+
         # Obtain the newest copy of the data.
         # FIXME: must epoch launch
         for idx in range(global_procs): # legion.IndexLaunch([global_procs]): # FIXME: index launch
@@ -77,6 +82,7 @@ def solve_xpp():
             overall_answer += future.get()
         print('XPP: iteration {} result of solve is {}'.format(iteration, overall_answer))
         iteration += 1
+
     return overall_answer
 
 
@@ -86,7 +92,12 @@ def solve_gen_step(data):
 
 
 @task(privileges=[RW], replicable=True)
-def solve_gen():
+def solve_gen(solve_idx=0):
+    """Solve the phase problem for the generated data.
+
+    Since we might want to perform several reconstructions in parallel,
+    the param solve_idx can be used to differentiate the reconstructions.
+    """
     global_procs = legion.Tunable.select(legion.Tunable.GLOBAL_PYS).get()
 
     # Allocate data structures.
@@ -114,7 +125,8 @@ def solve_gen():
         overall_answer = 0
         for future in futures:
             overall_answer += future.get()
-        print('Gen: iteration {} result of solve is {}'.format(iteration, overall_answer))
+        print('Gen-{}: iteration {} result of solve is {}'.format(
+            solve_idx, iteration, overall_answer))
         iteration += 1
     return overall_answer
 
