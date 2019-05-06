@@ -86,7 +86,23 @@ def solve_xpp(n_procs):
 
 @task(privileges=[R])
 def solve_gen_step(data):
-    return data.magnitude.sum()
+    initial_state = InitialState(data.magnitude)
+
+    phaser = Phaser(initial_state)
+    for k_cycle in range(2):
+        phaser.HIO_loop(10, .1)
+        phaser.ER_loop(10)
+        phaser.shrink_wrap(.01)
+
+    print("Fourier errors:")
+    print(phaser.get_Fourier_errs()[0])
+    print(phaser.get_Fourier_errs()[-1])
+
+    print("Real errors:")
+    print(phaser.get_real_errs()[0])
+    print(phaser.get_real_errs()[-1])
+
+    return "Done"
 
 
 @task(privileges=[RW], replicable=True)
@@ -120,22 +136,3 @@ def solve_gen(solve_idx=0):
             solve_idx, iteration, overall_answer))
         iteration += 1
     return overall_answer
-
-
-# def solve(magnitude):
-#     magnitude_ = fft.ifftshift(magnitude)
-#     initial_state = InitialState(magnitude_, is_ifftshifted=True)
-
-#     phaser = Phaser(initial_state)
-#     for k_cycle in range(2):
-#         phaser.HIO_loop(10, .1)
-#         phaser.ER_loop(10)
-#         phaser.shrink_wrap(.01)
-
-#     print("Fourier errors:")
-#     print(phaser.get_Fourier_errs()[0])
-#     print(phaser.get_Fourier_errs()[-1])
-
-#     print("Real errors:")
-#     print(phaser.get_real_errs()[0])
-#     print(phaser.get_real_errs()[-1])

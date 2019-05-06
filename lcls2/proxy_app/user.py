@@ -58,6 +58,7 @@ for run in ds.runs():
 
 
 global_procs = legion.Tunable.select(legion.Tunable.GLOBAL_PYS).get()
+print("Working with {} processors".format(global_procs))
 n_procs_xpp = max(1, global_procs-n_gen_reconstructions)
 
 result_xpp = solver.solve_xpp(n_procs_xpp)
