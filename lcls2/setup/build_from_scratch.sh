@@ -17,6 +17,17 @@ export USE_CUDA=${USE_CUDA:-0}
 export USE_GASNET=${USE_GASNET:-1}
 export CONDUIT=${CONDUIT:-ibv}
 EOF
+elif [[ $(hostname) = "cori"* ]]; then
+    cat > env.sh <<EOF
+module unload PrgEnv-intel
+module load PrgEnv-gnu
+export CC=cc
+export CXX=CC
+
+export USE_CUDA=${USE_CUDA:-0}
+export USE_GASNET=${USE_GASNET:-1}
+export CONDUIT=${CONDUIT:-aries}
+EOF
 elif [[ $(hostname) = "sapling" ]]; then
     cat > env.sh <<EOF
 module load mpi/openmpi/3.1.3
@@ -114,7 +125,7 @@ PACKAGE_LIST=(
     # Legion dependencies:
     cffi
 )
-if [[ $(hostname --fqdn) != *"summit"* && $(hostname) != "sapling" ]]; then
+if [[ $(hostname --fqdn) != *"summit"* && $(hostname) != "cori"* && $(hostname) != "sapling" ]]; then
     PACKAGE_LIST+=(
         mpi4py
     )
@@ -130,6 +141,8 @@ export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:$LD_LIBRARY_PATH"
 # Workaround for mpi4py not being built with the right MPI.
 if [[ $(hostname --fqdn) = *"summit"* ]]; then
     CC=$OMPI_CC MPICC=mpicc pip install -v --no-binary mpi4py mpi4py
+elif [[ $(hostname) = "cori"* ]]; then
+    CC=gcc MPICC=cc pip install -v --no-binary mpi4py mpi4py
 elif [[ $(hostname) = "sapling" ]]; then
     MPICC=mpicc pip install -v --no-binary mpi4py mpi4py
 fi
