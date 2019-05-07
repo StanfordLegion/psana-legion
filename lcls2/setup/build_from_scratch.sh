@@ -23,6 +23,7 @@ module unload PrgEnv-intel
 module load PrgEnv-gnu
 export CC=cc
 export CXX=CC
+export CRAYPE_LINK_TYPE=dynamic # allow dynamic linking
 
 export USE_CUDA=${USE_CUDA:-0}
 export USE_GASNET=${USE_GASNET:-1}
@@ -153,7 +154,8 @@ fi
 
 if [[ $GASNET_ROOT == $PWD/gasnet/release ]]; then
     rm -rf gasnet
-    git clone https://github.com/StanfordLegion/gasnet.git
+    # FIXME: Putting Conda on LD_LIBRARY_PATH breaks Git on Cori
+    (unset LD_LIBRARY_PATH; git clone https://github.com/StanfordLegion/gasnet.git)
     pushd gasnet
     make -j8
     popd
@@ -161,7 +163,8 @@ fi
 
 if [[ $LG_RT_DIR == $PWD/legion/runtime ]]; then
     rm -rf legion
-    git clone -b cmake-gasnet-private-dependency-master https://gitlab.com/StanfordLegion/legion.git
+    # FIXME: Putting Conda on LD_LIBRARY_PATH breaks Git on Cori
+    (unset LD_LIBRARY_PATH; git clone -b cmake-gasnet-private-dependency-master https://gitlab.com/StanfordLegion/legion.git)
     ./reconfigure_legion.sh
     ./rebuild_legion.sh
 fi
