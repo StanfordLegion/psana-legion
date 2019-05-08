@@ -14,8 +14,6 @@ source "$root_dir"/../setup/env.sh
 export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$root_dir/build"
 export PS_PARALLEL=legion
 
-env | grep PYTHON
-
 export DATA_DIR=$SCRATCH/mona_small_data
 
 export LIMIT=10
