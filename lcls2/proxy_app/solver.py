@@ -47,7 +47,7 @@ def solve():
 
     iteration = 0
     overall_answer = 0
-    while overall_answer == 0:
+    while overall_answer == 0 and iteration < 100:
         # Obtain the newest copy of the data.
         # FIXME: must epoch launch
         for idx in range(global_procs): # legion.IndexLaunch([global_procs]): # FIXME: index launch
