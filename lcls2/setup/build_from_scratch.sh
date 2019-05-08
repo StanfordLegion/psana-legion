@@ -80,10 +80,16 @@ export LG_RT_DIR="${LG_RT_DIR:-$PWD/legion/runtime}"
 export LEGION_DEBUG=1
 export MAX_DIM=4
 
+export PYVER=3.6
+
+export LEGION_INSTALL_DIR="$PWD/install"
+export PATH="\$LEGION_INSTALL_DIR/bin:\$PATH"
+export LD_LIBRARY_PATH="\$LEGION_INSTALL_DIR/lib:\$LD_LIBRARY_PATH"
+export PYTHONPATH="\$LEGION_INSTALL_DIR/lib:\$PYTHONPATH"
+
 export CONDA_ROOT="$PWD/conda"
 export CONDA_ENV_DIR="\$CONDA_ROOT/envs/myenv"
 
-export PYVER=3.6
 export LCLS2_DIR="$PWD/lcls2"
 
 export PATH="\$LCLS2_DIR/install/bin:\$PATH"
@@ -92,14 +98,13 @@ export PYTHONPATH="\$LCLS2_DIR/install/lib/python\$PYVER/site-packages:\$PYTHONP
 if [[ -d \$CONDA_ROOT ]]; then
   source "\$CONDA_ROOT/etc/profile.d/conda.sh"
   conda activate "\$CONDA_ENV_DIR"
-  export LD_LIBRARY_PATH="\$CONDA_PREFIX/lib:\$LD_LIBRARY_PATH"
 fi
 EOF
 
 # Clean up any previous installs.
 rm -rf conda
-rm -rf channels
-rm -rf relmanage
+# rm -rf channels
+# rm -rf relmanage
 rm -rf lcls2
 
 source env.sh
@@ -140,7 +145,6 @@ conda create -y -p "$CONDA_ENV_DIR" "${PACKAGE_LIST[@]}"
 # sed s/PYTHONVER/$PYVER/ relmanage/env_create.yaml > temp_env_create.yaml
 # conda env create -p "$CONDA_ENV_DIR" -f temp_env_create.yaml
 conda activate "$CONDA_ENV_DIR"
-export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:$LD_LIBRARY_PATH"
 
 # Workaround for mpi4py not being built with the right MPI.
 if [[ $(hostname --fqdn) = *"summit"* ]]; then
@@ -157,8 +161,7 @@ fi
 
 if [[ $GASNET_ROOT == $PWD/gasnet/release ]]; then
     rm -rf gasnet
-    # FIXME: Putting Conda on LD_LIBRARY_PATH breaks Git on Cori
-    (unset LD_LIBRARY_PATH; git clone https://github.com/StanfordLegion/gasnet.git)
+    git clone https://github.com/StanfordLegion/gasnet.git
     pushd gasnet
     make -j8
     popd
@@ -166,14 +169,14 @@ fi
 
 if [[ $LG_RT_DIR == $PWD/legion/runtime ]]; then
     rm -rf legion
-    # FIXME: Putting Conda on LD_LIBRARY_PATH breaks Git on Cori
-    (unset LD_LIBRARY_PATH; git clone -b cmake-gasnet-private-dependency-master https://gitlab.com/StanfordLegion/legion.git)
+    rm -rf install
+    git clone -b cmake-gasnet-private-dependency-dcr https://gitlab.com/StanfordLegion/legion.git
     ./reconfigure_legion.sh
     ./rebuild_legion.sh
 fi
 
 # Build psana.
-(unset LD_LIBRARY_PATH; git clone https://github.com/slac-lcls/lcls2.git $LCLS2_DIR)
+git clone https://github.com/slac-lcls/lcls2.git $LCLS2_DIR
 ./clean_rebuild.sh
 
 echo

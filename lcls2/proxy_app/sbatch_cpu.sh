@@ -11,14 +11,13 @@ root_dir="$PWD"
 
 source "$root_dir"/../setup/env.sh
 
-export PYTHONPATH="$PYTHONPATH:$root_dir"
 export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$root_dir/build"
-# uncomment this line when building Legion outside of conda build
-export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$REL_DIR/lib"
 export PS_PARALLEL=legion
+
+env | grep PYTHON
 
 export DATA_DIR=$SCRATCH/mona_small_data
 
 export LIMIT=10
 
-srun -n $SLURM_JOB_NUM_NODES -N $SLURM_JOB_NUM_NODES --ntasks-per-node 1 --cpu_bind none legion_python user -ll:py 1 -ll:cpu 1
+srun -n $SLURM_JOB_NUM_NODES -N $SLURM_JOB_NUM_NODES --ntasks-per-node 1 --cpu_bind none legion_python user.py -ll:py 1 -ll:cpu 1
