@@ -85,7 +85,7 @@ export PYVER=3.6
 export LEGION_INSTALL_DIR="$PWD/install"
 export PATH="\$LEGION_INSTALL_DIR/bin:\$PATH"
 export LD_LIBRARY_PATH="\$LEGION_INSTALL_DIR/lib:\$LD_LIBRARY_PATH"
-export PYTHONPATH="\$LEGION_INSTALL_DIR/lib:\$PYTHONPATH"
+export PYTHONPATH="\$LEGION_INSTALL_DIR/lib/python\$PYVER/site-packages:\$PYTHONPATH"
 
 export CONDA_ROOT="$PWD/conda"
 export CONDA_ENV_DIR="\$CONDA_ROOT/envs/myenv"
