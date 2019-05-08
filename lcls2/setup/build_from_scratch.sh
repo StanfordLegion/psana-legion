@@ -25,6 +25,9 @@ export CC=cc
 export CXX=CC
 export CRAYPE_LINK_TYPE=dynamic # allow dynamic linking
 
+# disable Cori-specific Python environment
+unset PYTHONSTARTUP
+
 export USE_CUDA=${USE_CUDA:-0}
 export USE_GASNET=${USE_GASNET:-1}
 export CONDUIT=${CONDUIT:-aries}
@@ -170,7 +173,7 @@ if [[ $LG_RT_DIR == $PWD/legion/runtime ]]; then
 fi
 
 # Build psana.
-git clone https://github.com/slac-lcls/lcls2.git $LCLS2_DIR
+(unset LD_LIBRARY_PATH; git clone https://github.com/slac-lcls/lcls2.git $LCLS2_DIR)
 ./clean_rebuild.sh
 
 echo
