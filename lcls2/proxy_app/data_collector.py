@@ -40,7 +40,12 @@ def load_event_data(event, det):
 
 def load_run_data(run):
     det = run.Detector('xppcspad')
+
+    # Hack: psana tries to register top-level task when not in script mode
+    old_is_script = legion.is_script
+    legion.is_script = True
     run.analyze(event_fn=load_event_data, det=det)
+    legion.is_script = old_is_script
 
 def reset_data():
     global data_store, n_events_ready, n_events_used
