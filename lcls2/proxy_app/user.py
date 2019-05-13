@@ -17,34 +17,42 @@
 
 from __future__ import print_function
 
-from psana import DataSource
 import legion
 from legion import task
+
+# Hack: psana tries to register top-level task when not in script mode
+old_is_script = legion.is_script
+legion.is_script = True
+from psana import DataSource
+legion.is_script = old_is_script
+
 import os
 
 import native_tasks
 import data_collector
 import solver
 
-limit = int(os.environ['LIMIT']) if 'LIMIT' in os.environ else None
-
-xtc_dir = os.environ['DATA_DIR']
-ds = DataSource('exp=xpptut13:run=1:dir=%s'%(xtc_dir), max_events=limit, det_name='xppcspad')
-
 # FIXME: this crashes if I don't define at least one task here....
 @task
 def dummy():
     pass
 
-for run in ds.runs():
-    # FIXME: must epoch launch
-    data_collector.load_run_data(run)
+@task(top_level=True, replicable=True)
+def main():
+    limit = int(os.environ['LIMIT']) if 'LIMIT' in os.environ else None
 
-    result = solver.solve()
-    print('result of solve is {}'.format(result.get()))
+    xtc_dir = os.environ['DATA_DIR']
+    ds = DataSource('exp=xpptut13:run=1:dir=%s'%(xtc_dir), max_events=limit, det_name='xppcspad')
 
-    legion.execution_fence(block=True)
-    data_collector.reset_data()
+    for run in ds.runs():
+        # FIXME: must epoch launch
+        data_collector.load_run_data(run)
 
-# notes:
-# * what solves do we actually need
+        result = solver.solve()
+        print('result of solve is {}'.format(result.get()))
+
+        legion.execution_fence(block=True)
+        data_collector.reset_data()
+
+    # notes:
+    # * what solves do we actually need
