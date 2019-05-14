@@ -56,12 +56,8 @@ def solve_xpp(n_procs):
 
     iteration = 0
     overall_answer = 0
-    while iteration < 2:
-        # This used to be while overall_answer == 0,
-        # assuming that all (currently) 10 events would
-        # arrive at the same time but it happened to me once that
-        # 1 event got caught before the others.
 
+    while iteration < 10:
         # Obtain the newest copy of the data.
         # FIXME: must epoch launch
         for idx in range(n_procs): # legion.IndexLaunch([n_procs]): # FIXME: index launch

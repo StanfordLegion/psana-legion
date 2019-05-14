@@ -5,6 +5,7 @@
 
 /gasnet
 /legion
+/install
 
 /env.sh
 /temp_env_create.yaml
