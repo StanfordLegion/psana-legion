@@ -130,6 +130,7 @@ PACKAGE_LIST=(
     rapidjson
     ipython
     requests
+    mypy
 
     # Legion dependencies:
     cffi
