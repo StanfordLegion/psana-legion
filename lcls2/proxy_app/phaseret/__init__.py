@@ -61,12 +61,14 @@ class InitialState:
     def generate_support_from_autocorrelation(self, rel_threshold=0.1):
         intensities_ = self._amplitudes_ ** 2
         autocorrelation_ = np.absolute(fft.fftn(intensities_))
-        self._support_ = \
+        support_ = \
             autocorrelation_ > rel_threshold * autocorrelation_.max()
+        np.copyto(self._support_, support_)
 
     def generate_random_rho(self):
-        support = self.get_support(ifftshifted=True)  # In case it's None
-        self._rho_ = support * np.random.rand(*support.shape)
+        support_ = self.get_support(ifftshifted=True)  # In case it's None
+        rho_ = support_ * np.random.rand(*support_.shape)
+        np.copyto(self._rho_, rho_)
 
     def get_amplitudes(self, ifftshifted=False):
         shift = fft.fftshift if not ifftshifted else lambda x: x
@@ -112,22 +114,25 @@ class Phaser:
 
     def ER_loop(self, n_loops):
         self._lengthen_arrays(n_loops)
-        self._rho_, _ = ER_loop(
+        rho_, _ = ER_loop(
             n_loops, self._rho_, self._amplitudes_, self._support_,
             self._distF_ls[-1], self._distR_ls[-1], 0)
+        np.copyto(self._rho_, rho_)
 
     def HIO_loop(self, n_loops, beta):
         self._lengthen_arrays(n_loops)
-        self._rho_, _ = HIO_loop(
+        rho_, _ = HIO_loop(
             n_loops, self._rho_, self._amplitudes_, self._support_,
             beta, self._distF_ls[-1], self._distR_ls[-1], 0)
+        np.copyto(self._rho_, rho_)
 
     def _lengthen_arrays(self, n_loops):
         self._distF_ls.append(np.zeros(n_loops))
         self._distR_ls.append(np.zeros(n_loops))
 
     def shrink_wrap(self, cutoff, sigma=1):
-        self._support_ = shrink_wrap(self._rho_, cutoff, sigma)
+        support_ = shrink_wrap(self._rho_, cutoff, sigma)
+        np.copyto(self._support_, support_)
 
     def get_Fourier_errs(self):
         self._distF_ls = [np.concatenate(self._distF_ls)]

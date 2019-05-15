@@ -38,18 +38,16 @@ from numpy import fft
 # At this point, we cannot have a realistic algorithm that collects
 # realistic data and solves the phasing problem.
 # Therefore, this program divides the problem:
-#  - it loads realistic XPP data and applies a trivial solve;
-#  - it generates some 3D data and applies a realistic phasing solve.
+#  - it loads realistic XPP data;
+#  - it applies a realistic phasing solve on generated data.
 
 
 @task(top_level=True, replicable=True)
 def main():
     limit = int(os.environ['LIMIT']) if 'LIMIT' in os.environ else None
-    n_gen_reconstructions = 2
 
     xtc_dir = os.environ['DATA_DIR']
     ds = DataSource('exp=xpptut13:run=1:dir=%s'%(xtc_dir), max_events=limit, det_name='xppcspad')
-
 
     for run in ds.runs():
         # FIXME: must epoch launch
@@ -57,20 +55,4 @@ def main():
         # Right now, we assume one run or a serie of runs with the same
         # experimental configuration.
 
-
-    global_procs = legion.Tunable.select(legion.Tunable.GLOBAL_PYS).get()
-    print("Working with {} processors".format(global_procs))
-    n_procs_xpp = max(1, global_procs-n_gen_reconstructions)
-
-    result_xpp = solver.solve_xpp(n_procs_xpp)
-    results_gen = []
-    for i in range(n_gen_reconstructions):
-        results_gen.append(solver.solve_gen(i))
-
-    print('Result of XPP solve is {}'.format(result_xpp.get()))
-    for i, result in enumerate(results_gen):
-        print('Result of Gen solve #{} is {}'.format(
-            i, result.get()))
-
-    legion.execution_fence(block=True)
-    data_collector.reset_data()
+    solver.solve()
