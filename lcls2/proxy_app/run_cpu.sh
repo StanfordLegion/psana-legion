@@ -5,7 +5,7 @@ set -e
 root_dir="$(dirname "${BASH_SOURCE[0]}")"
 source "$root_dir"/../setup/env.sh
 
-export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$root_dir/build"
+export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$root_dir/build:$CONDA_ENV_DIR/lib"
 export PS_PARALLEL=legion
 
 export KERNEL_KIND=sum
