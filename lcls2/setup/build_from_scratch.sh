@@ -134,6 +134,9 @@ PACKAGE_LIST=(
 
     # Legion dependencies:
     cffi
+
+    # Proxy app dependencies:
+    scipy
 )
 if [[ $(hostname --fqdn) != *"summit"* && $(hostname) != "cori"* && $(hostname) != "sapling" ]]; then
     PACKAGE_LIST+=(
