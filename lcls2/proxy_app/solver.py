@@ -110,7 +110,7 @@ def solve():
         # Obtain the newest copy of the data.
         with legion.MustEpochLaunch():
             for idx in range(n_procs): # legion.IndexLaunch([n_procs]): # FIXME: index launch
-                data_collector.fill_data_region(xpp_part[idx])
+                data_collector.fill_data_region(xpp_part[idx], point=idx)
 
         # Preprocess data.
         for idx in range(n_procs): # legion.IndexLaunch([n_procs]): # FIXME: index launch
