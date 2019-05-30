@@ -32,10 +32,15 @@ import native_tasks
 import data_collector
 import solver
 
-# FIXME: this crashes if I don't define at least one task here....
-@task
-def dummy():
-    pass
+import numpy as np
+from numpy import fft
+
+# At this point, we cannot have a realistic algorithm that collects
+# realistic data and solves the phasing problem.
+# Therefore, this program divides the problem:
+#  - it loads realistic XPP data;
+#  - it applies a realistic phasing solve on generated data.
+
 
 @task(top_level=True, replicable=True)
 def main():
@@ -47,12 +52,7 @@ def main():
     for run in ds.runs():
         # FIXME: must epoch launch
         data_collector.load_run_data(run)
+        # Right now, we assume one run or a serie of runs with the same
+        # experimental configuration.
 
-        result = solver.solve()
-        print('result of solve is {}'.format(result.get()))
-
-        legion.execution_fence(block=True)
-        data_collector.reset_data()
-
-    # notes:
-    # * what solves do we actually need
+    solver.solve()

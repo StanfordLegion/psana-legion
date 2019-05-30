@@ -20,16 +20,24 @@ from __future__ import print_function
 import legion
 from legion import task, RW
 import numpy
+from numpy import fft
+import os
 import threading
 
 ###
 ### Data Loading
 ###
 
+# Load realistic xpp data for the collecting part.
+# Create a 3D diffraction image for the phasing part.
+# See user.py for details.
+
+
 data_store = []
 n_events_ready = 0
 n_events_used = 0
 data_lock = threading.Lock()
+
 
 def load_event_data(event, det):
     global n_events_ready
@@ -37,6 +45,7 @@ def load_event_data(event, det):
     with data_lock:
         data_store.append((event, raw))
         n_events_ready += 1
+
 
 def load_run_data(run):
     det = run.Detector('xppcspad')
@@ -47,12 +56,14 @@ def load_run_data(run):
     run.analyze(event_fn=load_event_data, det=det)
     legion.is_script = old_is_script
 
+
 def reset_data():
     global data_store, n_events_ready, n_events_used
     with data_lock:
         data_store = []
         n_events_ready = 0
         n_events_used = 0
+
 
 @task(privileges=[RW])
 def fill_data_region(data):
@@ -64,3 +75,6 @@ def fill_data_region(data):
 
     for idx in range(used, ready):
         numpy.copyto(data.x[idx,:,:,:], raw[idx - used][1], casting='no')
+
+    if ready != used:
+        print(f"Filled {ready-used} new events.")
