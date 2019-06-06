@@ -36,6 +36,7 @@ import threading
 data_store = []
 n_events_ready = 0
 n_events_used = 0
+n_runs_complete = 0
 data_lock = threading.Lock()
 
 
@@ -46,6 +47,12 @@ def load_event_data(event, det):
         data_store.append((event, raw))
         n_events_ready += 1
 
+@task(leaf=True)
+def mark_completion(_):
+    print('Completed load data for run')
+    global n_runs_complete
+    with data_lock:
+        n_runs_complete += 1
 
 def load_run_data(run):
     det = run.Detector('xppcspad')
@@ -53,8 +60,13 @@ def load_run_data(run):
     # Hack: psana tries to register top-level task when not in script mode
     old_is_script = legion.is_script
     legion.is_script = True
-    run.analyze(event_fn=load_event_data, det=det)
+    f = run.analyze(event_fn=load_event_data, det=det)
     legion.is_script = old_is_script
+
+    n_procs = legion.Tunable.select(legion.Tunable.GLOBAL_PYS).get()
+    with legion.MustEpochLaunch([n_procs]):
+        for idx in range(n_procs): # legion.IndexLaunch([n_procs]): # FIXME: index launch
+            mark_completion(f, point=idx)
 
 
 def reset_data():
@@ -65,7 +77,7 @@ def reset_data():
         n_events_used = 0
 
 
-@task(privileges=[RW])
+@task(privileges=[RW], leaf=True)
 def fill_data_region(data):
     global data_store, n_events_used
     with data_lock:
@@ -78,3 +90,7 @@ def fill_data_region(data):
 
     if ready != used:
         print(f"Filled {ready-used} new events.")
+
+def get_num_runs_complete():
+    with data_lock:
+        return n_runs_complete

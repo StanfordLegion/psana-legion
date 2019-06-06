@@ -40,7 +40,7 @@ from phaseret.generator3D import Projection
 N_POINTS = 64
 
 
-@task(privileges=[RW])
+@task(privileges=[RW], leaf=True)
 def generate_data(data):
     cutoff = 2
     spacing = numpy.linspace(-cutoff, cutoff, N_POINTS)
@@ -58,13 +58,13 @@ def generate_data(data):
     numpy.copyto(data.amplitudes, amplitudes)
 
 
-@task(privileges=[R, RW])
+@task(privileges=[R, RW], leaf=True)
 def preprocess(data_in, data_out):
     print("Preprocessing")
     pass # pretend to build/refine data_out (3D) out of data_in (set of 2D)
 
 
-@task(privileges=[RW])
+@task(privileges=[RW], leaf=True)
 def solve_step(data, rank, iteration):
     initial_state = InitialState(data.amplitudes, data.support, data.rho, True)
 
@@ -84,7 +84,7 @@ def solve_step(data, rank, iteration):
 
 
 @task(privileges=[RW], replicable=True)
-def solve():
+def solve(n_runs):
     n_procs = legion.Tunable.select(legion.Tunable.GLOBAL_PYS).get()
     print(f"Working with {n_procs} processes\n")
 
@@ -105,12 +105,15 @@ def solve():
     legion.fill(data, 'support', 0)
     legion.fill(data, 'rho', 0.)
 
+    complete = False
     iteration = 0
-    while iteration < 10:
-        # Obtain the newest copy of the data.
-        with legion.MustEpochLaunch():
-            for idx in range(n_procs): # legion.IndexLaunch([n_procs]): # FIXME: index launch
-                data_collector.fill_data_region(xpp_part[idx], point=idx)
+    fences = []
+    while not complete or iteration < 10:
+        if not complete:
+            # Obtain the newest copy of the data.
+            with legion.MustEpochLaunch([n_procs]):
+                for idx in range(n_procs): # legion.IndexLaunch([n_procs]): # FIXME: index launch
+                    data_collector.fill_data_region(xpp_part[idx], point=idx)
 
         # Preprocess data.
         for idx in range(n_procs): # legion.IndexLaunch([n_procs]): # FIXME: index launch
@@ -122,5 +125,14 @@ def solve():
 
         # Run solver.
         solve_step(data, 0, iteration)
+
+        if not complete:
+            # Make sure we don't run more than 2 iterations ahead.
+            fences.append(legion.execution_fence(future=True))
+            if iteration - 2 >= 0:
+                fences[iteration - 2].get()
+
+            # Check that all runs have been read.
+            complete = data_collector.get_num_runs_complete() == n_runs
 
         iteration += 1

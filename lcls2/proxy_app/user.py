@@ -47,12 +47,15 @@ def main():
     limit = int(os.environ['LIMIT']) if 'LIMIT' in os.environ else None
 
     xtc_dir = os.environ['DATA_DIR']
-    ds = DataSource('exp=xpptut13:run=1:dir=%s'%(xtc_dir), max_events=limit, det_name='xppcspad')
+    ds = DataSource(exp='xpptut13', run=1, dir=xtc_dir, max_events=limit, det_name='xppcspad')
 
+    n_runs = 0
     for run in ds.runs():
         # FIXME: must epoch launch
         data_collector.load_run_data(run)
         # Right now, we assume one run or a serie of runs with the same
         # experimental configuration.
 
-    solver.solve()
+        n_runs += 1
+
+    solver.solve(n_runs)
