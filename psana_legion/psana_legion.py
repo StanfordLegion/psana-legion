@@ -26,6 +26,16 @@ import random
 import sys
 import legion_HDF5
 
+def force_numpy():
+    print('about to call numpy.matmul to force loading MKL')
+    sys.stdout.flush()
+    y = numpy.ones([2, 2])
+    numpy.matmul(y, y)
+    print('returned from call to numpy.matmul to force loading MKL')
+    sys.stdout.flush()
+    return y
+force_numpy()
+
 # User configurable analysis and filter predicate.
 class Config(object):
     __slots__ = ['analysis', 'predicate', 'teardown', 'limit']
