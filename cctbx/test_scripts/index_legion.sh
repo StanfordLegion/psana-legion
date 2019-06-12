@@ -74,6 +74,11 @@ unset PYTHONUSERBASE
 unset BASH_ENV
 unset INPUTRC
 
+if [[ $SLURM_LOCALID -eq 0 && $SLURM_NODEID -eq 0 ]]; then
+    export REALM_ALLOC_MAXHEAP=2048
+fi
+echo "REALM_ALLOC_MAXHEAP=$REALM_ALLOC_MAXHEAP"
+
 $external_psana_dir/psana_legion "${@:4}" \
   input.experiment=$EXP \
   input.run_num=$RUN \

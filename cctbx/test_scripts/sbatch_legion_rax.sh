@@ -1,9 +1,9 @@
 #!/bin/bash
 #SBATCH --time=01:00:00
-#SBATCH --partition=regular
+#SBATCH --qos=regular
 #SBATCH --constraint=knl,quad,cache
 #SBATCH --core-spec=4
-#SBATCH --image=docker:stanfordlegion/cctbx-legion:subprocess
+#SBATCH --image=docker:stanfordlegion/cctbx-legion:subprocess-2019-06
 #SBATCH --exclusive # causes shifter to preload image before run
 #SBATCH --mail-type=ALL
 #SBATCH --account=m2859
@@ -54,7 +54,8 @@ export EAGER=1
 export REPEAT=1
 export CHUNKSIZE=1
 
-export PSANA_MAPPER=lifeline
+# export PSANA_MAPPER=lifeline
+export PSANA_MAPPER=simple
 
 export GASNET_GNI_FMA_SHARING=1
 export MPICH_GNI_FMA_SHARING=enabled
@@ -68,22 +69,22 @@ export PMI_MMAP_SYNC_WAIT_TIME=600 # seconds
 # fix to avoid crash on 1 and 2 cores/node
 export GASNET_USE_UDREG=0
 
-# enable new GASNet cutover mode
+# enable new GASNet-Ex cutover mode
 export GASNET_GNI_AM_RVOUS_CUTOVER=1
 
-# try to fix memory probe issue in GASNetEx development snapshot
-export GASNET_MAX_SEGSIZE='1536M/P'
+# try to fix memory probe issue in GASNet-Ex development snapshot
+export GASNET_MAX_SEGSIZE='48G/H'
 
 set -x
 
 for n in $(( SLURM_JOB_NUM_NODES - 1 )); do
   for shard in ${NSHARD:-4}; do
     for py in ${NPY:-4}; do
-      export LIMIT=$(( 16 * n * shard * py ))
+      export LIMIT=$(( 4 * n * shard * py ))
 
       export MAX_TASKS_IN_FLIGHT=$(( 1280 / shard / py ))
 
-      export OUT_DIR=$SCRATCH/cori-cctbx.subprocess/output_legion_"$SLURM_JOB_ID"_n_${n}_shard_${shard}_py_${py}_io_1
+      export OUT_DIR=$SCRATCH/cori-cctbx.try-subprocess-no-heap-default/output_legion_"$SLURM_JOB_ID"_n_${n}_shard_${shard}_py_${py}_io_1
       mkdir -p $OUT_DIR
       mkdir -p $OUT_DIR/backtrace
 
@@ -91,6 +92,8 @@ for n in $(( SLURM_JOB_NUM_NODES - 1 )); do
 
       $ORIG_PSANA_DIR/scripts/make_nodelist.py $shard > $OUT_DIR/nodelist.txt
       export SLURM_HOSTFILE=$OUT_DIR/nodelist.txt
+
+      export REALM_ALLOC_MAXHEAP=$(( 4096 / shard ))
 
       lmbsize=$(( 512 * 32 * 32 * 32 / ( n * shard * shard ) )) # start shrinking at >= 32 nodes * 32 ranks/node
       if [[ $lmbsize -gt 1024 ]]; then
@@ -104,13 +107,15 @@ for n in $(( SLURM_JOB_NUM_NODES - 1 )); do
 
       pyflags=
       if [[ $py -gt 1 ]]; then
-          pyflags="-ll:isolate_procs -ll:realm_heap_default"
+          pyflags="-ll:isolate_procs" # -ll:realm_heap_default"
       fi
 
       # srun -n $(( n * shard )) -N $(( n )) --cpus-per-task $(( 256 / shard )) --cpu_bind cores --output "$OUT_DIR/out_%J_%t.log" \
       srun -n $(( n * shard + 1 )) -N $(( n + 1 )) --cpus-per-task $(( 256 / shard )) --cpu_bind cores --distribution=arbitrary --output "$OUT_DIR/out_%J_%t.log" \
         shifter /tmp/index_legion.sh cxid9114 108 0 \
           -ll:cpu 0 -ll:py $py $pyflags -ll:io 1 -ll:concurrent_io 1 -ll:csize $csize -ll:rsize 0 -ll:gsize 0 -ll:ib_rsize 0 -ll:lmbsize $lmbsize -lg:window 100
+          # -ll:force_kthreads 1
+          # -level runtime=3,taskreg=2,default_mapper=3,capi=3 -lg:registration -logfile "$OUT_DIR/hlr_taskreg_%.log"
           # -ll:show_rsrv \
           # -hl:prof $(( n * shard )) -hl:prof_logfile "$OUT_DIR/prof_%.gz"
           # -level announce=2,activemsg=2,allocation=2 -logfile "$OUT_DIR/ann_%.log"

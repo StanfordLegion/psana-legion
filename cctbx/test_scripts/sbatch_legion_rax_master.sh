@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --time=01:00:00
-#SBATCH --partition=regular
+#SBATCH --qos=regular
 #SBATCH --constraint=knl,quad,cache
 #SBATCH --core-spec=4
 #SBATCH --image=docker:stanfordlegion/cctbx-legion:master
@@ -59,8 +59,8 @@ export PSANA_MAPPER=lifeline
 export GASNET_GNI_FMA_SHARING=1
 export MPICH_GNI_FMA_SHARING=enabled
 
-export REALM_BACKTRACE=1
-# export GASNET_BACKTRACE=1
+# export REALM_BACKTRACE=1
+export GASNET_BACKTRACE=1
 
 # setting from Chris to avoid intermittent failures in PMI_Init_threads on large numbers of nodes
 export PMI_MMAP_SYNC_WAIT_TIME=600 # seconds
@@ -72,7 +72,7 @@ export GASNET_USE_UDREG=0
 export GASNET_GNI_AM_RVOUS_CUTOVER=1
 
 # try to fix memory probe issue in GASNet-Ex development snapshot
-export GASNET_MAX_SEGSIZE='1536M/P'
+export GASNET_MAX_SEGSIZE='48G/H'
 
 set -x
 
